@@ -5,7 +5,8 @@ from kivy.app import App
 from kivy.uix.button import Label
 from kivy.logger import Logger
 
-from mem_db import *
+from db import *
+from tmp import *
 
 class HelloApp(App):
     def build(self):
@@ -13,4 +14,6 @@ class HelloApp(App):
 
 if __name__=='__main__':
     Logger.info("top: hello goodbye")
-    fs_test()
+    # db_test()
+    # HelloApp().run()
+    tmp_test()

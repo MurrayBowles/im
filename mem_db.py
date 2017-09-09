@@ -2,7 +2,6 @@ from enum import Enum
 import datetime
 from kivy.logger import Logger
 
-
 class ChildNode(object):
 
     def _parent_dict(self):
@@ -156,24 +155,28 @@ class FsImg(ChildNode):
         self.db_img = db_img
 
 
-class Tag(ChildNode):
+class Tag(object):
 
     root = {}   # name -> tag
 
-    def _parent_dict(self):
-        return self.parent.children if self.parent else Tag.root
+    def _add_to_parent(self, parent):
+        if self.name in parent.children:
+            raise KeyError
+        if parent in self.parents.values():
+            raise ValueError
+        self.parents[parent.name] = parent
+        parent.children[name] = self
 
-    def _key(self):
-        return self.name
+    def _del_from_parent(self, parent):
 
-    def _set_key(self, key):
-        self.name = key
+
+
 
     def __init__(self, name, parent=None):
         self.name = name
-        self.parent = parent
         self._add()
-        self.children = {}
+        self.children = {}  # name -> Tag
+        self.parents = {}   # naem -> Tag
         self.db_dirs = set()
         self.db_imgs = set()
         self.description = None
@@ -285,7 +288,7 @@ class DbImg(ChildNode):
         self.fs_imgs.remove(fs_img)
 
 
-def fs_test():
+def mem_db_test():
     ds = DirSet(DirSetType.Internal, 'e:/photos')
     d = FsDir(ds, 'foo')
     dc = FsDir(ds, '1', d)
