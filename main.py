@@ -7,6 +7,7 @@ from kivy.logger import Logger
 
 from db import *
 from tmp import *
+from gui import *
 
 class HelloApp(App):
     def build(self):
@@ -16,4 +17,5 @@ if __name__=='__main__':
     Logger.info("top: hello goodbye")
     # db_test()
     # HelloApp().run()
-    tmp_test()
+    # tmp_test()
+    gui_test()

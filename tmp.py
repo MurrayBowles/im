@@ -27,13 +27,6 @@ class TmpDirectorySet(object):
                 self.dirs.append(td)
                 print(td.stats())
 
-def get_thumb(ipath):
-    i = Image.open(ipath)
-    i.thumbnail((200, 200))
-    bi = io.BytesIO()
-    i.save(bi, format='jpeg')
-    return bi.getvalue()
-
 class TmpDirectory(object):
 
     def __init__(self, name, pathname):
@@ -69,6 +62,12 @@ class TmpDirectory(object):
                     self.other.append(ipath)
         acquire_dir(pathname, ['.jpg', '.tif', '.psd', '.bmp', '.nef'], high_res = False)
     def get_thumbs(self):
+        def get_thumb(ipath):
+            i = Image.open(ipath)
+            i.thumbnail((200, 200))
+            bi = io.BytesIO()
+            i.save(bi, format='jpeg')
+            return bi.getvalue()
         if '.jpg' in self.imgs:
             for ipath in self.imgs['.jpg']:
                 self.thumbs[ipath] = get_thumb(ipath)
@@ -92,7 +91,7 @@ def tmp_test():
         td = TmpDirectorySet('e:/photos')
         print(td)
         print('hello')
-    if True:
+    if False:
         td = TmpDirectory('tmp', 'E:\\photos\\170902 48th')
         td.get_thumbs()
         print('hi')
@@ -103,7 +102,7 @@ def tmp_test():
         f = open('E:\\photos\\170902 48th\\lo\\170902-5085.jpg', mode='rb')
         tags = exifread.process_file(f)
         print('ha')
-    if False: #pillow
+    if True: #pillow
         i = Image.open('E:\\photos\\170902 48th\\lo\\170902-5085.jpg')
         exif = i._getexif()
         exif2 = {
@@ -116,5 +115,10 @@ def tmp_test():
         bi = io.BytesIO()
         si.save(bi, format='jpeg')
         by = bi.getvalue()
+        for segment, content in i.applist:
+            marker, body = content.split(b'\x00', 1)
+            if segment == 'APP1' and marker == b'http://ns.adobe.com/xap/1.0/':
+                # parse the XML string with any method you like
+                print('HEY')
         print('ha')
 
