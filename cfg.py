@@ -5,6 +5,7 @@ import jsonpickle
 import os
 import wx
 
+from gui_cfg import GuiCfg
 from ie_cfg import IECfg
 
 def _config_file(mode):
@@ -38,11 +39,13 @@ class Cfg(object):
             try:
                 # restore saved configuration
                 c = jsonpickle.decode(config_str)
+                self.gui = c.gui
                 self.ie = c.ie
                 return
             except:
                 pass
         # build default configuration
+        self.gui = GuiCfg()
         self.ie = IECfg()
 
     def snapshot(self):

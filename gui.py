@@ -21,7 +21,10 @@ class GuiApp(wx.App):
 class GuiTop(wx.Frame):
 
     def __init__(self):
-        wx.Frame.__init__(self, None, -1, 'Image Manager', size=(1200, 800))
+        wx.Frame.__init__(
+            self, None, -1, 'Image Manager', pos=cfg.gui.pos, size=cfg.gui.size)
+        self.Bind(wx.EVT_MOVE, self.on_moved)
+        self.Bind(wx.EVT_SIZE, self.on_sized)
 
         # menu bar
         menu_bar = wx.MenuBar()
@@ -50,6 +53,12 @@ class GuiTop(wx.Frame):
         # status bar
         self.status_bar = self.CreateStatusBar()
         pub.subscribe(self.on_set_status, 'top.status')
+
+    def on_moved(self, data):
+        cfg.gui.pos = data.GetPosition()
+
+    def on_sized(self, data):
+        cfg.gui.size = data.GetSize()
 
     def on_set_status(self, data):
         self.status_bar.SetStatusText(data)

@@ -1,7 +1,6 @@
 ''' Inport/Export configuration '''
 
 from enum import Enum
-import json
 
 class SourceType(Enum):
 
@@ -30,8 +29,3 @@ class IECfg(object):
         self.export_image_tags = True
         self.import_thumbnails = False
 
-    def to_json(self):
-        obj = {
-            'source_type': self.source_type.name
-        }
-        return json.dumps(obj)
