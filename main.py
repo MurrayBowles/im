@@ -6,8 +6,8 @@ from kivy.uix.button import Label
 from kivy.logger import Logger
 
 from db import *
-from tmp import *
 from gui import *
+from tmp import *
 
 class HelloApp(App):
     def build(self):

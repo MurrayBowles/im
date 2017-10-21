@@ -1,10 +1,18 @@
+''' top-level GUI '''
+
 import wx
+import wx.aui
+from wx.lib.pubsub import pub
+
+from cfg import *
 from ie_gui import *
 from tags_gui import *
 
 class GuiApp(wx.App):
 
     def OnInit(self):
+        self.SetAppName('ImageManagement')
+        cfg.restore()
         frame = GuiTop()
         frame.Show()
         self.SetTopWindow(frame)
@@ -28,17 +36,23 @@ class GuiTop(wx.Frame):
         panel = wx.Panel(self, -1)
 
         # notebook
-        notebook = wx.Notebook(panel)
+        # notebook = wx.Notebook(panel)
+        notebook = wx.aui.AuiNotebook(panel)
         ie_tab = ImportExportTab(notebook)
         notebook.AddPage(ie_tab, 'Import/Export')
         tags_tab = TagsTab(notebook)
         notebook.AddPage(tags_tab, 'Tags')
+
         sizer = wx.BoxSizer()
         sizer.Add(notebook, 1, wx.EXPAND)
         panel.SetSizer(sizer)
 
         # status bar
-        status_bar = self.CreateStatusBar()
+        self.status_bar = self.CreateStatusBar()
+        pub.subscribe(self.on_set_status, 'top.status')
+
+    def on_set_status(self, data):
+        self.status_bar.SetStatusText(data)
 
     def on_exit(self, event):
         self.Close()
@@ -46,3 +60,4 @@ class GuiTop(wx.Frame):
 def gui_test():
     app = GuiApp(False)
     app.MainLoop()
+    cfg.save()

@@ -1,3 +1,5 @@
+''' teg editing GUI '''
+
 import wx
 
 class TagsTab(wx.Panel):

@@ -1,3 +1,5 @@
+''' code to import/export information from the file system '''
+
 import os
 import io
 from kivy.logger import Logger
@@ -82,7 +84,7 @@ class TmpImage(object):
 
     def __init__(self, name, dir):
         self.name = name
-        dir.dirs.append(self) # FIXMEL check for duplicates?
+        dir.dirs.append(self) # FIXME: check for duplicates?
 
 def tmp_test():
     if False:

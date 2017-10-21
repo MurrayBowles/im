@@ -1,3 +1,5 @@
+''' no longer used '''
+
 from enum import Enum
 import datetime
 from kivy.logger import Logger
@@ -168,13 +170,10 @@ class Tag(object):
         parent.children[name] = self
 
     def _del_from_parent(self, parent):
-
-
-
+        pass #fixme
 
     def __init__(self, name, parent=None):
         self.name = name
-        self._add()
         self.children = {}  # name -> Tag
         self.parents = {}   # naem -> Tag
         self.db_dirs = set()
