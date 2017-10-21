@@ -1,7 +1,7 @@
 ''' code to import/export information from the file system '''
 
-import os
 import io
+import os
 from kivy.logger import Logger
 #from rawkit.raw import Raw
 #from rawphoto.nef import Nef

@@ -1,9 +1,11 @@
-''' configuration: stored as 'config' in UserConfigDir '''
+''' configuration, stored as 'im-config' in UserDataDir '''
 
+import copy
 import jsonpickle
 import os
 import wx
-from ie_cfg import *
+
+from ie_cfg import IECfg
 
 def _config_file(mode):
     user_data_path = wx.StandardPaths.Get().GetUserDataDir()
@@ -33,9 +35,18 @@ class Cfg(object):
         config_file = _config_file('r')
         if config_file is not None:
             config_str = config_file.read()
-            c = jsonpickle.decode(config_str)
-            self.ie = c.ie
-        else:
-            self.ie = IECfg()
+            try:
+                # restore saved configuration
+                c = jsonpickle.decode(config_str)
+                self.ie = c.ie
+                return
+            except:
+                pass
+        # build default configuration
+        self.ie = IECfg()
+
+    def snapshot(self):
+        ''' used when passing cfg to background threads '''
+        return copy.deepcopy(self)
 
 cfg = Cfg()

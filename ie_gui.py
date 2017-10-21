@@ -8,7 +8,7 @@ from wx.lib.pubsub import pub
 import time
 import ps
 import win32api
-from cfg import *
+from cfg import cfg
 from ie_cfg import *
 
 class IEState(Enum):
@@ -39,15 +39,18 @@ class ImportExportTab(wx.Panel):
         box.Add(self.source_picker)
 
         # flags
-        def add_flag(text):
+        def add_flag(text, cfg_attr):
             flag = wx.CheckBox(self, -1, text)
+            flag.SetValue(getattr(cfg.ie, cfg_attr))
+            flag.Bind(wx.EVT_CHECKBOX, lambda f: on_flag(f, cfg_attr), flag)
             box.Add(flag)
             return flag
-        self.get_thumbs = add_flag('get thumbnails')
-        self.check_folder_tags = add_flag('check folder tags')
-        self.set_folder_tags = add_flag('set folder tags')
-        self.check_image_tags = add_flag('check image tags')
-        self.set_image_tags = add_flag('set image tags')
+        def on_flag(event, cfg_attr):
+            setattr(cfg.ie, cfg_attr, event.GetEventObject().GetValue())
+        self.import_folder_tags = add_flag('import folder tags', 'import_folder_tags')
+        self.import_image_tags = add_flag('import image tags', 'import_image_tags')
+        self.export_image_tags = add_flag('export image tags', 'export_image_tags')
+        self.import_thumbnails = add_flag('import thumbnails', 'import_thumbnails')
 
         # action
         self.gc_box = wx.BoxSizer(wx.HORIZONTAL)

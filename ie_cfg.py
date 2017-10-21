@@ -25,6 +25,10 @@ class IECfg(object):
 
     def __init__(self):
         self.source_type = SourceType.default()
+        self.import_folder_tags = True
+        self.import_image_tags = True
+        self.export_image_tags = True
+        self.import_thumbnails = False
 
     def to_json(self):
         obj = {

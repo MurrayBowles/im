@@ -4,9 +4,9 @@ import wx
 import wx.aui
 from wx.lib.pubsub import pub
 
-from cfg import *
-from ie_gui import *
-from tags_gui import *
+from cfg import cfg
+from ie_gui import ImportExportTab
+from tags_gui import TagsTab
 
 class GuiApp(wx.App):
 
