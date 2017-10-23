@@ -6,5 +6,5 @@ class GuiCfg(object):
 
     def __init__(self):
         self.pos = (-1, -1)
-        self.size = (-1, -1)
+        self.size = (1200, 800)
 

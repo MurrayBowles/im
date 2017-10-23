@@ -39,7 +39,6 @@ class GuiTop(wx.Frame):
         panel = wx.Panel(self, -1)
 
         # notebook
-        # notebook = wx.Notebook(panel)
         notebook = wx.aui.AuiNotebook(panel)
         ie_tab = ImportExportTab(notebook)
         notebook.AddPage(ie_tab, 'Import/Export')

@@ -3,11 +3,14 @@
 import wx
 import os
 from enum import Enum
+from kivy.logger import Logger
 from threading import Thread
 from wx.lib.pubsub import pub
+import wx.lib.agw.multidirdialog as mdd
 import time
 import ps
 import win32api
+
 from cfg import cfg
 from ie_cfg import *
 
@@ -19,7 +22,7 @@ class IEState(Enum):
 
 class ImportExportTab(wx.Panel):
 
-    source_types = ['directory set', 'directory selection', 'file set', 'file selection']
+    #ource_types = ['folder set', 'folder selection', 'file set', 'file selection']
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
@@ -33,10 +36,11 @@ class ImportExportTab(wx.Panel):
         box.Add(self.source_types)
 
         # source
-        # TODO: dir-selection case
-        self.source_picker = wx.DirPickerCtrl(self, path = os.getcwd()) # FIXME: size
-        self.source_picker.Bind(wx.EVT_DIRPICKER_CHANGED, self.on_source_set)
-        box.Add(self.source_picker)
+        source_button = wx.Button(self, -1, 'Select Source')
+        source_button.Bind(wx.EVT_BUTTON, self.on_source_button)
+        box.Add(source_button)
+        self.source_box = wx.ListBox(self, -1, choices = cfg.ie.paths)
+        box.Add(self.source_box)
 
         # flags
         def add_flag(text, cfg_attr):
@@ -49,12 +53,12 @@ class ImportExportTab(wx.Panel):
             setattr(cfg.ie, cfg_attr, event.GetEventObject().GetValue())
         self.import_folder_tags = add_flag('import folder tags', 'import_folder_tags')
         self.import_image_tags = add_flag('import image tags', 'import_image_tags')
-        self.export_image_tags = add_flag('export image tags', 'export_image_tags')
         self.import_thumbnails = add_flag('import thumbnails', 'import_thumbnails')
+        self.export_image_tags = add_flag('export image tags', 'export_image_tags')
 
         # action
         self.gc_box = wx.BoxSizer(wx.HORIZONTAL)
-        self.gc_button = wx.Button(self, -1, 'Go')
+        self.gc_button = wx.Button(self, -1, 'Import/Export')
         self.ie_state = IEState.IE_IDLE
         self.gc_button.Bind(wx.EVT_BUTTON, self.on_go_cancel)
         self.gc_box.Add(self.gc_button)
@@ -70,6 +74,50 @@ class ImportExportTab(wx.Panel):
 
     def on_source_type_set(self, event):
         cfg.ie.source_type = SourceType(self.source_types.GetSelection())
+        cfg.ie.clear_paths()
+        self.source_box.Clear()
+
+    def on_source_button(self, event):
+        source_type = cfg.ie.source_type
+        message = (
+            'select ' + ['base folder', 'folders', 'base folder', 'files']
+            [source_type.value])
+        multiple = wx.FD_MULTIPLE if source_type.is_multiple() else 0
+        chooser_path = cfg.ie.chooser_path
+        if source_type.is_file():
+            dialog = wx.FileDialog(
+                self, message = message, defaultDir = chooser_path,
+                style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | multiple)
+        else:
+            if multiple != 0:
+                # FIXME: MultiDirDialog is a mess
+                dialog = mdd.MultiDirDialog(
+                    self, message = message, defaultPath = chooser_path,
+                    style = mdd.DD_DIR_MUST_EXIST | mdd.DD_MULTIPLE)
+            else:
+                dialog = wx.DirDialog(
+                    self, message = message, defaultPath = chooser_path,
+                    style = wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)
+        if dialog.ShowModal() == wx.ID_OK:
+            if source_type.is_multiple():
+                cfg.ie.paths = dialog.GetPaths()
+                if source_type == SourceType.DIR_SEL:
+                    for index, path in enumerate(cfg.ie.paths):
+                        # <label> (<volume>:)<path> => <volume>:<path>
+                        # to match results from FileFialog and DirDialog
+                        l = path.find('(')
+                        r = path.find(')')
+                        cfg.ie.paths[index] = path[l + 1 : r] + path[r + 1:]
+            else:
+                cfg.ie.paths = [dialog.GetPath()]
+            self.source_box.Clear()
+            for path in cfg.ie.paths:
+                self.source_box.Append(path)
+            try:
+                cfg.ie.chooser_path = os.path.split(cfg.ie.paths[0])[0]
+            except:
+                pass
+        pass
 
     def on_source_set(self, event):
         # TODO: dir-selection case
@@ -85,7 +133,7 @@ class ImportExportTab(wx.Panel):
         cfg.save()
         if self.ie_state == IEState.IE_IDLE:
             self.ie_state = IEState.IE_GOING
-            self.gc_button.SetLabel('Cancel')
+            self.gc_button.SetLabel('Stop')
             pub.subscribe(self.on_ie_begun, 'ie.begun')
             pub.subscribe(self.on_ie_step, 'ie.step')
             pub.subscribe(self.on_ie_done, 'ie.done')
@@ -113,7 +161,7 @@ class ImportExportTab(wx.Panel):
         self.gc_box.Remove(1)
         self.gc_box.Remove(1)
         self.ie_state = IEState.IE_IDLE
-        self.gc_button.SetLabel('Go')
+        self.gc_button.SetLabel('Import/Export')
         self.gc_button.Enable()
 
 class IEThread(Thread):
