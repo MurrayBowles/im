@@ -30,16 +30,19 @@ class ImportExportTab(wx.Panel):
         self.top_box = box
 
         # import/export type
-        self.source_types = wx.RadioBox(self, -1, 'source type', choices = SourceType.names())
+        self.source_types = wx.RadioBox(
+            self, -1, 'source type', choices = SourceType.names())
+        # TODO layout buttons correctly
         self.source_types.SetSelection(cfg.ie.source_type.value)
         self.source_types.Bind(wx.EVT_RADIOBOX, self.on_source_type_set)
         box.Add(self.source_types)
 
-        # source
+        # import/export selection
         source_button = wx.Button(self, -1, 'Select Source')
         source_button.Bind(wx.EVT_BUTTON, self.on_source_button)
         box.Add(source_button)
-        self.source_box = wx.ListBox(self, -1, choices = cfg.ie.paths)
+        self.source_box = wx.ListBox(self, -1)
+        self.fill_source_box()
         box.Add(self.source_box)
 
         # flags
@@ -110,24 +113,23 @@ class ImportExportTab(wx.Panel):
                         cfg.ie.paths[index] = path[l + 1 : r] + path[r + 1:]
             else:
                 cfg.ie.paths = [dialog.GetPath()]
-            self.source_box.Clear()
-            for path in cfg.ie.paths:
-                self.source_box.Append(path)
-            try:
-                cfg.ie.chooser_path = os.path.split(cfg.ie.paths[0])[0]
-            except:
-                pass
-        pass
+            self.fill_source_box()
 
-    def on_source_set(self, event):
-        # TODO: dir-selection case
-        self.source = self.source_picker.GetPath()
-        drive = os.path.splitdrive(self.source)[0]
-        try:
-            volume_label = win32api.GetVolumeInformation(drive)[0]
-        except:
-            volume_label = '(unlabelled)'
-        ps.set_status(volume_label)
+    def fill_source_box(self):
+        volume_label = 'unlabelled volume'
+        self.source_box.Clear()
+        for path in cfg.ie.paths:
+            try:
+                drive = os.path.splitdrive(path)[0]
+                new_volume_label = win32api.GetVolumeInformation(drive)[0]
+            except:
+                new_volume_label = 'unlabelled volume'
+            if new_volume_label != volume_label:
+                self.source_box.Append('[' + new_volume_label + ']')
+                volume_label = new_volume_label
+            self.source_box.Append(path)
+        self.source_box.Fit()
+        self.top_box.Layout()
 
     def on_go_cancel(self, event):
         cfg.save()

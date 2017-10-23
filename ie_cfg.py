@@ -5,10 +5,10 @@ import wx
 
 class SourceType(Enum):
 
-    DIR_SET = 0
-    DIR_SEL = 1
-    FILE_SET = 2
-    FILE_SEL = 3
+    DIR_SET = 0     # specify the parent directory of a set of directories
+    DIR_SEL = 1     # specify a selection of directories
+    FILE_SET = 2    # specify the parent directory of a set of files
+    FILE_SEL = 3    # specify a selection of files
 
     @classmethod
     def default(cls):
@@ -34,6 +34,8 @@ class IECfg(object):
 
     def __init__(self):
         self.source_type = SourceType.default()
+        self.chooser_path = ''
+        self.paths = []
         self.clear_paths()
         self.import_folder_tags = True
         self.import_image_tags = True
@@ -43,4 +45,3 @@ class IECfg(object):
     def clear_paths(self):
         self.chooser_path = wx.StandardPaths.Get().GetDocumentsDir()
         self.paths = []
-
