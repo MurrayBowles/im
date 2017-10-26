@@ -1,13 +1,16 @@
+''' database classes '''
+
 import enum
 
 from sqlalchemy import create_engine
 engine = create_engine('sqlite:///:memory:', echo=True)
-#FIXME: postgresql
+#TODO: postgresql
 
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, LargeBinary, String, Table, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer
+from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import relationship
 
 tagged_items = Table('tagged_items', Base.metadata,

@@ -1,5 +1,6 @@
 ''' top-level GUI '''
 
+import logging
 import wx
 import wx.aui
 from wx.lib.pubsub import pub
@@ -16,6 +17,16 @@ class GuiApp(wx.App):
         frame = GuiTop()
         frame.Show()
         self.SetTopWindow(frame)
+
+        # logging
+        handler = logging.FileHandler(
+            wx.StandardPaths.Get().GetUserDataDir() + '\\im-log', 'w')
+        handler.setLevel(logging.DEBUG)
+        format = '%(thread)5d  %(module)-8s %(levelname)-8s %(message)s'
+        formatter = logging.Formatter(format)
+        handler.setFormatter(formatter)
+        logging.getLogger().addHandler(handler)
+        logging.info('log file started')
         return True
 
 class GuiTop(wx.Frame):
@@ -60,6 +71,7 @@ class GuiTop(wx.Frame):
         cfg.gui.size = data.GetSize()
 
     def on_set_status(self, data):
+        logging.info('status := %s', data)
         self.status_bar.SetStatusText(data)
 
     def on_exit(self, event):

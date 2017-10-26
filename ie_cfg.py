@@ -1,4 +1,4 @@
-''' Inport/Export configuration '''
+''' persistent data for Import/Export: cfg.ie '''
 
 from enum import Enum
 import wx

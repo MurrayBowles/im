@@ -1,4 +1,4 @@
-''' configuration, stored as 'im-config' in UserDataDir '''
+''' per-user persistent app data, stored jsonpicked in UserDataDir/im-config '''
 
 import copy
 import jsonpickle
@@ -23,7 +23,7 @@ def _config_file(mode):
 class Cfg(object):
 
     def __init__(self):
-        what = 'Image Management configuration'
+        self.what = 'Image Management configuration'
 
     def save(self):
         config_file = _config_file('w')
@@ -47,9 +47,10 @@ class Cfg(object):
         # build default configuration
         self.gui = GuiCfg()
         self.ie = IECfg()
+        pass
 
     def snapshot(self):
         ''' used when passing cfg to background threads '''
         return copy.deepcopy(self)
 
-cfg = Cfg()
+cfg = Cfg() # per-user persistent app data

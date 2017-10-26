@@ -1,4 +1,4 @@
-''' teg editing GUI '''
+''' tag editing GUI '''
 
 import wx
 

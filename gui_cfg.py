@@ -1,4 +1,4 @@
-''' toplevel GUI configuration '''
+''' persistent data for GUI: cfg.gui '''
 
 import wx
 

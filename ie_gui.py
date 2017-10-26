@@ -1,18 +1,18 @@
 ''' import/export GUI '''
 
-import wx
-import os
 from enum import Enum
-from kivy.logger import Logger
+import logging
+import os
+import ps
 from threading import Thread
+import time
+import wx
 from wx.lib.pubsub import pub
 import wx.lib.agw.multidirdialog as mdd
-import time
-import ps
-import win32api
 
 from cfg import cfg
 from ie_cfg import *
+import util
 
 class IEState(Enum):
 
@@ -116,16 +116,13 @@ class ImportExportTab(wx.Panel):
             self.fill_source_box()
 
     def fill_source_box(self):
-        volume_label = 'unlabelled volume'
+        volume_label = ''
         self.source_box.Clear()
         for path in cfg.ie.paths:
-            try:
-                drive = os.path.splitdrive(path)[0]
-                new_volume_label = win32api.GetVolumeInformation(drive)[0]
-            except:
-                new_volume_label = 'unlabelled volume'
+            new_volume_label = util.volume_label(path)
             if new_volume_label != volume_label:
-                self.source_box.Append('[' + new_volume_label + ']')
+                text = new_volume_label if new_volume_label != '' else 'unlabelled volume'
+                self.source_box.Append('[' + text + ']')
                 volume_label = new_volume_label
             self.source_box.Append(path)
         self.source_box.Fit()
@@ -134,6 +131,7 @@ class ImportExportTab(wx.Panel):
     def on_go_cancel(self, event):
         cfg.save()
         if self.ie_state == IEState.IE_IDLE:
+            logging.info('import/export begun')
             self.ie_state = IEState.IE_GOING
             self.gc_button.SetLabel('Stop')
             pub.subscribe(self.on_ie_begun, 'ie.begun')
@@ -141,6 +139,7 @@ class ImportExportTab(wx.Panel):
             pub.subscribe(self.on_ie_done, 'ie.done')
             self.ie_thread = IEThread(self)
         elif self.ie_state == IEState.IE_GOING:
+            logging.info('import/export stopping')
             self.ie_state = IEState.IE_CANCELLING
             self.gc_button.Disable()
 
@@ -160,6 +159,7 @@ class ImportExportTab(wx.Panel):
         self.gc_stats.SetLabel('%u/%u' % (self.ie_cur_steps, self.ie_total_steps))
 
     def on_ie_done(self):
+        logging.info('import/export ended')
         self.gc_box.Remove(1)
         self.gc_box.Remove(1)
         self.ie_state = IEState.IE_IDLE
