@@ -3,6 +3,7 @@
 from enum import Enum
 import wx
 
+
 class SourceType(Enum):
 
     DIR_SET = 0     # specify the parent directory of a set of directories
@@ -30,18 +31,53 @@ class SourceType(Enum):
     def is_multiple(self):
         return self == SourceType.DIR_SEL or self == SourceType.FILE_SEL
 
+
+class IEReport(object):
+
+    def __init__(self, type, data, report_list = []):
+        self.type = type
+        self.data = data
+        self.children = []
+        if report_list is not None:
+            report_list.append(self)
+
+    def map_lines(self, fn, nest = 0):
+        l = self.type
+        if self.data is not None:
+            l += ' ' + str(self.data)
+        for c in self.children:
+            map_lines(c, fn, nest + 1)
+
+
+class IEFolderAct(Enum):
+    ''' import/export actions on a folder '''
+    SCAN = 0        # scan folder and its images
+    IMPORT_TAGS = 1 # import folder tags
+
+
+class IEImageAct(Enum):
+    ''' import/export actions on an image file '''
+    IMPORT_TAGS = 0     # import image tags
+    EXPORT_TAGS = 1     # export image tags
+    IMPORT_THUMBS = 2   # import image thimbnails
+
+
 class IECfg(object):
 
     def __init__(self):
-        self.source_type = SourceType.default()
         self.chooser_path = ''
+        self.source_type = SourceType.default()
         self.paths = []
         self.clear_paths()
         self.import_folder_tags = True
         self.import_image_tags = True
         self.export_image_tags = True
         self.import_thumbnails = False
+        self.reports = []
 
     def clear_paths(self):
         self.chooser_path = wx.StandardPaths.Get().GetDocumentsDir()
         self.paths = []
+
+    def clear_reports(self):
+        self.reports = []

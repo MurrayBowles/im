@@ -3,10 +3,10 @@ import wx
 
 from db import *
 from gui import *
-from tmp import *
+from ie import *
 
 if __name__=='__main__':
     # db_test()
-    # tmp_test()
-    gui_test()
+    ie_test()
+    # gui_test()
 

@@ -1,20 +1,26 @@
-''' code to import/export information from the file system '''
+''' import/export folders/images from/to the file system '''
 
+from enum import Enum
 import io
+import logging
 import os
-from kivy.logger import Logger
+
 #from rawkit.raw import Raw
 #from rawphoto.nef import Nef
 import exifread
 from PIL import Image #pillow
 import PIL.ExifTags
 
-class TmpDirectorySet(object):
+from ie_cfg import IECfg, IEReport
+
+
+class IEFolderSet(object):
 
     def __init__(self, pathname=''):
         self.pathname = pathname
-        self.dirs = []
+        self.folders = []
         self.acquire()
+
     def acquire(self):
         if not os.access(self.pathname, os.R_OK):
             self.online = False
@@ -25,13 +31,15 @@ class TmpDirectorySet(object):
         for d in l:
             dpath = self.pathname + '/' + d
             if os.path.isdir(dpath):
-                td = TmpDirectory(d, dpath)
-                self.dirs.append(td)
-                print(td.stats())
+                tf = IEFolder(d, dpath)
+                self.folders.append(tf)
+                logging.debug('acquired folder: %s', tf.stats())
 
-class TmpDirectory(object):
 
-    def __init__(self, name, pathname):
+class IEFolder(object):
+
+    def __init__(self, date, name, pathname):
+        self.date = date
         self.name = name
         self.dirs = []
         self.imgs = {}
@@ -39,9 +47,10 @@ class TmpDirectory(object):
         self.doc = []
         self.other = []
         self.acquire(pathname)
+
     def acquire(self, pathname):
         def acquire_dir(pathname, img_extensions, high_res):
-            #print('dir.acquire ' + pathname)
+            logging.debug('IEFolder.acquire_dir(%s)', pathname)
             l = os.listdir(pathname)
             for i in l:
                 ipath = pathname + '/' + i
@@ -63,6 +72,7 @@ class TmpDirectory(object):
                 elif ext != '.zip':
                     self.other.append(ipath)
         acquire_dir(pathname, ['.jpg', '.tif', '.psd', '.bmp', '.nef'], high_res = False)
+
     def get_thumbs(self):
         def get_thumb(ipath):
             i = Image.open(ipath)
@@ -73,6 +83,7 @@ class TmpDirectory(object):
         if '.jpg' in self.imgs:
             for ipath in self.imgs['.jpg']:
                 self.thumbs[ipath] = get_thumb(ipath)
+
     def stats(self):
         imgs = ''
         for k, l in self.imgs.items():
@@ -80,22 +91,43 @@ class TmpDirectory(object):
         return self.name + ': ' + str(len(self.dirs)) + ' dirs' + imgs + ', ' + \
                str(len(self.doc)) + ' doc, ' + str(len(self.other)) + ' other'
 
-class TmpImage(object):
+
+class IEImage(object):
 
     def __init__(self, name, dir):
         self.name = name
         dir.dirs.append(self) # FIXME: check for duplicates?
 
-def tmp_test():
+
+def import_export(ie_cfg, progress, db):
+    ''' transfers data between directories and image files
+        and folder and image objects in the database
+
+        uses .source_type and .paths, and the import/export flags
+        from ie_cfg
+
+        calls progress to report progress:
+            progress('ie.begun', #items)
+            progress('ie.step)
+            progress('ie.done')
+
+        accesses the database db's methods (db.py)
+
+        returns an IEReport list
+    '''
+    reports = []
+    return reports
+
+def _ie_test():
     if False:
         print('hello')
-        TmpDirectorySet('q:/photos')
-        td = TmpDirectorySet('e:/photos')
-        print(td)
+        IEFolderSet('q:/photos')
+        iefs = IEFolderSet('e:/photos')
+        print(iefs)
         print('hello')
     if False:
-        td = TmpDirectory('tmp', 'E:\\photos\\170902 48th')
-        td.get_thumbs()
+        ief = IEFolder('tmp', 'E:\\photos\\170902 48th')
+        ief.get_thumbs()
         print('hi')
     if False: #rawphoto
         n = Nef(filename='E:\\photos\\170902 48th\\nefs\\DSC_5084.NEF')
@@ -104,7 +136,7 @@ def tmp_test():
         f = open('E:\\photos\\170902 48th\\lo\\170902-5085.jpg', mode='rb')
         tags = exifread.process_file(f)
         print('ha')
-    if True: #pillow
+    if False: #pillow
         i = Image.open('E:\\photos\\170902 48th\\lo\\170902-5085.jpg')
         exif = i._getexif()
         exif2 = {
@@ -123,4 +155,9 @@ def tmp_test():
                 # parse the XML string with any method you like
                 print('HEY')
         print('ha')
+
+
+if __name__ == '__main__':
+    _ie_test()
+
 

@@ -136,7 +136,7 @@ class ImportExportTab(wx.Panel):
             self.gc_button.SetLabel('Stop')
             pub.subscribe(self.on_ie_begun, 'ie.begun')
             pub.subscribe(self.on_ie_step, 'ie.step')
-            pub.subscribe(self.on_ie_done, 'ie.done')
+            pub.subscribe(self.on_ie_ended, 'ie.ended')
             self.ie_thread = IEThread(self)
         elif self.ie_state == IEState.IE_GOING:
             logging.info('import/export stopping')
@@ -158,7 +158,7 @@ class ImportExportTab(wx.Panel):
         self.gc_progress.SetValue(self.ie_cur_steps)
         self.gc_stats.SetLabel('%u/%u' % (self.ie_cur_steps, self.ie_total_steps))
 
-    def on_ie_done(self):
+    def on_ie_ended(self):
         logging.info('import/export ended')
         self.gc_box.Remove(1)
         self.gc_box.Remove(1)
@@ -182,4 +182,4 @@ class IEThread(Thread):
                 break
             time.sleep(1)
             pub.sendMessage('ie.step', data = 1)
-        pub.sendMessage('ie.done')
+        pub.sendMessage('ie.ended')
