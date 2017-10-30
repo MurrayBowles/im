@@ -148,6 +148,7 @@ class DbTag(DbItem):
     # DbTag tree
     parent_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     parent = relationship('DbTag', remote_side=[id], foreign_keys=[parent_id])
+    children = relationship('DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent')
 
     # DbTag <<->> DbItem
     items = relationship('DbItem', secondary=tagged_items, back_populates='tags')

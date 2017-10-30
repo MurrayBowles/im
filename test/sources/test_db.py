@@ -49,10 +49,10 @@ class _Tester(object):
         raise NotImplementedError
 
     def _do_find(self, key):
-        try:
-            obj = self.find(key)
-        except:
-            obj = None
+        #try:
+        obj = self.find(key)
+        #except:
+        #    obj = None
         return obj
 
     def find2(self, key2):
@@ -65,6 +65,10 @@ class _Tester(object):
         #except:
         #    obj = None
         return obj
+
+    def test_deps(self, obj):
+        # test the dependency linkage
+        pass
 
     def create(self, key):
         # create and return a new object
@@ -93,6 +97,7 @@ class _Tester(object):
             assert found_obj2 is obj
         self.key = key
         self.obj = obj
+        self.test_deps(obj)
         return obj
 
     def delete(self):
@@ -185,6 +190,25 @@ class _DbTag_Tester(_Tester):
         return session.query(DbTag).filter_by(id=key).first()
 
 
+class _DbTagTree_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [_DbTag_Tester]
+
+    def create(self, key):
+        tag = DbTag(
+            parent=self.dep_objs[0], name=_mk_name('tag'))
+        return tag
+
+    def find(self, key):
+        return session.query(DbTag).filter_by(id=key).first()
+
+    def test_deps(self, obj):
+        assert obj.parent is self.dep_objs[0]
+        assert self.dep_objs[0].children[0] is obj
+
+
 class _DbTagReplacement_Tester(_Tester):
 
     def __init__(self):
@@ -199,6 +223,26 @@ class _DbTagReplacement_Tester(_Tester):
 
     def find(self, key):
         return session.query(DbTag).filter_by(id=key).first()
+
+    def test_deps(self, obj):
+        assert obj.base_tag is self.dep_objs[0]
+
+
+class _DbTagFolder_Tester(_Tester):
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [_DbFolder_Tester]
+
+    def create(self, key):
+        tag = DbTag(parent=None, name=_mk_name('tag'), items=[self.dep_objs[0]])
+        return tag
+
+    def find(self, key):
+        return session.query(DbTag).filter_by(id=key).first()
+
+    def test_deps(self, obj):
+        assert obj.items[0] is self.dep_objs[0]
+        assert self.dep_objs[0].tags[0] is obj
 
 
 def test_classes():
