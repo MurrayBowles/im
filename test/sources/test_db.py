@@ -138,6 +138,22 @@ class _DbFolder_Tester(_Tester):
         ).first()
 
 
+class _DbCollection_Tester(_Tester):
+
+    def create(self, key):
+        collection = DbCollection(name=_mk_name('collection'))
+        return collection
+
+    def find(self, key):
+        return  session.query(DbCollection).filter_by(id=key).first()
+
+    def get_key2(self, obj):
+        return obj.name
+
+    def find2(self, key):
+        return session.query(DbCollection).filter_by(name=key).first()
+
+
 class _DbImage_Tester(_Tester):
 
     def __init__(self):
@@ -158,6 +174,31 @@ class _DbImage_Tester(_Tester):
         return session.query(DbImage).join(DbImage.folder).filter(
             DbFolder.date == key[0], DbImage.name == key[1]
         ).first()
+
+class _DbTag_Tester(_Tester):
+
+    def create(self, key):
+        tag = DbTag(parent=None, name=_mk_name('tag'))
+        return tag
+
+    def find(self, key):
+        return session.query(DbTag).filter_by(id=key).first()
+
+
+class _DbTagReplacement_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [_DbTag_Tester]
+
+    def create(self, key):
+        tag = DbTag(
+            parent=None, name=_mk_name('tag'),
+            tag_type=DbTagType.REPLACED_BY, base_tag=self.dep_objs[0])
+        return tag
+
+    def find(self, key):
+        return session.query(DbTag).filter_by(id=key).first()
 
 
 def test_classes():
