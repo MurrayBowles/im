@@ -13,8 +13,7 @@ from sqlalchemy.orm import backref, relationship
 
 from ie_cfg import IEFolderAct, IEImageAct
 
-
-''' DbXxx: the database's representation of folders/images/tags/notes '''
+# DbXxx: the database's representation of folders/images/tags/notes
 
 # DbTag <<->> DbItem
 tagged_items = Table('tagged-items', Base.metadata,
@@ -52,7 +51,7 @@ class DbItem(Base):
 
 
 def yymmdd(iso_date):
-    ''' YYYY-MM-DD => YYMMDD '''
+    ''' convert YYYY-MM-DD => YYMMDD. '''
     return str(iso_date)[2:].replace('-', '')
 
 
