@@ -71,7 +71,7 @@ class _Tester(object):
         pass
 
     def create(self, key):
-        # create and return a new object
+        # create and return a new object(DbTextType.URL)ject
         raise NotImplementedError
 
     def add(self):
@@ -218,7 +218,7 @@ class _DbTagReplacement_Tester(_Tester):
     def create(self, key):
         tag = DbTag(
             parent=None, name=_mk_name('tag'),
-            tag_type=DbTagType.REPLACED_BY, base_tag=self.dep_objs[0])
+            tag_type=DbTagType.REPLACED_BY.value, base_tag=self.dep_objs[0])
         return tag
 
     def find(self, key):
@@ -243,6 +243,45 @@ class _DbTagFolder_Tester(_Tester):
     def test_deps(self, obj):
         assert obj.items[0] is self.dep_objs[0]
         assert self.dep_objs[0].tags[0] is obj
+
+class _DbNoteType_Tester(_Tester):
+    def create(self, key):
+        note_type = DbNoteType(
+            name=_mk_name('notetype'), text_type=DbTextType.TEXT.value)
+        return note_type
+
+    def find(self, key):
+        return  session.query(DbNoteType).filter_by(id=key).first()
+
+
+class _DbNote_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [_DbNoteType_Tester, _DbImage_Tester]
+
+    def mk_key(self):
+        return (self.dep_objs[1].id, 1)
+
+    def create(self, key):
+        note = DbNote(
+            type=self.dep_objs[0],
+            item_id=key[0],
+            seq=key[1],
+            text=_mk_name('text'))
+        return note
+
+    def get_key(self, obj):
+        return (obj.item.id, obj.seq)
+
+    def find(self, key):
+        return session.query(DbNote).filter(
+            DbNote.item_id == key[0], DbNote.seq == key[1]
+        ).first()
+
+    def test_deps(self, obj):
+        assert obj.item is self.dep_objs[1]
+        assert obj.item.notes[0] is obj
 
 
 def test_classes():

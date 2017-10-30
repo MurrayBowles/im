@@ -1,6 +1,6 @@
 ''' database classes '''
 
-from enum import Enum
+from enum import Enum as PyEnum
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -35,9 +35,8 @@ class DbItem(Base):
     # DbItem <<->> DbTag
     tags = relationship('DbTag', secondary=tagged_items, back_populates='items')
 
-    if False:
-        # DbItem <->> DbNote
-        notes = relationship('DbNote', foreign_keys='[DbNote.item_id]', back_populates='item')
+    # DbItem <->> DbNote
+    notes = relationship('DbNote', foreign_keys='[DbNote.item_id]', back_populates='item')
 
     def __repr__(self):
         # this should always be overloaded
@@ -128,12 +127,12 @@ class DbImage(DbItem):
         return '<Image %s-%s>' % (yymmdd(self.folder.date), self.name)
 
 
-class DbTagType(Enum):
+class DbTagType(PyEnum):
     '''' the relation between a tag and its .base_tag '''
 
-    BASE = 1  # this is a normal base tag; .base_tag is None
-    IDENTITY_IS = 2  # this tag refers to the person/place/thing represented by .base_tag
-    REPLACED_BY = 3  # this tag has been replaced by .base_tag
+    BASE = 1        # this is a normal (base) tag; .base_tag is None
+    IDENTITY_IS = 2 # this tag refers to the person/place/thing represented by .base_tag
+    REPLACED_BY = 3 # this tag has been replaced by .base_tag
     DEPRECATED = 4  # this tag is deprecated; .base_tag is None
 
 
@@ -173,3 +172,40 @@ class DbTag(DbItem):
         return "<Tag %s>" % tag_str(self)
 
 
+class DbTextType(PyEnum):
+    ''' the syntax of a DbNote's text '''
+    TEXT = 1        # simple text
+    URL = 2         # a URL
+
+
+class DbNoteType(Base):
+    ''' the type of a DbNote (e.g. name, location, PBase page,...) '''
+    __tablename__ = 'db-note-type'
+    id = Column(Integer, primary_key=True)
+
+    name = Column(String(30))
+    text_type = Column(Integer)  # DbNoteType enumeration
+
+    def __repr__(self):
+        return '<NoteType %s: %s' % (self.name, DbTextType(self.text_type).name)
+
+class DbNote(Base):
+    ''' a text note on a DbItem '''
+    __tablename__ = 'db-note'
+
+    # DbNote <<-> DbItem (a DbItem contains a list of DbNotes)
+    item_id = Column(Integer, ForeignKey('db-item.id'), primary_key=True)
+    item = relationship('DbItem', foreign_keys=[item_id], back_populates='notes')
+    seq = Column(Integer, primary_key=True)  # GUI ordering
+
+    text = Column(String(100))
+
+    # DbNote -> DbNoteType
+    type_id = Column(Integer, ForeignKey('db-note-type.id'))
+    type = relationship("DbNoteType", backref=backref("db-note", uselist=False))
+
+    def __repr__(self):
+        return '<Note %s[%s%s]>' % (
+            str(self.item),
+            self.type.name,
+            str(self.seq) if self.seq != 1 else '')
