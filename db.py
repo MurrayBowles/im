@@ -61,11 +61,11 @@ class DbFolder(DbItem):
     # DbFolder <->> DbImage
     images = relationship('DbImage', foreign_keys='[DbImage.folder_id]', back_populates='folder')
 
-    if False:
-        # DbFolder <->> FsFolder
-        fs_folders = relationship(
-            'FsFolder', foreign_keys='[FsFolder.db_folder_id]', back_populates='db_folder')
+    # DbFolder <->> FsFolder
+    fs_folders = relationship(
+        'FsFolder', foreign_keys='[FsFolder.db_folder_id]', back_populates='db_folder')
 
+    if False:
         # DbFolder -> thumbnail DbImage
         thumbnail_id = Column(Integer, ForeignKey('thumbnail.id'))
         thumbnail = relationship("DbImage", backref=backref("db-folder", uselist=False))
@@ -209,3 +209,83 @@ class DbNote(Base):
             str(self.item),
             self.type.name,
             str(self.seq) if self.seq != 1 else '')
+
+
+''' FsXxx: an inventory of what's been imported when, and from where in the filesystem '''
+
+
+class FsTagSource(Base):
+    ''' the person/organization who tagged a set of folders/images being imported '''
+    __tablename__ = 'fs-tag-source'
+
+    id = Column(Integer, primary_key=True)
+    description = Column(String(100))
+
+    def __repr__(self):
+        return '<FsTagSource %s>' % self.description
+
+
+class FsSourceType(PyEnum):
+    ''' whether the FsSource is a directory of directories or a directory of image files '''
+    DIR_SET = 1
+    FILE_SET = 2
+
+
+class FsSource(Base):
+    ''' the filesystem parent directory from which a set of folders/images was imported '''
+    __tablename__ = 'fs-source'
+
+    id = Column(Integer, primary_key=True)
+
+    description = Column(String(100))
+    type = Column(Integer)      # FsSourceType
+    volume = Column(String(32)) # '<volume letter>:' or '<volume label>'
+    path = Column(String(260))  # volume pathname
+    readonly = Column(Boolean)
+
+    # FsSource -> FsTagSourceId
+    tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'))
+    tag_source = relationship('FsTagSource', backref=backref('fs-tag-source', uselist=False))
+
+    if True:
+        # FsSource <->> FsFolder
+        folders = relationship(
+            'FsFolder', foreign_keys='[FsFolder.source_id]', back_populates='source')
+
+    def label(self):
+        return self.volume if self.volume is not None and not self.volume.endswith(':') else None
+
+    def __repr__(self):
+        return '<FsSource %s>' % (
+            self.label() if self.label() is not None else self.description)
+
+
+class FsFolder(Base):
+    ''' a filesystem source from which DbFolder were imported
+        if source.type is dir_set, this is a filesystem directory
+        if source.type is file_set, this is a group of files with (say) a common prefix
+    '''
+    __tablename__ = 'fs-folder'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100))
+
+    # last-import timestamps
+    last_scan = Column('last-scan', DateTime)
+    last_import_tags = Column('last-import-tags', DateTime)
+
+    # FsFolder <<-> FsSource
+    source_id = Column(Integer, ForeignKey('fs-source.id'))
+    source = relationship('FsSource', foreign_keys=[source_id], back_populates='folders')
+
+    # FsFolder <<-> DbFolder
+    db_folder_id = Column(Integer, ForeignKey('db-folder.id'))
+    db_folder = relationship('DbFolder', foreign_keys=[db_folder_id], back_populates='fs_folders')
+
+    if False:
+        # FsFolder <->> FsImage
+        images = relationship('FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
+
+    def __repr__(self):
+        return "<FsFolder %s/%s>" % (str(self.source), self.name)
+

@@ -284,6 +284,64 @@ class _DbNote_Tester(_Tester):
         assert obj.item.notes[0] is obj
 
 
+class _FsTagSource_Tester(_Tester):
+
+    def create(self, key):
+        tag_source = FsTagSource(description=_mk_name('source'))
+        return tag_source
+
+    def find(self, key):
+        return  session.query(FsTagSource).filter_by(id=key).first()
+
+
+class _FsSource_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [_FsTagSource_Tester]
+
+    def create(self, key):
+        source = FsSource(
+            description=_mk_name('desc'),
+            type=FsSourceType.DIR_SET.value,
+            volume=_mk_name('lbl'),
+            path=_mk_name('path'),
+            readonly=False,
+            tag_source=self.dep_objs[0]
+        )
+        return source
+
+    def find(self, key):
+        return  session.query(FsSource).filter_by(id=key).first()
+
+
+class _FsFolder_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [
+            _FsSource_Tester,
+            _DbFolder_Tester
+        ]
+
+    def create(self, key):
+        source = FsFolder(
+            name=_mk_name('fsFolder'),
+            source=self.dep_objs[0],
+            db_folder=self.dep_objs[1]
+        )
+        return source
+
+    def find(self, key):
+        return  session.query(FsFolder).filter_by(id=key).first()
+
+    def test_deps(self, obj):
+        assert obj.source is self.dep_objs[0]
+        assert obj.source.folders[0] is obj
+        assert obj.db_folder is self.dep_objs[1]
+        assert obj.db_folder.fs_folders[0] is obj
+
+
 def test_classes():
     for cls in _Tester.__subclasses__():
         test_obj = cls()
