@@ -17,10 +17,18 @@ from ie_cfg import IEFolderAct, IEImageAct
 ''' DbXxx: the database's representation of folders/images/tags/notes '''
 
 # DbTag <<->> DbItem
-tagged_items = Table('tagged_items', Base.metadata,
+tagged_items = Table('tagged-items', Base.metadata,
     Column('tag_id', Integer, ForeignKey('db-tag.id')),
     Column('item_id', Integer, ForeignKey('db-item.id'))
 )
+
+
+# DbImage <<->> DbCollection
+image_collections = Table('image-collections', Base.metadata,
+    Column('image_id', Integer, ForeignKey('db-image.id')),
+    Column('collection_id', Integer, ForeignKey('db-collection.id'))
+)
+
 
 class DbItem(Base):
     ''' something which has a name and can be tagged: a Folder, Collection, Image, or Tag '''
@@ -83,9 +91,8 @@ class DbCollection(DbItem):
     id = Column(Integer, ForeignKey('db-item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'db-collection'}
 
-    if False:
-        # DbCollection <<->> DbImage
-        images = relationship('DbImage', secondary=image_collections, back_populates='collections')
+    # DbCollection <<->> DbImage
+    images = relationship('DbImage', secondary=image_collections, back_populates='collections')
 
     # DbCollection -> thumbnail DbImage
     thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
@@ -112,9 +119,8 @@ class DbImage(DbItem):
     folder_id = Column(Integer, ForeignKey('db-folder.id'))
     folder = relationship('DbFolder', foreign_keys=[folder_id], back_populates='images')
 
-    if False:
-        # DbImage <<->> DbCollection
-        collections = relationship('DbCollection', secondary=image_collections, back_populates='images')
+    # DbImage <<->> DbCollection
+    collections = relationship('DbCollection', secondary=image_collections, back_populates='images')
 
     # DbImage <->> FsImage (filesystem locations where the image files are found)
     fs_images = relationship(

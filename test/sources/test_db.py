@@ -222,6 +222,28 @@ class _DbCollectionThumb_Tester(_Tester):
         assert obj.thumbnail is self.dep_objs[0]
 
 
+class _DbCollectionImage_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [_DbImage_Tester]
+
+    def create(self, key):
+        folder = DbCollection(
+            name=_mk_name('collection'),
+            images=[self.dep_objs[0]]
+        )
+        return folder
+
+    def find(self, key):
+        return  session.query(DbCollection).filter_by(id=key).first()
+
+    def test_deps(self, obj):
+        image = self.dep_objs[0]
+        assert obj.images[0] is image
+        assert image.collections[0] is obj
+
+
 class _DbTag_Tester(_Tester):
 
     def create(self, key):
@@ -417,11 +439,6 @@ class _FsImage_Tester(_Tester):
         assert obj.folder.images[0] is obj
         assert obj.db_image is self.dep_objs[1]
         assert obj.db_image.fs_images[0] is obj
-
-
-
-
-
 
 
 def test_classes():
