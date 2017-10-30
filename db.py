@@ -65,10 +65,9 @@ class DbFolder(DbItem):
     fs_folders = relationship(
         'FsFolder', foreign_keys='[FsFolder.db_folder_id]', back_populates='db_folder')
 
-    if False:
-        # DbFolder -> thumbnail DbImage
-        thumbnail_id = Column(Integer, ForeignKey('thumbnail.id'))
-        thumbnail = relationship("DbImage", backref=backref("db-folder", uselist=False))
+    # DbFolder -> thumbnail DbImage
+    thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
+    thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
     Index('db-folder-index', 'name', unique=True)
 
@@ -88,9 +87,9 @@ class DbCollection(DbItem):
         # DbCollection <<->> DbImage
         images = relationship('DbImage', secondary=image_collections, back_populates='collections')
 
-        # DbCollection -> thumbnail DbImage
-        thumbnail_id = Column(Integer, ForeignKey('thumbnail.id'))
-        thumbnail = relationship("DbImage", backref=backref("db-collection", uselist=False))
+    # DbCollection -> thumbnail DbImage
+    thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
+    thumbnail = relationship("DbImage", foreign_keys='[DbCollection.thumbnail_id]')
 
     Index('db-collection-index', 'name', unique=True)
 
