@@ -76,7 +76,11 @@ class DbFolder(DbItem):
     thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
-    Index('db-folder-index', 'name', unique=True)
+    Index('db-folder-index', 'date, ''name', unique=True)
+
+    @classmethod
+    def find(cls, session,  date, name):
+        return session.query(DbFolder).filter_by(date=date, name=name).first()
 
     def __repr__(self):
         return '<DbFolder %s %s>' % (yymmdd(self.date), self.name)
@@ -98,6 +102,10 @@ class DbCollection(DbItem):
     thumbnail = relationship("DbImage", foreign_keys='[DbCollection.thumbnail_id]')
 
     Index('db-collection-index', 'name', unique=True)
+
+    @classmethod
+    def find(cls, session,  name):
+        return session.query(DbCollection).filter_by(name=name).first()
 
     def __repr__(self):
         return '<Collection %s>' % self.name
@@ -125,7 +133,11 @@ class DbImage(DbItem):
     fs_images = relationship(
         'FsImage', foreign_keys='[FsImage.db_image_id]', back_populates='db_image')
 
-    Index('db-image-index', 'folder.date', 'name')
+    Index('db-image-index', 'folder_id', 'name', unique=True)
+
+    @classmethod
+    def find(cls, session, db_folder,  name):
+        return session.query(DbImage).filter_by(folder_id=db_folder.id, name=name).first()
 
     def __repr__(self):
         return '<Image %s-%s>' % (yymmdd(self.folder.date), self.name)
@@ -241,10 +253,12 @@ class FsSource(Base):
 
     id = Column(Integer, primary_key=True)
 
-    description = Column(String(100))
-    type = Column(Integer)      # FsSourceType
+    # secondary key (TODO enforce uniqueness)
     volume = Column(String(32)) # '<volume letter>:' or '<volume label>'
     path = Column(String(260))  # volume pathname
+
+    description = Column(String(100))
+    type = Column(Integer)      # FsSourceType
     readonly = Column(Boolean)
 
     # FsSource -> FsTagSourceId
@@ -254,6 +268,10 @@ class FsSource(Base):
     # FsSource <->> FsFolder
     folders = relationship(
         'FsFolder', foreign_keys='[FsFolder.source_id]', back_populates='source')
+
+    @classmethod
+    def find(cls, session, volume, path):
+        return session.query(FsSource).filter_by(volume=volume, path=path).first()
 
     def label(self):
         return self.volume if self.volume is not None and not self.volume.endswith(':') else None
@@ -302,11 +320,17 @@ class FsImage(Base):
     # FsImage <<-> FsFolder (an FsFolder contains a list of FsImages)
     folder_id = Column(Integer, ForeignKey('fs-folder.id'), primary_key=True)
     folder = relationship('FsFolder', foreign_keys=[folder_id], back_populates='images')
-    name = Column(String(10))  # '<seq number>[<suffix>]'
+    name = Column(String(10), primary_key=True)  # '<seq number>[<suffix>]'
 
     # FsImage <<-> DbImage
     db_image_id = Column(Integer, ForeignKey('db-image.id'))
     db_image = relationship('DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
+
+    @classmethod
+    def find(cls, session, folder, name):
+        return  session.query(FsImage).filter(
+            FsImage.folder_id == folder.id, FsImage.name == name
+        ).first()
 
     def __repr__(self):
         return "<FsImage %s/%s>" % (str(self.folder), self.name)
