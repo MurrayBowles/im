@@ -14,16 +14,7 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 class _Tester(object):
-    ''' classes to test
-        class: the class to test
-        mk_key: generates a key for create/find
-        create: create function (key)
-        find: find function (key)
-        destroy: parameterless destroy function
-        create_deps: list of classes which must exist to test this
-        attrs: list of (attr-name string, test function)
-        parents: list of (class, attr-name string)
-    '''
+    ''' object basic key/relationship tester '''
 
     def __init__(self):
         self.key = None
@@ -446,3 +437,47 @@ def test_classes():
         test_obj = cls()
         obj = test_obj.add()
         test_obj.delete()
+
+def _test_association(tester_classes, list_names):
+    testers = []
+    objs = []
+    for tester_cls in tester_classes:
+        tester = tester_cls()
+        testers.append(tester)
+        objs.append(tester.add())
+    for j in range(2):
+        here = objs[j]
+        here_list = getattr(here, list_names[j])
+        there = objs[1 - j]
+        there_list = getattr(there, list_names[1 - j])
+        assert len(here_list) == 0
+        assert len(there_list) == 0
+        here_list.append(there)
+        assert there_list[0] is here
+        here_list.pop()
+        assert len(here_list) == 0
+        assert len(there_list) == 0
+    for tester in testers:
+        tester.delete()
+
+def test_associations():
+    _test_association(
+        [_DbFolder_Tester, _DbTag_Tester],
+        ['tags', 'items']
+    )
+    _test_association(
+        [_DbCollection_Tester, _DbTag_Tester],
+        ['tags', 'items']
+    )
+    _test_association(
+        [_DbTag_Tester, _DbTag_Tester],
+        ['tags', 'items']
+    )
+    _test_association(
+        [_DbImage_Tester, _DbTag_Tester],
+        ['tags', 'items']
+    )
+    _test_association(
+        [_DbImage_Tester, _DbCollection_Tester],
+        ['collections', 'images']
+    )
