@@ -342,6 +342,41 @@ class _FsFolder_Tester(_Tester):
         assert obj.db_folder.fs_folders[0] is obj
 
 
+class _FsImage_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [
+            _FsFolder_Tester,
+            _DbImage_Tester
+        ]
+
+    def mk_key(self):
+        return (self.dep_objs[0].id, _mk_name(''))
+
+    def create(self, key):
+        image = FsImage(
+            folder=self.dep_objs[0],
+            name=_mk_name(''),
+            db_image=self.dep_objs[1]
+        )
+        return image
+
+    def get_key(self, obj):
+        return (obj.folder.id, obj.name)
+
+    def find(self, key):
+        return  session.query(FsImage).filter(
+            FsImage.folder_id == key[0], FsImage.name == key[1]
+        ).first()
+
+    def test_deps(self, obj):
+        assert obj.folder is self.dep_objs[0]
+        assert obj.folder.images[0] is obj
+        assert obj.db_image is self.dep_objs[1]
+        assert obj.db_image.fs_images[0] is obj
+
+
 def test_classes():
     for cls in _Tester.__subclasses__():
         test_obj = cls()

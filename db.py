@@ -117,9 +117,9 @@ class DbImage(DbItem):
         # DbImage <<->> DbCollection
         collections = relationship('DbCollection', secondary=image_collections, back_populates='images')
 
-        # DbImage <->> FsImage (filesystem locations where the image files are found)
-        fs_images = relationship(
-            'FsImage', foreign_keys='[FsImage.db_image_id]', back_populates='db_image')
+    # DbImage <->> FsImage (filesystem locations where the image files are found)
+    fs_images = relationship(
+        'FsImage', foreign_keys='[FsImage.db_image_id]', back_populates='db_image')
 
     Index('db-image-index', 'folder.date', 'name')
 
@@ -247,10 +247,9 @@ class FsSource(Base):
     tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'))
     tag_source = relationship('FsTagSource', backref=backref('fs-tag-source', uselist=False))
 
-    if True:
-        # FsSource <->> FsFolder
-        folders = relationship(
-            'FsFolder', foreign_keys='[FsFolder.source_id]', back_populates='source')
+    # FsSource <->> FsFolder
+    folders = relationship(
+        'FsFolder', foreign_keys='[FsFolder.source_id]', back_populates='source')
 
     def label(self):
         return self.volume if self.volume is not None and not self.volume.endswith(':') else None
@@ -282,10 +281,29 @@ class FsFolder(Base):
     db_folder_id = Column(Integer, ForeignKey('db-folder.id'))
     db_folder = relationship('DbFolder', foreign_keys=[db_folder_id], back_populates='fs_folders')
 
-    if False:
-        # FsFolder <->> FsImage
-        images = relationship('FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
+    # FsFolder <->> FsImage
+    images = relationship('FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
 
     def __repr__(self):
         return "<FsFolder %s/%s>" % (str(self.source), self.name)
+
+
+class FsImage(Base):
+    ''' a (family of) filesystem file(s) from which a DbImage was imported
+        the filesystem could contain a .tif, a .psd, and a .jpg, and one FsImage would be created,
+        with .image_types indicating which were found
+    '''
+    __tablename__ = 'fs-image'
+
+    # FsImage <<-> FsFolder (an FsFolder contains a list of FsImages)
+    folder_id = Column(Integer, ForeignKey('fs-folder.id'), primary_key=True)
+    folder = relationship('FsFolder', foreign_keys=[folder_id], back_populates='images')
+    name = Column(String(10))  # '<seq number>[<suffix>]'
+
+    # FsImage <<-> DbImage
+    db_image_id = Column(Integer, ForeignKey('db-image.id'))
+    db_image = relationship('DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
+
+    def __repr__(self):
+        return "<FsImage %s/%s>" % (str(self.folder), self.name)
 
