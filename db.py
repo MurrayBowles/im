@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Enum
-from sqlalchemy import ForeignKey, Index, Integer
+from sqlalchemy import Float, ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
 
@@ -79,7 +79,13 @@ class DbFolder(Item):
     Index('db-folder-index', 'date, ''name', unique=True)
 
     @classmethod
-    def find(cls, session,  date, name):
+    def add(cls, session, date, name, thumbnail=None):
+        obj = cls(date=date, name=name, thumbnail=thumbnail)
+        if obj is not None: session.add(obj)
+        return obj
+
+    @classmethod
+    def find(cls, session, date, name):
         return session.query(DbFolder).filter_by(date=date, name=name).first()
 
     def __repr__(self):
@@ -104,6 +110,13 @@ class DbCollection(Item):
     Index('db-collection-index', 'name', unique=True)
 
     @classmethod
+    def add(cls, session, name, thumbnail=None, images=None):
+        if images is None: images=[]
+        obj = cls(name=name, thumbnail=thumbnail, images=images)
+        if obj is not None: session.add(obj)
+        return obj
+
+    @classmethod
     def find(cls, session,  name):
         return session.query(DbCollection).filter_by(name=name).first()
 
@@ -120,7 +133,6 @@ class DbImage(Item):
     __mapper_args__ = {'polymorphic_identity': 'DbImage'}
 
     thumbnail = Column(LargeBinary())
-    zzz = Column(Integer)
 
     # DbImage <<-> DbFolder
     folder_id = Column(Integer, ForeignKey('db-folder.id'))
@@ -133,11 +145,19 @@ class DbImage(Item):
     fs_images = relationship(
         'FsImage', foreign_keys='[FsImage.db_image_id]', back_populates='db_image')
 
-    Index('db-image-index', 'folder_id', 'name', unique=True)
+    Index('db-folder-image-index', 'folder_id', 'name', unique=True)
+    Index('db-date-image-index', 'folder.date', 'name')
+
+    @classmethod
+    def add(cls, session, folder, name):
+        obj = cls(folder=folder, name=name)
+        if obj is not None: session.add(obj)
+        return obj
 
     @classmethod
     def find(cls, session, db_folder,  name):
         return session.query(DbImage).filter_by(folder_id=db_folder.id, name=name).first()
+    # TODO: find_in_date vs find_in_folder
 
     def __repr__(self):
         return '<Image %s-%s>' % (yymmdd(self.folder.date), self.name)
@@ -181,6 +201,12 @@ class DbTag(Item):
             DbTagType.DEPRECATED: None
         }[self.type.value]
 
+    @classmethod
+    def add(cls, session, parent, name, tag_type=DbTagType.BASE, base_tag=None):
+        obj = cls(parent=parent, name=name, tag_type=tag_type.value, base_tag=base_tag)
+        if obj is not None: session.add(obj)
+        return obj
+
     def __repr__(self):
         def tag_str(tag):
             return tag.name if tag.parent is None else tag_str(tag.parent) + '|' + tag.name
@@ -202,8 +228,14 @@ class DbNoteType(Base):
     name = Column(String(30))
     text_type = Column(Integer)  # DbNoteType enumeration
 
+    @classmethod
+    def add(cls, session, name, text_type):
+        obj = cls(name=name, text_type=text_type.value)
+        if obj is not None: session.add(obj)
+        return obj
+
     def __repr__(self):
-        return '<NoteType %s: %s' % (self.name, DbTextType(self.text_type).name)
+        return '<NoteType %s: %s>' % (self.name, DbTextType(self.text_type).name)
 
 class DbNote(Base):
     ''' a text note on a Item '''
@@ -212,13 +244,19 @@ class DbNote(Base):
     # DbNote <<-> Item (a Item contains a list of DbNotes)
     item_id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     item = relationship('Item', foreign_keys=[item_id], back_populates='notes')
-    seq = Column(Integer, primary_key=True)  # GUI ordering
+    seq = Column(Float, primary_key=True)  # GUI ordering
 
     text = Column(String(100))
 
     # DbNote -> DbNoteType
     type_id = Column(Integer, ForeignKey('db-note-type.id'))
     type = relationship("DbNoteType", backref=backref("db-note", uselist=False))
+
+    @classmethod
+    def add(cls, session, item, seq, note_type, text=''):
+        obj = cls(item=item, seq=seq, type=note_type, text=text)
+        if obj is not None: session.add(obj)
+        return obj
 
     def __repr__(self):
         return '<Note %s[%s%s]>' % (
@@ -236,6 +274,12 @@ class FsTagSource(Base):
 
     id = Column(Integer, primary_key=True)
     description = Column(String(100))
+
+    @classmethod
+    def add(cls, session, description=''):
+        obj = cls(description=description)
+        if obj is not None: session.add(obj)
+        return obj
 
     def __repr__(self):
         return '<FsTagSource %s>' % self.description
@@ -269,6 +313,15 @@ class FsSource(Item):
     # FsSource <->> FsFolder
     folders = relationship(
         'FsFolder', foreign_keys='[FsFolder.source_id]', back_populates='source')
+
+    @classmethod
+    def add(cls, session, volume, path, source_type, readonly, tag_source):
+        obj = cls(
+            volume=volume, path=path, source_type=source_type.value,
+            readonly=readonly, tag_source=tag_source
+        )
+        if obj is not None: session.add(obj)
+        return obj
 
     @classmethod
     def find(cls, session, volume, path):
@@ -308,6 +361,12 @@ class FsFolder(Item):
     # FsFolder <->> FsImage
     images = relationship('FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
 
+    @classmethod
+    def add(cls, session, name, source, db_folder=None):
+        obj = cls(name=name, source=source, db_folder=db_folder)
+        if obj is not None: session.add(obj)
+        return obj
+
     def __repr__(self):
         return "<FsFolder %s/%s>" % (str(self.source), self.name)
 
@@ -331,6 +390,12 @@ class FsImage(Item):
     # FsImage <<-> DbImage
     db_image_id = Column(Integer, ForeignKey('db-image.id'))
     db_image = relationship('DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
+
+    @classmethod
+    def add(cls, session, folder, name, db_image=None):
+        obj = cls(folder=folder, name=name, db_image=db_image)
+        if obj is not None: session.add(obj)
+        return obj
 
     @classmethod
     def find(cls, session, folder, name):
