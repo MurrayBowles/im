@@ -477,6 +477,10 @@ def test_associations():
         ['tags', 'items']
     )
     _test_association(
+        [_FsFolder_Tester, _DbTag_Tester],
+        ['tags', 'items']
+    )
+    _test_association(
         [_DbImage_Tester, _DbCollection_Tester],
         ['collections', 'images']
     )

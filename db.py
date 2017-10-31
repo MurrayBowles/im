@@ -282,15 +282,16 @@ class FsSource(Item):
             self.label() if self.label() is not None else self.description)
 
 
-class FsFolder(Base):
+class FsFolder(Item):
     ''' a filesystem source from which DbFolder were imported
         if source.type is dir_set, this is a filesystem directory
         if source.type is file_set, this is a group of files with (say) a common prefix
     '''
     __tablename__ = 'fs-folder'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100))
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
 
     # last-import timestamps
     last_scan = Column('last-scan', DateTime)
