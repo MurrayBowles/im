@@ -15,10 +15,10 @@ from ie_cfg import IEFolderAct, IEImageAct
 
 # DbXxx: the database's representation of folders/images/tags/notes
 
-# DbTag <<->> DbItem
+# DbTag <<->> Item
 tagged_items = Table('tagged-items', Base.metadata,
     Column('tag_id', Integer, ForeignKey('db-tag.id')),
-    Column('item_id', Integer, ForeignKey('db-item.id'))
+    Column('item_id', Integer, ForeignKey('item.id'))
 )
 
 
@@ -29,9 +29,9 @@ image_collections = Table('image-collections', Base.metadata,
 )
 
 
-class DbItem(Base):
+class Item(Base):
     ''' something which has a name and can be tagged: a Folder, Collection, Image, or Tag '''
-    __tablename__ = 'db-item'
+    __tablename__ = 'item'
     id = Column(Integer, primary_key=True)
 
     type = Column(String(10)) # 'Collection' | 'Folder' | 'Image' | 'Tag'
@@ -39,15 +39,15 @@ class DbItem(Base):
 
     name = Column(String(100))
 
-    # DbItem <<->> DbTag
+    # Item <<->> DbTag
     tags = relationship('DbTag', secondary=tagged_items, back_populates='items')
 
-    # DbItem <->> DbNote
+    # Item <->> DbNote
     notes = relationship('DbNote', foreign_keys='[DbNote.item_id]', back_populates='item')
 
     def __repr__(self):
         # this should always be overloaded
-        return "<Db%s %s>" % (self.type, self.name)
+        return "<%s %s>" % (self.type, self.name)
 
 
 def yymmdd(iso_date):
@@ -55,13 +55,13 @@ def yymmdd(iso_date):
     return str(iso_date)[2:].replace('-', '')
 
 
-class DbFolder(DbItem):
+class DbFolder(Item):
     ''' represents a single photo-shooting session '''
     __tablename__ = 'db-folder'
 
-    # isa DbItem
-    id = Column(Integer, ForeignKey('db-item.id'), primary_key=True)
-    __mapper_args__ = {'polymorphic_identity': 'Folder'}
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'DbFolder'}
 
     date = Column(Date)
 
@@ -86,13 +86,13 @@ class DbFolder(DbItem):
         return '<DbFolder %s %s>' % (yymmdd(self.date), self.name)
 
 
-class DbCollection(DbItem):
+class DbCollection(Item):
     ''' a collection of images from multiple folders '''
     __tablename__ = 'db-collection'
 
-    # isa DbItem
-    id = Column(Integer, ForeignKey('db-item.id'), primary_key=True)
-    __mapper_args__ = {'polymorphic_identity': 'db-collection'}
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'DbCollection'}
 
     # DbCollection <<->> DbImage
     images = relationship('DbImage', secondary=image_collections, back_populates='collections')
@@ -111,13 +111,13 @@ class DbCollection(DbItem):
         return '<Collection %s>' % self.name
 
 
-class DbImage(DbItem):
+class DbImage(Item):
     ''' a single image (usually with multiple files: NEF/TIFF/PSD/JPEG) '''
     __tablename__ = 'db-image'
 
-    # isa DbItem
-    id = Column(Integer, ForeignKey('db-item.id'), primary_key=True)
-    __mapper_args__ = {'polymorphic_identity': 'Image'}
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'DbImage'}
 
     thumbnail = Column(LargeBinary())
     zzz = Column(Integer)
@@ -152,21 +152,21 @@ class DbTagType(PyEnum):
     DEPRECATED = 4  # this tag is deprecated; .base_tag is None
 
 
-class DbTag(DbItem):
-    ''' a hierarchical tag on a DbItem '''
+class DbTag(Item):
+    ''' a hierarchical tag on a Item '''
     __tablename__ = 'db-tag'
 
-    # isa DbItem
-    id = Column(Integer, ForeignKey('db-item.id'), primary_key=True)
-    __mapper_args__ = {'polymorphic_identity': 'db-tag'}
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'DbTag'}
 
     # DbTag tree
     parent_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     parent = relationship('DbTag', remote_side=[id], foreign_keys=[parent_id])
     children = relationship('DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent')
 
-    # DbTag <<->> DbItem
-    items = relationship('DbItem', secondary=tagged_items, back_populates='tags')
+    # DbTag <<->> Item
+    items = relationship('Item', secondary=tagged_items, back_populates='tags')
 
     # DbTag -> replacement or identity DbTag
     tag_type = Column(Integer)  # DbTagType
@@ -206,12 +206,12 @@ class DbNoteType(Base):
         return '<NoteType %s: %s' % (self.name, DbTextType(self.text_type).name)
 
 class DbNote(Base):
-    ''' a text note on a DbItem '''
+    ''' a text note on a Item '''
     __tablename__ = 'db-note'
 
-    # DbNote <<-> DbItem (a DbItem contains a list of DbNotes)
-    item_id = Column(Integer, ForeignKey('db-item.id'), primary_key=True)
-    item = relationship('DbItem', foreign_keys=[item_id], back_populates='notes')
+    # DbNote <<-> Item (a Item contains a list of DbNotes)
+    item_id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    item = relationship('Item', foreign_keys=[item_id], back_populates='notes')
     seq = Column(Integer, primary_key=True)  # GUI ordering
 
     text = Column(String(100))
