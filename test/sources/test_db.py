@@ -473,7 +473,7 @@ def test_associations():
         ['tags', 'items']
     )
     _test_association(
-        [_DbImage_Tester, _DbTag_Tester],
+        [_FsSource_Tester, _DbTag_Tester],
         ['tags', 'items']
     )
     _test_association(
