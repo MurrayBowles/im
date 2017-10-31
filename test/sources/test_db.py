@@ -358,8 +358,7 @@ class _FsSource_Tester(_Tester):
         source = FsSource(
             volume=key2[0],
             path=key2[1],
-            description=_mk_name('desc'),
-            type=FsSourceType.DIR_SET.value,
+            source_type=FsSourceType.DIR_SET.value,
             readonly=False,
             tag_source=self.dep_objs[0]
         )

@@ -247,18 +247,19 @@ class FsSourceType(PyEnum):
     FILE_SET = 2
 
 
-class FsSource(Base):
+class FsSource(Item):
     ''' the filesystem parent directory from which a set of folders/images was imported '''
     __tablename__ = 'fs-source'
 
-    id = Column(Integer, primary_key=True)
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'FsSource'}
 
-    # secondary key (TODO enforce uniqueness)
+    # secondary key (TODO index? enforce uniqueness?)
     volume = Column(String(32)) # '<volume letter>:' or '<volume label>'
     path = Column(String(260))  # volume pathname
 
-    description = Column(String(100))
-    type = Column(Integer)      # FsSourceType
+    source_type = Column(Integer)      # FsSourceType
     readonly = Column(Boolean)
 
     # FsSource -> FsTagSourceId
