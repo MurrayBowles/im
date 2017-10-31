@@ -1,17 +1,13 @@
 from datetime import date, datetime
+import pytest
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 from db import *
+session = open_mem_db()
 
-engine = create_engine('sqlite:///:memory:')
-Base.metadata.create_all(engine)
-from sqlalchemy.orm import sessionmaker
-
-Session = sessionmaker(bind=engine)
-session = Session()
 
 class _Tester(object):
     ''' object basic key/relationship tester '''

@@ -341,3 +341,18 @@ class FsImage(Item):
     def __repr__(self):
         return "<FsImage %s/%s>" % (str(self.folder), self.name)
 
+def _open_db(url):
+    ''' open a database and return a session '''
+    engine = create_engine(url)
+    Base.metadata.create_all(engine)
+    from sqlalchemy.orm import sessionmaker
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+def open_mem_db():
+    ''' open a memory database '''
+    return _open_db('sqlite:///:memory:')
+
+def close_db():
+    ''' close the database '''
+    pass
