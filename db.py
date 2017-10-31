@@ -312,14 +312,18 @@ class FsFolder(Item):
         return "<FsFolder %s/%s>" % (str(self.source), self.name)
 
 
-class FsImage(Base):
+class FsImage(Item):
     ''' a (family of) filesystem file(s) from which a DbImage was imported
         the filesystem could contain a .tif, a .psd, and a .jpg, and one FsImage would be created,
         with .image_types indicating which were found
     '''
     __tablename__ = 'fs-image'
 
-    # FsImage <<-> FsFolder (an FsFolder contains a list of FsImages)
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'FsImage'}
+
+    # FsImage <<-> FsFolder
     folder_id = Column(Integer, ForeignKey('fs-folder.id'), primary_key=True)
     folder = relationship('FsFolder', foreign_keys=[folder_id], back_populates='images')
     name = Column(String(10), primary_key=True)  # '<seq number>[<suffix>]'

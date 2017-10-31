@@ -407,22 +407,22 @@ class _FsImage_Tester(_Tester):
             _DbImage_Tester
         ]
 
-    def mk_key(self):
+    def mk_key2(self):
         return (self.dep_objs[0], _mk_name(''))
 
     def create(self, key, key2):
         image = FsImage(
-            folder=key[0],
-            name=key[1],
+            folder=key2[0],
+            name=key2[1],
             db_image=self.dep_objs[1]
         )
         return image
 
-    def get_key(self, obj):
-        return (obj.folder, obj.name)
-
     def find(self, key):
-        return FsImage.find(session, key[0], key[1])
+        return  session.query(FsImage).filter_by(id=key).first()
+
+    def find2(self, key2):
+        return FsImage.find(session, key2[0], key2[1])
 
     def test_deps(self, obj):
         assert obj.folder is self.dep_objs[0]
@@ -478,6 +478,10 @@ def test_associations():
     )
     _test_association(
         [_FsFolder_Tester, _DbTag_Tester],
+        ['tags', 'items']
+    )
+    _test_association(
+        [_FsImage_Tester, _DbTag_Tester],
         ['tags', 'items']
     )
     _test_association(
