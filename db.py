@@ -79,8 +79,8 @@ class DbFolder(Item):
     Index('db-folder-index', 'date, ''name', unique=True)
 
     @classmethod
-    def add(cls, session, date, name, thumbnail=None):
-        obj = cls(date=date, name=name, thumbnail=thumbnail)
+    def add(cls, session, date, name):
+        obj = cls(date=date, name=name)
         if obj is not None: session.add(obj)
         return obj
 
@@ -110,9 +110,8 @@ class DbCollection(Item):
     Index('db-collection-index', 'name', unique=True)
 
     @classmethod
-    def add(cls, session, name, thumbnail=None, images=None):
-        if images is None: images=[]
-        obj = cls(name=name, thumbnail=thumbnail, images=images)
+    def add(cls, session, name):
+        obj = cls(name=name)
         if obj is not None: session.add(obj)
         return obj
 
