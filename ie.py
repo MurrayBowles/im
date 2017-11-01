@@ -14,13 +14,14 @@ class IEError(Enum):
 
 class IEFolder(object):
 
-    def __init__(self, fs_name, date, name, mod_datetime, errors=None):
+    def __init__(self, fs_name, date, name, mod_datetime, errors=None, words=None):
         self.fs_name = fs_name
         self.date = date
         self.name = name
         self.mod_datetime = mod_datetime
         self.images = []
         self.errors = set() if errors is None else errors
+        self.words = words
 
 
 class IEImage(object):
@@ -63,35 +64,102 @@ def proc_std_dirname(dir_pathname, dir_name):
     return IEFolder(dir_name, date, name, mtime, errors=errors)
 
 def scan_dir_set(dir_set_pathname, test, proc):
-    ''' return a list of IEFolders for each directory satisfying test
-        the result list is sorted by folder name
+    ''' return a list of IEFolders representing each directory satisfying test
+        the list is sorted by folder fs_name
         test(dir_name) checks whether the directory should be processed
-        process(dir_pathname, dir_name) returns an IEFolder for the directory
+        proc(dir_pathname, dir_name) returns an IEFolder for the directory
     '''
-    results = []
+    folders = []
     for dir in os.listdir(dir_set_pathname):
         dir_path = os.path.join(dir_set_pathname, dir)
         if os.path.isdir(dir_path) and test(dir):
             folder = proc(dir_path, dir)
             if folder is not None:
-                results.append(folder)
-    results.sort(key=lambda folder: folder.fs_name)
-    return results
+                folders.append(folder)
+    folders.sort(key=lambda folder: folder.fs_name)
+    return folders
 
 def scan_dir_sel(dir_pathname_list, proc):
-    ''' return a list of (pathname, mod-datetime) for each directory satisfying test
-        the result list is sorted by pathname
-        pathlist is a list of directory pathnames
+    ''' return a list of IEFolders representing each directory satisfying test
+        the list is sorted by fs_name
+        proc(dir_pathname, dir_name) returns an IEFolder for the directory
     '''
 
-    results = []
+    folders = []
     for dir_path in dir_pathname_list:
         if os.path.isdir(dir_path):
             folder = proc(dir_path, os.path.basename(dir_path))
             if folder is not None:
-                results.append(folder)
-    results.sort(key=lambda folder: folder.fs_name)
-    return results
+                folders.append(folder)
+    folders.sort(key=lambda folder: folder.fs_name)
+    return folders
 
+trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
+amper_date = re.compile(r'&[0-9]+')
 
+def proc_corbett_filename(file_pathname, file_name, folders):
+    errors = set()
+    base_name = os.path.splitext(file_name)[0]
+    base, seq = base_name.split('-')
+    stat_mtime = os.path.getmtime(file_pathname)
+    mtime = datetime.datetime.fromtimestamp(stat_mtime)
+    if len(folders) == 0 or base != folders[-1].fs_name.split('-')[0]:
+        # start a new IEFolder
+        match = trailing_date.search(base)
+        if match is None:
+            errors.add(IEError.NO_DATE)
+            date = None
+            name = base
+        else:
+            date_str = match.group()[1:] # drop the leading underscore
+            date_str = amper_date.sub('', date_str)
+            month_str, day_str, year_str = date_str.split('_')
+            year = int(year_str)
+            year += 1900 if year >= 70 else 2000
+            month = int(month_str)
+            day = int(day_str)
+            date = datetime.date(year, month, day)
+            name = base_name[0:match.start()]
+        words = name.split('_')
+        folder = IEFolder(file_name, date, name, mtime, errors=errors, words=words)
+        folders.append(folder)
+    image = IEImage(file_name, seq, mtime)
+    folders[-1].images.append(image)
+    return image
 
+def scan_file_set(file_set_pathname, test, proc):
+    ''' return a list of IEFolders (each containing IEImages)
+        representing the folders and images found in file_set_pathname
+        the list is sorted by folder fs_name
+        test(file_name) checks whether the directory should be processed
+        proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
+        if the filename has a new prefix, adds a new IEFolder to folders
+    '''
+    folders = []
+    for file in os.listdir(file_set_pathname):
+        file_path = os.path.join(file_set_pathname, file)
+        if os.path.isfile(file_path) and test(file):
+            proc(file_path, file, folders)
+    folders.sort(key=lambda folder: folder.fs_name)
+    for folder in folders:
+        folder.images.sort(key=lambda x: x.name)
+
+    return folders
+
+def scan_file_sel(file_pathname_list, proc):
+    ''' return a list of IEFolders (each containing IEImages)
+        representing the folders and images found in file_pathname_list
+        the list is sorted by folder fs_name
+        test(file_name) checks whether the directory should be processed
+        proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
+        if the filename has a new prefix, adds a new IEFolder to folders
+    '''
+    folders = []
+    for file_path in file_pathname_list:
+        if os.path.isfile(file_path):
+            proc(file_path, os.path.basename(file_path), folders)
+    folders.sort(key=lambda folder: folder.fs_name)
+    for folder in folders:
+        folder.images.sort(key=lambda x: x.name)
+
+    return folders
