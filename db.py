@@ -299,10 +299,10 @@ class FsSource(Item):
     __mapper_args__ = {'polymorphic_identity': 'FsSource'}
 
     # secondary key (TODO index? enforce uniqueness?)
-    volume = Column(String(32)) # '<volume letter>:' or '<volume label>'
-    path = Column(String(260))  # volume pathname
+    volume = Column(String(32)) # source volume: '<volume letter>:' or '<volume label>'
+    path = Column(String(260))  # source pathname
 
-    source_type = Column(Integer)      # FsSourceType
+    source_type = Column(Integer) # FsSourceType.value
     readonly = Column(Boolean)
 
     # FsSource -> FsTagSourceId
