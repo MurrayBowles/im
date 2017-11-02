@@ -19,16 +19,25 @@ class IEFolder(object):
         self.date = date
         self.name = name
         self.mod_datetime = mod_datetime
-        self.images = []
+        self.images = {}    # IEImage.name -> IEImage
         self.errors = set() if errors is None else errors
         self.words = words
 
 
 class IEImage(object):
 
-    def __init__(self, fs_name, name, mod_datetime, errors=None):
-        self.fs_name = fs_name
+    def __init__(self, name):
+
         self.name = name
+        self.errors = set()
+        self.insts = []
+
+
+class IEImageInst(object):
+
+    def __init__(self, image, fs_name, mod_datetime, errors=None):
+        self.fs_name = fs_name
+        self.image = image
         self.mod_datetime = mod_datetime
         self.errors = set() if errors is None else errors
 
@@ -123,8 +132,19 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         words = name.split('_')
         folder = IEFolder(file_name, date, name, mtime, errors=errors, words=words)
         folders.append(folder)
-    image = IEImage(file_name, seq, mtime)
-    folders[-1].images.append(image)
+    else:
+        folder = folders[-1]
+        if mtime > folder.mod_datetime:
+            # folder.mod_datetime is the newest instance's
+            folder.mod_datetime = mtime
+    if seq in folder.images:
+        image = folder.images[seq]
+    else:
+        image = IEImage(seq)
+        folder.images[seq] = image
+    image_inst = IEImageInst(image, file_name, mtime)
+    image.insts.append(image_inst)
+    folders[-1].images[seq] = image
     return image
 
 def scan_file_set(file_set_pathname, test, proc):
@@ -159,7 +179,4 @@ def scan_file_sel(file_pathname_list, proc):
         if os.path.isfile(file_path):
             proc(file_path, os.path.basename(file_path), folders)
     folders.sort(key=lambda folder: folder.fs_name)
-    for folder in folders:
-        folder.images.sort(key=lambda x: x.name)
-
     return folders

@@ -4,7 +4,7 @@ from ie import *
 import re
 
 base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
-# TODO: get PyCharm to provide all but the last directory
+# TODO: get PyCharm/pytest to provide this, up to the last directory
 
 def _check_dir_results(got_list, expected_list):
     assert len(got_list) == len(expected_list)
@@ -56,8 +56,8 @@ def _check_file_results(got_list, expected_list):
         expected_folder = expected_list[j]
         assert got_folder.fs_name == expected_folder[0]
         assert len(got_folder.images) == len(expected_folder[1])
-        for k in range(len(got_folder.images)):
-            assert got_folder.images[k].name == expected_folder[1][k]
+        for expected_image in expected_folder[1]:
+            assert expected_image in got_folder.images
 
 def _test_scan_file_set(file_set_pathname, test, proc, expected_list):
     got_list = scan_file_set(file_set_pathname, test, proc)
