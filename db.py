@@ -89,7 +89,7 @@ class DbFolder(Item):
         return session.query(DbFolder).filter_by(date=date, name=name).first()
 
     def __repr__(self):
-        return '<DbFolder %s %s>' % (yymmdd(self.date), self.name)
+        return '<DbFolder %s %s>' % ( (self.date), self.name)
 
 
 class DbCollection(Item):
@@ -330,18 +330,19 @@ class FsSource(Item):
         return self.volume if self.volume is not None and not self.volume.endswith(':') else None
 
     def __repr__(self):
-        return '<FsSource %s>' % (
-            self.label() if self.label() is not None else self.description)
+        return '<FsSource %s %s>' % (
+            self.name,
+            self.label() if self.label() is not None else '-')
 
 
 class FsFolder(Item):
     ''' a filesystem source from which DbFolder were imported
-        if source.type is dir_set, this is a filesystem directory
-        if source.type is file_set, this is a group of files with (say) a common prefix
+        if source.type is dir_set, this was a filesystem directory
+        if source.type is file_set, this was a group of files with (say) a common prefix
     '''
     __tablename__ = 'fs-folder'
 
-    # isa Item
+    # isa Item (.name is the same as IEFolder.fs_name)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
 
@@ -360,11 +361,17 @@ class FsFolder(Item):
     # FsFolder <->> FsImage
     images = relationship('FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
 
+    Index('fs-folder-index', 'source_id', 'name', unique=True)
+
     @classmethod
-    def add(cls, session, name, source, db_folder=None):
-        obj = cls(name=name, source=source, db_folder=db_folder)
+    def add(cls, session, source, fs_name, db_folder=None):
+        obj = cls(source=source, name=fs_name, db_folder=db_folder)
         if obj is not None: session.add(obj)
         return obj
+
+    @classmethod
+    def find(cls, session, source, name):
+        return session.query(FsFolder).filter_by(source_id=source.id, name=name).first()
 
     def __repr__(self):
         return "<FsFolder %s/%s>" % (str(self.source), self.name)
@@ -377,14 +384,13 @@ class FsImage(Item):
     '''
     __tablename__ = 'fs-image'
 
-    # isa Item
+    # isa Item (.name is the same as IEImage.name)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsImage'}
 
     # FsImage <<-> FsFolder
     folder_id = Column(Integer, ForeignKey('fs-folder.id'), primary_key=True)
     folder = relationship('FsFolder', foreign_keys=[folder_id], back_populates='images')
-    name = Column(String(10), primary_key=True)  # '<seq number>[<suffix>]'
 
     # FsImage <<-> DbImage
     db_image_id = Column(Integer, ForeignKey('db-image.id'))

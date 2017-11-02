@@ -374,17 +374,23 @@ class _FsFolder_Tester(_Tester):
             _DbFolder_Tester
         ]
 
+    def mk_key2(self):
+        return (self.dep_objs[0], _mk_name('name'))
+
     def create(self, session, key, key2):
         source = FsFolder.add(
             session,
-            name=_mk_name('fsFolder'),
-            source=self.dep_objs[0],
+            source=key2[0],
+            fs_name=key2[1],
             db_folder=self.dep_objs[1]
         )
         return source
 
     def find(self, key):
         return  session.query(FsFolder).filter_by(id=key).first()
+
+    def find2(self, key2):
+        return FsFolder.find(session, source=key2[0], name=key2[1])
 
     def test_deps(self, obj):
         assert obj.source is self.dep_objs[0]

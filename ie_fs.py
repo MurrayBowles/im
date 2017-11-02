@@ -161,8 +161,6 @@ def scan_file_set(file_set_pathname, test, proc):
         if os.path.isfile(file_path) and test(file):
             proc(file_path, file, folders)
     folders.sort(key=lambda folder: folder.fs_name)
-    for folder in folders:
-        folder.images.sort(key=lambda x: x.name)
 
     return folders
 

@@ -3,7 +3,7 @@ import wx
 
 from db import *
 from gui import *
-from ie import *
+from ie_fs import *
 
 if __name__=='__main__':
     # db_test()
