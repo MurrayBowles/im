@@ -8,19 +8,20 @@ import os
 import re
 
 
-class IEError(Enum):
-    NO_DATE = 1    # can't extract a date from the filename
-
+class IENote(Enum):
+    NO_DATE         = 1     # can't extract a date from the filename
+    FOLDER_ADDED    = 2     # (WorkItem) no FsFolder was found for this IEFolder
+    FOLDER_DELETED  = 3     # (WorkItem) no IEFolder was found for this FsFolder
 
 class IEFolder(object):
 
-    def __init__(self, fs_name, date, name, mod_datetime, errors=None, words=None):
+    def __init__(self, fs_name, date, name, mod_datetime, notes=None, words=None):
         self.fs_name = fs_name
         self.date = date
         self.name = name
         self.mod_datetime = mod_datetime
         self.images = {}    # IEImage.name -> IEImage
-        self.errors = set() if errors is None else errors
+        self.notes = set() if notes is None else notes
         self.words = words
 
 
@@ -29,17 +30,17 @@ class IEImage(object):
     def __init__(self, name):
 
         self.name = name
-        self.errors = set()
+        self.notes = set()
         self.insts = []
 
 
 class IEImageInst(object):
 
-    def __init__(self, image, fs_name, mod_datetime, errors=None):
+    def __init__(self, image, fs_name, mod_datetime, notes=None):
         self.fs_name = fs_name
         self.image = image
         self.mod_datetime = mod_datetime
-        self.errors = set() if errors is None else errors
+        self.notes = set() if notes is None else notes
 
 
 leading_date_space = re.compile(r'^\d{6,6} ')
@@ -61,7 +62,7 @@ def proc_std_dirname(dir_pathname, dir_name):
     errors = set()
     match = leading_date.match(dir_name)
     if match is None:
-        errors.add(IEError.NO_DATE)
+        errors.add(IENote.NO_DATE)
         date = None
         name = dir_name
     else:
@@ -70,7 +71,7 @@ def proc_std_dirname(dir_pathname, dir_name):
         name = dir_name[match.end():].lstrip(' ')
     stat_mtime = os.path.getmtime(dir_pathname)
     mtime = datetime.datetime.fromtimestamp(stat_mtime)
-    return IEFolder(dir_name, date, name, mtime, errors=errors)
+    return IEFolder(dir_name, date, name, mtime, notes=errors)
 
 def scan_dir_set(dir_set_pathname, test, proc):
     ''' return a list of IEFolders representing each directory satisfying test
@@ -116,7 +117,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         # start a new IEFolder
         match = trailing_date.search(base)
         if match is None:
-            errors.add(IEError.NO_DATE)
+            errors.add(IENote.NO_DATE)
             date = None
             name = base
         else:
@@ -130,7 +131,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             date = datetime.date(year, month, day)
             name = base_name[0:match.start()]
         words = name.split('_')
-        folder = IEFolder(file_name, date, name, mtime, errors=errors, words=words)
+        folder = IEFolder(file_name, date, name, mtime, notes=errors, words=words)
         folders.append(folder)
     else:
         folder = folders[-1]

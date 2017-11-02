@@ -12,7 +12,7 @@ class IEWorkItem(object):
 
         self.fs_folder = fs_folder
         self.ie_folder = ie_folder
-        self.ie_error = set()
+        self.notes = set() # of IENote
 
     def __repr__(self):
         return '<WorkItem %s %s %s>' % (
@@ -35,12 +35,12 @@ def get_ie_worklist(session, fs_source, source_type, paths):
     else:
         raise ValueError('unknown source type')
     worklist = deque()
-    if source_type.is_multiple(): # DIR_SEL or FILE_SEL
+    if source_type.is_multiple():   # DIR_SEL or FILE_SEL
         # get all FsFolders that match folders
         for ie_folder in ie_folders:
             fs_folder = FsFolder.find(session, fs_source, ie_folder.fs_name)
             worklist.append(IEWorkItem(fs_folder, ie_folder))
-    else:                       # DIR_SET or FILE_SET
+    else:                           # DIR_SET or FILE_SET
         # get all FsFolders in the FsSource
         # FIXME: fs_folders = session.query(FsSource).join(FsSource.folders).order_by(FsFolder.name).all()
         fs_folders = fs_source.folders
