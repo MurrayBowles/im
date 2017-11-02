@@ -47,7 +47,7 @@ def check_worklist_with_fs_folders(
 def test_get_workist_dir_set_my_dirs():
     path = os.path.join(base_path, 'my format')
     fs_source = FsSource.add(
-        session, 'c:', path, FsSourceType.DIR_SET, readonly=True, tag_source=None)
+        session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
         session, fs_source, SourceType.DIR_SET, [path],
         test_scan_dir_set_expected_list
@@ -61,7 +61,7 @@ def test_get_workist_dir_set_my_dirs():
 def test_get_workist_dir_sel_my_dirs():
     path = os.path.join(base_path, 'my format')
     fs_source = FsSource.add(
-        session, 'c:', path, FsSourceType.DIR_SET, readonly=True, tag_source=None)
+        session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
         session, fs_source, SourceType.DIR_SEL, test_scan_dir_sel_selected_list,
         test_scan_dir_sel_expected_list
@@ -77,7 +77,7 @@ def test_get_workist_dir_sel_my_dirs():
 def test_get_worklist_file_set_corbett_psds():
     path = os.path.join(base_path, 'main1415 corbett psds')
     fs_source = FsSource.add(
-        session, 'c:', path, FsSourceType.FILE_SET, readonly=True, tag_source=None)
+        session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
         session, fs_source, SourceType.FILE_SET, [path],
         test_scan_file_set_corbett_psds_expected_list
@@ -91,7 +91,7 @@ def test_get_worklist_file_set_corbett_psds():
 def test_get_worklist_file_sel_corbett_psds():
     path = os.path.join(base_path, 'main1415 corbett psds')
     fs_source = FsSource.add(
-        session, 'c:', path, FsSourceType.FILE_SET, readonly=True, tag_source=None)
+        session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
         session, fs_source, SourceType.FILE_SEL,
         test_scan_file_sel_corbett_psds_selected_list,

@@ -352,7 +352,7 @@ class _FsSource_Tester(_Tester):
             session,
             volume=key2[0],
             path=key2[1],
-            source_type=FsSourceType.DIR_SET,
+            source_type=FsSourceType.DIR,
             readonly=False,
             tag_source=self.dep_objs[0]
         )

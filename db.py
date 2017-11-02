@@ -286,8 +286,8 @@ class FsTagSource(Base):
 
 class FsSourceType(PyEnum):
     ''' whether the FsSource is a directory of directories or a directory of image files '''
-    DIR_SET = 1
-    FILE_SET = 2
+    DIR = 1
+    FILE = 2
 
 
 class FsSource(Item):
