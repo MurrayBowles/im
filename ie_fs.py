@@ -59,10 +59,10 @@ def date_from_yymmdd(yymmdd):
     return datetime.date(year, month, day)
 
 def proc_std_dirname(dir_pathname, dir_name):
-    errors = set()
+    notes = set()
     match = leading_date.match(dir_name)
     if match is None:
-        errors.add(IENote.NO_DATE)
+        notes.add(IENote.NO_DATE)
         date = None
         name = dir_name
     else:
@@ -71,7 +71,7 @@ def proc_std_dirname(dir_pathname, dir_name):
         name = dir_name[match.end():].lstrip(' ')
     stat_mtime = os.path.getmtime(dir_pathname)
     mtime = datetime.datetime.fromtimestamp(stat_mtime)
-    return IEFolder(dir_name, date, name, mtime, notes=errors)
+    return IEFolder(dir_name, date, name, mtime, notes=notes)
 
 def scan_dir_set(dir_set_pathname, test, proc):
     ''' return a list of IEFolders representing each directory satisfying test
@@ -108,7 +108,7 @@ trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
 amper_date = re.compile(r'&[0-9]+')
 
 def proc_corbett_filename(file_pathname, file_name, folders):
-    errors = set()
+    notes = set()
     base_name = os.path.splitext(file_name)[0]
     base, seq = base_name.split('-')
     stat_mtime = os.path.getmtime(file_pathname)
@@ -131,7 +131,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             date = datetime.date(year, month, day)
             name = base_name[0:match.start()]
         words = name.split('_')
-        folder = IEFolder(file_name, date, name, mtime, notes=errors, words=words)
+        folder = IEFolder(file_name, date, name, mtime, notes=notes, words=words)
         folders.append(folder)
     else:
         folder = folders[-1]

@@ -42,7 +42,6 @@ def get_ie_worklist(session, fs_source, source_type, paths):
             worklist.append(IEWorkItem(fs_folder, ie_folder))
     else:                           # DIR_SET or FILE_SET
         # get all FsFolders in the FsSource
-        # FIXME: fs_folders = session.query(FsSource).join(FsSource.folders).order_by(FsFolder.name).all()
         fs_folders = fs_source.folders
         # merge fs_folders with ie_folders
         while True:
