@@ -8,27 +8,61 @@ import re
 base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
+_ext_map = {
+    'n': '.nef',
+    'p': '.psd',
+    't': '.tif',
+    'j': '.jpg',
+    'J': '.jpg-hi'
+}
+
+def _check_image_results(got_folder, expected):
+    assert len(got_folder.images) == len(expected[1])
+    for expected_image_str in expected[1]:
+        exp_image, exp_exts = expected_image_str.split('-')
+        assert exp_image in got_folder.images
+        got_image = got_folder.images[exp_image]
+        assert len(exp_exts) == len(got_image.insts)
+        for c in exp_exts:
+            ext = _ext_map[c]
+            assert ext in got_image.insts
+
 def _check_dir_results(got_list, expected_list):
     assert len(got_list) == len(expected_list)
     for j in range(len(got_list)):
-        assert got_list[j].fs_name == expected_list[j][0]
+        ie_folder = got_list[j]
+        assert ie_folder.fs_name == expected_list[j][0]
+        _check_image_results(ie_folder, expected_list[j])
 
 def _test_scan_dir_set(dir_set_pathname, test, proc, expected_list):
     got_list = scan_dir_set(dir_set_pathname, test, proc)
-    _check_dir_results(got_list, expected_list)
     for folder in got_list:
         scan_std_dir_files(folder)
-        pass
+    _check_dir_results(got_list, expected_list)
 
 test_scan_dir_set_expected_list = [
-    ('171007 virginia',[]),
-    ('171020 initial nefs',[]),
-    ('171021 initial nefs and tiffs',[]),
+    ('171007 virginia',[
+        '8963-n', '8965-npJj', '8969-npj', '8970-npJj'
+    ]),
+    ('171020 initial nefs',[
+        '9572-n', '9573-n', '9574-n'
+    ]),
+    ('171021 initial nefs and tiffs',[
+        '9575-nt', '9576-nt', '9577-nt'
+    ]),
     ('830716 eastern front',[]),
-    ('840723 cha cha',[]),
-    ('850121 i-beam',[]),
-    ('850209 mab private outrage tales of terror',[]),
-    ('860719 new method sacrilege das damen 7sec beefeater',[])
+    ('840723 cha cha',[
+        '0001-t', '0002-pt', '0102-j'
+    ]),
+    ('850121 i-beam',[
+        '0017-pj', '0018-pj', '0019-pj'
+    ]),
+    ('850209 mab private outrage tales of terror',[
+        '008-pj', '009-pjJ', '010-pj'
+    ]),
+    ('860719 new method sacrilege das damen 7sec beefeater',[
+        '005-pj', '025-pj'
+    ])
 ]
 
 def test_scan_dir_set_my_dirs():
@@ -39,17 +73,18 @@ def test_scan_dir_set_my_dirs():
 
 def _test_scan_dir_sel(dir_pathname_list, expected_list):
     got_list = scan_dir_sel(dir_pathname_list, proc_std_dirname)
-    _check_dir_results(got_list, expected_list)
     for folder in got_list:
         scan_std_dir_files(folder)
-        pass
+    _check_dir_results(got_list, expected_list)
 
 test_scan_dir_sel_selected_list = [
     os.path.join(base_path, 'my format', '171007 virginia'),
     os.path.join(base_path, 'my format', 'ayers')
 ]
 test_scan_dir_sel_expected_list = [
-    ('171007 virginia',[]),
+    ('171007 virginia',[
+        '8963-n', '8965-npJj', '8969-npj', '8970-npJj'
+    ]),
     ('ayers',[])
 ]
 
@@ -64,18 +99,22 @@ def _check_file_results(got_list, expected_list):
         got_folder = got_list[j]
         expected_folder = expected_list[j]
         assert got_folder.fs_name == expected_folder[0]
-        assert len(got_folder.images) == len(expected_folder[1])
-        for expected_image in expected_folder[1]:
-            assert expected_image in got_folder.images
+        _check_image_results(got_folder, expected_folder)
 
 def _test_scan_file_set(file_set_pathname, test, proc, expected_list):
     got_list = scan_file_set(file_set_pathname, test, proc)
     _check_file_results(got_list, expected_list)
 
 test_scan_file_set_corbett_psds_expected_list = [
-    ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', ['9336', '9337']),
-    ('BLATZ_15_ASBESTOS_11_03_90-2744.psd', ['2744', '2745']),
-    ('FIFTEEN_TRIBE_8_JAWBREAKER_GILMAN_11_15&16_91-5605.psd', ['5605', '5631'])
+    ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', [
+        '9336-p', '9337-p'
+    ]),
+    ('BLATZ_15_ASBESTOS_11_03_90-2744.psd', [
+        '2744-p', '2745-p'
+    ]),
+    ('FIFTEEN_TRIBE_8_JAWBREAKER_GILMAN_11_15&16_91-5605.psd', [
+        '5605-p', '5631-p'
+    ])
 ]
 
 def test_scan_file_set_corbett_psds():
@@ -97,8 +136,12 @@ test_scan_file_sel_corbett_psds_selected_list = [
         'BLATZ_15_ASBESTOS_11_03_90-2745.psd')
 ]
 test_scan_file_sel_corbett_psds_expected_list = [
-    ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', ['9336']),
-    ('BLATZ_15_ASBESTOS_11_03_90-2744.psd', ['2744', '2745'])
+    ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', [
+        '9336-p'
+    ]),
+    ('BLATZ_15_ASBESTOS_11_03_90-2744.psd', [
+        '2744-p', '2745-p'
+    ])
 ]
 
 def test_scan_file_sel_corbett_psds():
