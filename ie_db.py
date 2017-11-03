@@ -13,7 +13,7 @@ class IEWorkItem(object):
         self.fs_folder = fs_folder
         self.ie_folder = ie_folder
         self.children = []
-        self.notes = set() # of IENote
+        self.msgs = []  # list() # of IENote
 
     def __repr__(self):
         return '<WorkItem %s %s>' % (

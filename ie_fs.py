@@ -9,14 +9,63 @@ import re
 import weakref
 
 
-class IENote(Enum):
-    NO_DATE         = 1     # (IEFolder) can't extract a date from the filename
-    FOLDER_ADDED    = 2     # (IEWorkItem) no FsFolder was found for this IEFolder
-    FOLDER_DELETED  = 3     # (IEWorkItem) no IEFolder was found for this FsFolder
-    TAGS_ARE_WORDS  = 4     # (IEFolder, IEImageInst)
-                            # [ 'green', 'day', 'ok' ] not [ 'green day', 'ok' ]
-    UNEXPECTED_FILES = 5    # (IEFolder) unexpected files were found in the directory(s)
-    EXTRA_INSTS     = 6     # (IEImage) multiple IEImageInsts for the same extension
+class IEMsgType(Enum):
+
+    # value is (printable message, format string for IEMsg.data)
+    # based on the format string's length, IEMag.data is
+    #   0   None
+    #   1   a single object
+    #   N   a tuple with N elements
+    # format string:
+    #   p   pathname string
+
+    NO_DATE             = ('folder name contains no date', 'p')
+        # (IEFolder)
+    FOLDER_ADDED        = ('new folder in imports', 'p')
+        # (IEWorkItem)
+    FOLDER_DELETED      = ('folder deleted from import folder set', 'p')
+        # (IEWorkItem)
+    TAGS_ARE_WORDS      = ('need to identify multi-word tags', '')
+        # (IEFolder, IEImageInst) [ 'green', 'day', 'ok' ] not [ 'green day', 'ok' ]
+    UNEXPECTED_FILE     = ('an unexpected file was found', 'p')
+        # (IEFolder)
+    EXTRA_INSTS         = ('multiple instances of this image x extension', 'p')
+        # (IEImage)
+
+
+class IEMsg(object):
+
+    def __init__(self, type, data, report_list = []):
+        self.type = type    # IEMsgType
+        self.data = data    # depends on type
+        self.children = []  # TODO: maybe not necessary: worklist is tree-structured
+        if report_list is not None:
+            report_list.append(self)
+        logging.info(str(self))
+
+    @classmethod
+    def fmt_arg(self, fmt_char, data):
+        if fmt_char == 'p':
+            return data
+        raise ValueError('bad format character')
+
+    def __repr__(self):
+        s = self.type.value[0] # the printable message
+        fmt = self.type.value[1]
+        if len(fmt) == 1:
+            s += ': ' + IEMsg.fmt_arg(fmt[0], self.data)
+        else:
+            sep = ': '
+            for fmt_char, data in zip(fmt, self.data):
+                s += IEMsg.fmt_arg(fmt_char, data)
+                sep = ', '
+        return s
+
+    def map_lines(self, fn, pfx = ''):
+        fn(pfx + self.fmt_line())
+        for child in self.children:
+            self.map_lines(child, fn, '  ' + pfx)
+
 
 class IEFolder(object):
 
@@ -27,7 +76,7 @@ class IEFolder(object):
         self.name = name        # just the name, e.g. 'virginia'
         self.mod_datetime = mod_datetime
         self.images = {}        # IEImage.name -> IEImage
-        self.notes = set()      # set of IENote
+        self.msgs = []          # list of IENote
         self.tags = []          # list of tag strings
 
     def __repr__(self):
@@ -40,7 +89,7 @@ class IEImage(object):
 
         self.ie_folder = ie_folder
         self.name = name        # just the sequence suffix, e.g. 123
-        self.notes = set()      # set of IENote
+        self.msgs = []          # list of IENote
         self.insts = {}         # extension (e.g. 'jpg-hi') -> list of IEImageInst
 
     def __repr__(self):
@@ -55,7 +104,7 @@ class IEImageInst(object):
         self.fs_path = fs_path  # filesystem pathname
         self.ext = ext          # key in ie_image.insts, e.g '.jpg', '.jpg-hi'
         self.mod_datetime = mod_datetime
-        self.notes = set()      # set of IENotes
+        self.msgs = []          # list of IEMsg
         self.tags = []          # list of tag strings
 
     def __repr__(self):
@@ -92,7 +141,7 @@ def proc_std_dirname(dir_pathname, dir_name):
     mtime = datetime.datetime.fromtimestamp(stat_mtime)
     folder = IEFolder(dir_pathname, dir_name, date, name, mtime)
     if date is None:
-        folder.notes.add(IENote.NO_DATE)
+        folder.msgs.append(IEMsg(IEMsgType.NO_DATE, dir_pathname))
     return folder
 
 def scan_dir_set(dir_set_pathname, test, proc):
@@ -167,11 +216,11 @@ def scan_std_dir_files(ie_folder):
                     ie_image.insts[ext] = [ie_image_inst]
                 else:
                     logging.error('multiple insts for %s', str(ie_image_inst))
-                    ie_image.notes.add(IENote.EXTRA_INSTS)
+                    ie_image.msgs.add(IEMsg(IEMsgType.EXTRA_INSTS, file_path))
                     ie_image.insts[ext].append(ie_image_inst)
             else:
                 logging.error('unexpected file %s', file_name)
-                ie_folder.notes.add(IENote, UNEXPECTED_FILES)
+                ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
         else:
             # special file -- ignore
             pass
@@ -195,7 +244,7 @@ trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
 amper_date = re.compile(r'&[0-9]+')
 
 def proc_corbett_filename(file_pathname, file_name, folders):
-    notes = set([IENote.TAGS_ARE_WORDS])
+    msgs = [IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname)]
     base_name, ext = os.path.splitext(file_name)
 
     base_name = base_name.lower()
@@ -207,7 +256,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         # start a new IEFolder
         match = trailing_date.search(base)
         if match is None:
-            errors.add(IENote.NO_DATE)
+            errors.add(IEMsg(IEMsgType.NO_DATE))
             date = None
             name = base
         else:
@@ -222,7 +271,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             name = base_name[0:match.start()]
         words = name.split('_')
         ie_folder = IEFolder(file_pathname, file_name, date, name, mtime)
-        ie_folder.notes = notes
+        ie_folder.msgs = msgs
         ie_folder.tags = words
         folders.append(ie_folder)
     else:

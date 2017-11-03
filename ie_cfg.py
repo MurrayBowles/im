@@ -32,23 +32,6 @@ class SourceType(Enum):
         return self == SourceType.DIR_SEL or self == SourceType.FILE_SEL
 
 
-class IEReport(object):
-
-    def __init__(self, type, data, report_list = []):
-        self.type = type
-        self.data = data
-        self.children = []
-        if report_list is not None:
-            report_list.append(self)
-
-    def map_lines(self, fn, nest = 0):
-        l = self.type
-        if self.data is not None:
-            l += ' ' + str(self.data)
-        for c in self.children:
-            map_lines(c, fn, nest + 1)
-
-
 class IEFolderAct(Enum):
     ''' import/export actions on a folder '''
     SCAN = 0        # scan folder and its images
