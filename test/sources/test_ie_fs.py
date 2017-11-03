@@ -61,10 +61,6 @@ def _check_file_results(got_list, expected_list):
         assert len(got_folder.images) == len(expected_folder[1])
         for expected_image in expected_folder[1]:
             assert expected_image in got_folder.images
-        max_mod_datetime = max(
-            got_folder.images.values(),
-            key=(lambda image: image.insts[0].mod_datetime)).insts[0].mod_datetime
-        assert got_folder.mod_datetime == max_mod_datetime
 
 def _test_scan_file_set(file_set_pathname, test, proc, expected_list):
     got_list = scan_file_set(file_set_pathname, test, proc)

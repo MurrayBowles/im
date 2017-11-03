@@ -7,6 +7,6 @@ from ie_fs import *
 
 if __name__=='__main__':
     # db_test()
-    ie_test()
+    # ie_test()
     # gui_test()
 
