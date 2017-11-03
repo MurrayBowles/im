@@ -3,10 +3,12 @@
 import datetime
 from enum import Enum
 import io
+import json
 import logging
 import os
+from PIL import Image
 import re
-import weakref
+import subprocess
 
 
 class IEMsgType(Enum):
@@ -92,8 +94,11 @@ class IEImage(object):
         self.msgs = []          # list of IENote
         self.insts = {}         # extension (e.g. 'jpg-hi') -> list of IEImageInst
 
+
     def __repr__(self):
         return '<IEImage %s|%s>' % (self.ie_folder.fs_name, self.name)
+
+thumbnail_exts = [ '.jpg', '.jpg-hi' ] # TODO: silly PIL doesn't do TIFFs
 
 
 class IEImageInst(object):
@@ -106,10 +111,35 @@ class IEImageInst(object):
         self.mod_datetime = mod_datetime
         self.msgs = []          # list of IEMsg
         self.tags = []          # list of tag strings
+        self.ed = self.exif()
 
     def __repr__(self):
         return '<IEImageInst %s|%s|%s>' % (
             self.ie_image.ie_folder.fs_name, self.ie_image.name, self.ext)
+
+    def thumbnail(self):
+        try:
+            pimage = Image.open(self.fs_path)
+            pimage.thumbnail((200, 200))
+            byte_array = io.BytesIO()
+            pimage.save(byte_array, format='JPEG')
+            bytes = byte_array.getvalue()
+            return bytes
+        except:
+            return None
+
+    def exif(self):
+        #outb = exec("exiftool -j -common -XMP-dc:subject -XMP-lr:hierarchicalSubject %s" % self.fs_path)
+        outb = subprocess.check_output([
+            'exiftool', '-S', '-j', '-ImageSize', '-XMP-dc:subject', '-XMP-lr:hierarchicalSubject',
+            self.fs_path])
+        #outb = subprocess.check_output(['exiftool', '-j', '-common', self.fs_path])
+        outs = str(outb)[2:-5]
+        outs = outs.replace(r'\n', '')
+        outs = outs.replace(r'\r', '')
+        outo = json.loads(outs)
+        # it took me two hours to make this work at all, so I'm not touching it!
+        return outo
 
 # a std_dirname has the form 'yymmdd name'
 leading_date_space = re.compile(r'^\d{6,6} ')
