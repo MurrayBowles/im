@@ -68,7 +68,8 @@ leading_date = re.compile(r'^\d{6,6}')
 
 def is_std_dirname(dirname):
     ''' return whether dirname is a "standard" directory of image files '''
-    return leading_date_space.match(dirname) is not None
+    return True
+    # TODO: return leading_date_space.match(dirname) is not None
 
 def date_from_yymmdd(yymmdd):
     ''' return a datetime.date from a 'yymmdd' string '''
@@ -138,7 +139,7 @@ def scan_std_dir_files(ie_folder):
             tag_lines = open(file_path, 'r').readline()
             for tag_line in tag_lines:
                 ie_folder.tags.extend(tag_line.split(','))
-        else:
+        elif os.path.isfile(file_path):
             base_name, ext = os.path.splitext(file_name)
             base_name = base_name.lower()
             ext = ext.lower()
@@ -146,15 +147,14 @@ def scan_std_dir_files(ie_folder):
                 if high_res:
                     ext += '-hi'
                 if base_name.find('-') != -1:
-                    base, seq = base_name.split('-')
+                    seq = base_name.split('-')[1]
                 elif any(base_name.startswith(pfx) for pfx in raw_prefixes):
                     # FIXME: prefixes w/ length other than 4
-                    base = base_name[0:3]
                     seq = base_name[4:]
                 else:
-                    logging.error('unexpected file %s', file_name)
-                    ie_folder.notes.add(IENote.UNEXPECTED_FILES)
-                    return
+                    # e.g. simple named files, as in 'my format/ayers/dks.psd
+                    base = ''
+                    seq = base_name
                 stat_mtime = os.path.getmtime(file_path)
                 mtime = datetime.datetime.fromtimestamp(stat_mtime)
                 if seq in ie_folder.images:
@@ -172,6 +172,9 @@ def scan_std_dir_files(ie_folder):
             else:
                 logging.error('unexpected file %s', file_name)
                 ie_folder.notes.add(IENote, UNEXPECTED_FILES)
+        else:
+            # special file -- ignore
+            pass
 
     def acquire_dir(pathname, high_res):
         # TODO: detect high_res from exif dimensions
@@ -186,6 +189,7 @@ def scan_std_dir_files(ie_folder):
                 acquire_file(file_path, file_name, high_res)
 
     acquire_dir(ie_folder.fs_path, high_res=False)
+    # TODO: adjust seq numbers for Nikon 9999 rollover
 
 trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
 amper_date = re.compile(r'&[0-9]+')

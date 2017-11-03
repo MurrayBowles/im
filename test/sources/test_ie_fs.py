@@ -62,6 +62,9 @@ test_scan_dir_set_expected_list = [
     ]),
     ('860719 new method sacrilege das damen 7sec beefeater',[
         '005-pj', '025-pj'
+    ]),
+    ('ayers',[
+        'dks-jp', 'insaints-j', 'offspring-j'
     ])
 ]
 
@@ -85,7 +88,9 @@ test_scan_dir_sel_expected_list = [
     ('171007 virginia',[
         '8963-n', '8965-npJj', '8969-npj', '8970-npJj'
     ]),
-    ('ayers',[])
+    ('ayers',[
+        'dks-jp', 'insaints-j', 'offspring-j'
+    ])
 ]
 
 def test_scan_dir_sel_my_dirs():

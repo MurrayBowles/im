@@ -24,6 +24,9 @@ def check_worklist_no_fs_folders(
         session, fs_source, source_type, paths, expected_list):
     worklist = get_ie_worklist(
         session, fs_source, source_type, paths)
+
+    if len(worklist) != len(expected_list):
+        pass
     assert len(worklist) == len(expected_list)
     for work, expected in zip(worklist, expected_list):
         assert work.fs_folder is None

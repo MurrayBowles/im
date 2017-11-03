@@ -16,10 +16,9 @@ class IEWorkItem(object):
         self.notes = set() # of IENote
 
     def __repr__(self):
-        return '<WorkItem %s %s %s>' % (
+        return '<WorkItem %s %s>' % (
             str(self.fs_folder) if self.fs_folder is not None else '-',
-            str(self.ie_folder) if self.ie_folder is not None else '-',
-            str(self.ie_error)
+            str(self.ie_folder) if self.ie_folder is not None else '-'
         )
 
 def get_ie_worklist(session, fs_source, source_type, paths):
@@ -65,7 +64,7 @@ def get_ie_worklist(session, fs_source, source_type, paths):
 
 def proc_ie_work_item(session, work_item, fs_source, source_type):
     if fs_source == FsSource.DIR_SET or fs_source == FsSource.DIR_SEL:
-        # inventory the image files
-        scan_std_dir_images(ie_folder)
+        # scan the folder's image files (this has already been done in the FILE_SET/SEL case)
+        scan_std_dir_files(ie_folder)
 
 
