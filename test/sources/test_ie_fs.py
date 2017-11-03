@@ -16,6 +16,9 @@ def _check_dir_results(got_list, expected_list):
 def _test_scan_dir_set(dir_set_pathname, test, proc, expected_list):
     got_list = scan_dir_set(dir_set_pathname, test, proc)
     _check_dir_results(got_list, expected_list)
+    for folder in got_list:
+        scan_std_dir_files(folder)
+        pass
 
 test_scan_dir_set_expected_list = [
     ('171007 virginia',[]),
@@ -37,6 +40,9 @@ def test_scan_dir_set_my_dirs():
 def _test_scan_dir_sel(dir_pathname_list, expected_list):
     got_list = scan_dir_sel(dir_pathname_list, proc_std_dirname)
     _check_dir_results(got_list, expected_list)
+    for folder in got_list:
+        scan_std_dir_files(folder)
+        pass
 
 test_scan_dir_sel_selected_list = [
     os.path.join(base_path, 'my format', '171007 virginia'),

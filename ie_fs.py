@@ -31,36 +31,36 @@ class IEFolder(object):
         self.tags = []          # list of tag strings
 
     def __repr__(self):
-        return '<IEFolder %s' % self.fs_name
+        return '<IEFolder %s>' % self.fs_name
 
 
 class IEImage(object):
 
     def __init__(self, ie_folder, name):
 
-        self.ie_folder = weakref.ref(ie_folder)
+        self.ie_folder = ie_folder
         self.name = name        # just the sequence suffix, e.g. 123
         self.notes = set()      # set of IENote
         self.insts = {}         # extension (e.g. 'jpg-hi') -> list of IEImageInst
 
     def __repr__(self):
-        return '<IEImage %s/%s>' % (self.ie_folder.fs_name, self.name)
+        return '<IEImage %s|%s>' % (self.ie_folder.fs_name, self.name)
 
 
 class IEImageInst(object):
 
-    def __init__(self, ie_image, fs_path, mod_datetime):
+    def __init__(self, ie_image, fs_path, ext, mod_datetime):
 
-        self.ie_image = weakref.ref(ie_image)
+        self.ie_image = ie_image
         self.fs_path = fs_path  # filesystem pathname
+        self.ext = ext          # key in ie_image.insts, e.g '.jpg', '.jpg-hi'
         self.mod_datetime = mod_datetime
         self.notes = set()      # set of IENotes
         self.tags = []          # list of tag strings
 
     def __repr__(self):
-        return '<IEImageInst %s/%s.%s>' % (
-            self.ie_image.ie_folder.fs_name, self.ie_image.name,
-            os.path.splitext(self.fs_path)[1][1:])
+        return '<IEImageInst %s|%s|%s>' % (
+            self.ie_image.ie_folder.fs_name, self.ie_image.name, self.ext)
 
 # a std_dirname has the form 'yymmdd name'
 leading_date_space = re.compile(r'^\d{6,6} ')
@@ -127,29 +127,43 @@ def scan_dir_sel(dir_pathname_list, proc):
 
 # recognized image file extensions
 img_extensions = [ '.nef', '.tif', '.psd', '.jpg' ]
+raw_prefixes = [ 'img_', 'dsc_' ]
 ignored_extensions = [ '.zip' ]
+ignored_subdirectories = [ 'del' ]
 # the filename 'New Text Document.txt'(!) is recognized as a source of folder tags
 
 def scan_std_dir_files(ie_folder):
-    def acquire_file(file_path, file_name):
+    def acquire_file(file_path, file_name, high_res):
         if file_name == 'New Text Document.txt':
             tag_lines = open(file_path, 'r').readline()
             for tag_line in tag_lines:
-                fs_folder.tags.extend(tag_line.split(','))
+                ie_folder.tags.extend(tag_line.split(','))
         else:
             base_name, ext = os.path.splitext(file_name)
+            base_name = base_name.lower()
+            ext = ext.lower()
             if ext in img_extensions:
-                base_name = base_name.lower()
-                base, seq = base_name.split('-')
-                stat_mtime = os.path.getmtime(file_pathname)
+                if high_res:
+                    ext += '-hi'
+                if base_name.find('-') != -1:
+                    base, seq = base_name.split('-')
+                elif any(base_name.startswith(pfx) for pfx in raw_prefixes):
+                    # FIXME: prefixes w/ length other than 4
+                    base = base_name[0:3]
+                    seq = base_name[4:]
+                else:
+                    logging.error('unexpected file %s', file_name)
+                    ie_folder.notes.add(IENote.UNEXPECTED_FILES)
+                    return
+                stat_mtime = os.path.getmtime(file_path)
                 mtime = datetime.datetime.fromtimestamp(stat_mtime)
                 if seq in ie_folder.images:
                     ie_image = ie_folder.images[seq]
                 else:
                     ie_image = IEImage(ie_folder, seq)
-                    folder.images[seq] = ie_image
-                ie_image_inst = IEImageInst(ie_image, file_path, mtime)
-                if len(ie_image.insts[ext]) == 0:
+                    ie_folder.images[seq] = ie_image
+                ie_image_inst = IEImageInst(ie_image, file_path, ext, mtime)
+                if ext not in ie_image.insts:
                     ie_image.insts[ext] = [ie_image_inst]
                 else:
                     logging.error('multiple insts for %s', str(ie_image_inst))
@@ -157,7 +171,7 @@ def scan_std_dir_files(ie_folder):
                     ie_image.insts[ext].append(ie_image_inst)
             else:
                 logging.error('unexpected file %s', file_name)
-                folder.notes.add(IENote, UNEXPECTED_FILES)
+                ie_folder.notes.add(IENote, UNEXPECTED_FILES)
 
     def acquire_dir(pathname, high_res):
         # TODO: detect high_res from exif dimensions
@@ -166,11 +180,12 @@ def scan_std_dir_files(ie_folder):
         for file_name in file_name_list:
             file_path = os.path.join(pathname, file_name)
             if os.path.isdir(file_path):
-                acquire_dir(file_path, file_name == 'hi')
+                if file_name not in ignored_subdirectories:
+                    acquire_dir(file_path, file_name == 'hi')
             else:
-                acquire_file(file_path, file_name)
+                acquire_file(file_path, file_name, high_res)
 
-    acquire_dir(ie_folder.pathname, high_res=False)
+    acquire_dir(ie_folder.fs_path, high_res=False)
 
 trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
 amper_date = re.compile(r'&[0-9]+')
@@ -216,7 +231,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
     else:
         ie_image = IEImage(ie_folder, seq)
         ie_folder.images[seq] = ie_image
-    ie_image_inst = IEImageInst(ie_image, file_pathname, mtime)
+    ie_image_inst = IEImageInst(ie_image, file_pathname, ext, mtime)
     ie_image.insts[ext] = [ie_image_inst]
     folders[-1].images[seq] = ie_image
     return ie_image_inst
