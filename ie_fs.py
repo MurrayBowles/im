@@ -33,7 +33,10 @@ class IEMsgType(Enum):
         # (IEFolder)
     EXTRA_INSTS         = ('multiple instances of this image x extension', 'p')
         # (IEImage)
-
+    NO_IMAGES           = ('no images were found for this folder', 'p')
+        # (IEFolder)
+    CANT_FIND_IMAGE     = ("internal error: can't find folder image from pathmane", 'p')
+        # (IEFolder)
 
 class IEMsg(object):
 
@@ -80,6 +83,7 @@ class IEFolder(object):
         self.images = {}        # IEImage.name -> IEImage
         self.msgs = []          # list of IENote
         self.tags = []          # list of tag strings
+        self.image_insts = {}   # map: IEImageInst.fs_path => IEImageInst
 
     def __repr__(self):
         return '<IEFolder %s>' % self.fs_name
@@ -111,13 +115,13 @@ class IEImageInst(object):
         self.mod_datetime = mod_datetime
         self.msgs = []          # list of IEMsg
         self.tags = []          # list of tag strings
-        self.ed = self.exif()
+        ie_image.ie_folder.image_insts[fs_path] = self
 
     def __repr__(self):
         return '<IEImageInst %s|%s|%s>' % (
             self.ie_image.ie_folder.fs_name, self.ie_image.name, self.ext)
 
-    def thumbnail(self):
+    def get_thumbnail(self):
         try:
             pimage = Image.open(self.fs_path)
             pimage.thumbnail((200, 200))
@@ -128,18 +132,63 @@ class IEImageInst(object):
         except:
             return None
 
-    def exif(self):
-        #outb = exec("exiftool -j -common -XMP-dc:subject -XMP-lr:hierarchicalSubject %s" % self.fs_path)
-        outb = subprocess.check_output([
-            'exiftool', '-S', '-j', '-ImageSize', '-XMP-dc:subject', '-XMP-lr:hierarchicalSubject',
-            self.fs_path])
-        #outb = subprocess.check_output(['exiftool', '-j', '-common', self.fs_path])
-        outs = str(outb)[2:-5]
-        outs = outs.replace(r'\n', '')
-        outs = outs.replace(r'\r', '')
-        outo = json.loads(outs)
-        # it took me two hours to make this work at all, so I'm not touching it!
-        return outo
+    def set_attrs_from_exiftool_json(self, item):
+        if 'ImageSize' in item:
+            w, h = item['ImageSize'].split('x')
+            self.image_size = (int(w), int(h))
+        if 'Subject' in item:
+            self.tags.extend(item['Subject'])
+
+def ext_thumb_quality(ext):
+    map = {
+        '.jpg':     3,
+        '.jpg-hi':  2,
+        '.psd' :    1,
+        '.tif':     0
+    }
+    return map[ext] if ext in map else 0
+
+def cmp_thumb_quality(ext1, ext2):
+    return ext_thumb_quality(ext1) - ext_thumb_quality(ext2)
+
+def get_ie_folder_exifs(ie_folder):
+    path_exts = {}
+    for ie_image in ie_folder.images.values():
+        for ie_image_inst_list in ie_image.insts.values():
+            for ie_image_inst in ie_image_inst_list:
+                inst_path = ie_image_inst.fs_path
+                dir_path = os.path.dirname(inst_path)
+                fs_ext = ie_image_inst.ext
+                if fs_ext.endswith('-hi'):
+                    fs_ext = fs_ext[0:-3]
+                if dir_path not in path_exts:
+                    path_exts[dir_path] = set([fs_ext])
+                else:
+                    path_exts[dir_path].add(fs_ext)
+    argv = [
+        'exiftool', '-S', '-j',
+        '-ImageSize',
+        '-XMP-dc:subject',
+        '-XMP-lr:hierarchicalSubject',
+    ]
+    argv_len0 = len(argv)
+    for dir_path, ext_set in path_exts.items():
+        for ext in ext_set:
+            argv.append(os.path.join(dir_path, '*' + ext))
+    if len(argv) == argv_len0: # no images
+        ie_folder.msgs.append(IEMsg(IEMsgType.NO_IMAGES, ie_folder.fs_path))
+        return
+    outb = subprocess.check_output(argv)
+    outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '')
+    outo = json.loads(outs)
+    for item in outo:
+        fs_path = os.path.abspath(item['SourceFile'])
+        drive, fs_path = os.path.splitdrive(fs_path)
+        if fs_path in ie_folder.image_insts:
+            ie_image_inst = ie_folder.image_insts[fs_path]
+            ie_image_inst.set_attrs_from_exiftool_json(item)
+        else:
+            ie_folder.msgs.append(IEMsg(IEMsgType.CANT_FIND_IMAGE, fs_path))
 
 # a std_dirname has the form 'yymmdd name'
 leading_date_space = re.compile(r'^\d{6,6} ')

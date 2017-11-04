@@ -33,6 +33,7 @@ def _check_dir_results(got_list, expected_list):
         ie_folder = got_list[j]
         assert ie_folder.fs_name == expected_list[j][0]
         _check_image_results(ie_folder, expected_list[j])
+        get_ie_folder_exifs(ie_folder)
 
 def _test_scan_dir_set(dir_set_pathname, test, proc, expected_list):
     got_list = scan_dir_set(dir_set_pathname, test, proc)
@@ -105,6 +106,8 @@ def _check_file_results(got_list, expected_list):
         expected_folder = expected_list[j]
         assert got_folder.fs_name == expected_folder[0]
         _check_image_results(got_folder, expected_folder)
+        get_ie_folder_exifs(got_folder)
+
 
 def _test_scan_file_set(file_set_pathname, test, proc, expected_list):
     got_list = scan_file_set(file_set_pathname, test, proc)
