@@ -151,7 +151,10 @@ def ext_thumb_quality(ext):
 def cmp_thumb_quality(ext1, ext2):
     return ext_thumb_quality(ext1) - ext_thumb_quality(ext2)
 
-def get_ie_folder_exifs(ie_folder):
+def get_ie_folder_exifs_by_dir(ie_folder):
+    ''' get the exif data for all the IEImageInsts instances under IEFolder
+        runs exiftool once for each filesystem directory involved
+    '''
     path_exts = {}
     for ie_image in ie_folder.images.values():
         for ie_image_inst_list in ie_image.insts.values():
@@ -189,6 +192,26 @@ def get_ie_folder_exifs(ie_folder):
             ie_image_inst.set_attrs_from_exiftool_json(item)
         else:
             ie_folder.msgs.append(IEMsg(IEMsgType.CANT_FIND_IMAGE, fs_path))
+
+def get_ie_folder_exifs_by_file(ie_folder):
+    ''' get the exif data for all the IEImageInsts instances under IEFolder
+        runs exiftool once for each file involved
+    '''
+    for ie_image in ie_folder.images.values():
+        for ie_image_inst_list in ie_image.insts.values():
+            for ie_image_inst in ie_image_inst_list:
+                argv = [
+                    'exiftool', '-S', '-j',
+                    '-ImageSize',
+                    '-XMP-dc:subject',
+                    '-XMP-lr:hierarchicalSubject',
+                    ie_image_inst.fs_path
+                ]
+                outb = subprocess.check_output(argv)
+                outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '')
+                outo = json.loads(outs)
+                assert len(outo) == 1
+                ie_image_inst.set_attrs_from_exiftool_json(outo[0])
 
 # a std_dirname has the form 'yymmdd name'
 leading_date_space = re.compile(r'^\d{6,6} ')
@@ -323,7 +346,6 @@ trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
 amper_date = re.compile(r'&[0-9]+')
 
 def proc_corbett_filename(file_pathname, file_name, folders):
-    msgs = [IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname)]
     base_name, ext = os.path.splitext(file_name)
 
     base_name = base_name.lower()
@@ -350,7 +372,6 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             name = base_name[0:match.start()]
         words = name.split('_')
         ie_folder = IEFolder(file_pathname, file_name, date, name, mtime)
-        ie_folder.msgs = msgs
         ie_folder.tags = words
         folders.append(ie_folder)
     else:
