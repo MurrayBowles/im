@@ -13,31 +13,36 @@ import subprocess
 
 class IEMsgType(Enum):
 
-    # value is (printable message, format string for IEMsg.data)
-    # based on the format string's length, IEMag.data is
+    # value is (message, severity/format string)
+    # the first character of the severity/format string is
+    #   i   informational
+    #   e   user error
+    #   E   internal error
+    # followed by 0 or more formatting characters
+    #   p   pathname string
+    #   s   string
+    # based on the number of formatting characters, IEMag.data is
     #   0   None
     #   1   a single object
     #   N   a tuple with N elements
-    # format string:
-    #   p   pathname string
 
-    NO_DATE             = ('folder name contains no date', 'p')
+    NO_DATE             = ('folder name contains no date', 'ip')
         # (IEFolder)
-    FOLDER_ADDED        = ('new folder in imports', 'p')
+    FOLDER_ADDED        = ('folder added to imports', 'ip')
         # (IEWorkItem)
-    FOLDER_DELETED      = ('folder deleted from import folder set', 'p')
+    FOLDER_DELETED      = ('folder deleted from import folder set', 'ip')
         # (IEWorkItem)
-    TAGS_ARE_WORDS      = ('need to identify multi-word tags', '')
+    TAGS_ARE_WORDS      = ('tags need editing', 'i')
         # (IEFolder, IEImageInst) [ 'green', 'day', 'ok' ] not [ 'green day', 'ok' ]
-    UNEXPECTED_FILE     = ('an unexpected file was found', 'p')
+    UNEXPECTED_FILE     = ('unexpected file found', 'ip')
         # (IEFolder)
-    EXTRA_INSTS         = ('multiple instances of this image x extension', 'p')
+    EXTRA_INSTS         = ('multiple instances of this (image, extension)', 'ip')
         # (IEImage)
-    NO_IMAGES           = ('no images were found for this folder', 'p')
+    NO_IMAGES           = ('folder contains no images', 'ip')
         # (IEFolder)
-    CANT_FIND_IMAGE     = ("internal error: can't find folder image from pathmane", 'p')
+    CANT_FIND_IMAGE     = ("internal error: can't find folder image from pathmane", 'Ep')
         # (IEFolder)
-    NAME_NEEDS_EDIT     = ('the folder name needs to be edited', 's')
+    NAME_NEEDS_EDIT     = ('folder name needs exiting', 'is')
         # (IEFolder)
 
 class IEMsg(object):
@@ -48,7 +53,10 @@ class IEMsg(object):
         self.children = []  # TODO: maybe not necessary: worklist is tree-structured
         if report_list is not None:
             report_list.append(self)
-        logging.info(str(self))
+        if type.value[1][0] == 'i':
+            logging.info(str(self))
+        else:
+            logging.error(str(self))
 
     @classmethod
     def fmt_arg(self, fmt_char, data):
@@ -57,8 +65,12 @@ class IEMsg(object):
         raise ValueError('bad format character')
 
     def __repr__(self):
-        s = self.type.value[0] # the printable message
-        fmt = self.type.value[1]
+        lvl_fmt = self.type.value[1]
+        assert len(lvl_fmt) >= 1
+        lvl = lvl_fmt[:1]
+        fmt = lvl_fmt[1:]
+        s = { 'i': '%', 'e': '?', 'E': '!?'}[lvl]
+        s += self.type.value[0] # the printable message
         if len(fmt) == 1:
             s += ': ' + IEMsg.fmt_arg(fmt[0], self.data)
         else:
@@ -404,7 +416,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         ie_folder = IEFolder(file_pathname, file_name, date, name, mtime)
         ie_folder.tags = words
         ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))
-        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, file_pathname))
+        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, name))
         folders.append(ie_folder)
     else:
         ie_folder = folders[-1]
