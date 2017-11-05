@@ -183,7 +183,7 @@ def _get_exiftool_json(argv):
     exiftool_json = json.loads(outs)
     return exiftool_json
 
-def get_ie_image_exifs(ie_image_set):
+def get_ie_image_exifs(ie_image_set, pub):
     ''' get exif data for all the images in <ie_image_set>
         deletes images from the set as their exifs are processed
     '''
@@ -237,8 +237,9 @@ def get_ie_image_exifs(ie_image_set):
                         argv.append(ie_image_inst.fs_path)
                     exiftool_json = _get_exiftool_json(argv)
                     proc_exiftool_json(ie_image_set, inst_paths, exiftool_json)
+            pub('ie.imported_tags', len(exiftool_json))
 
-def get_ie_image_thumbnails(ie_image_set):
+def get_ie_image_thumbnails(ie_image_set, pub):
     ''' extract thumbnails for the images in <ie_image_set>
         deletes images from the set as their thumbnails are proecesed
     '''
@@ -246,6 +247,7 @@ def get_ie_image_thumbnails(ie_image_set):
         ie_image_inst = ie_image.newest_inst_with_thumbnail
         assert ie_image_inst is not None
         ie_image.thumbnail = ie_image_inst.get_thumbnail()
+        pub('ie.imported thumbnail', 1)
     # clear(ie_image_set) FIXME: why does this fail?
 
 # a std_dirname has the form 'yymmdd name'

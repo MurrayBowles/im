@@ -4,6 +4,7 @@ from collections import deque
 from db import DbFolder, DbImage, FsFolder, FsImage
 from ie_cfg import *
 from ie_fs import *
+from threading import Thread
 
 
 class IEWorkItem(object):
@@ -39,7 +40,9 @@ def get_ie_worklist(session, fs_source, source_type, paths):
         ie_folders = scan_file_sel(paths, proc_corbett_filename)
     else:
         raise ValueError('unknown source type')
+
     worklist = deque()
+
     if source_type.is_multiple():   # DIR_SEL or FILE_SEL
         # get all FsFolders that match folders
         for ie_folder in ie_folders:
@@ -67,7 +70,8 @@ def get_ie_worklist(session, fs_source, source_type, paths):
                 break
     return worklist
 
-def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source, source_type):
+def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
+    source_type = ie_cfg.source_type
 
     def import_ie_image(fs_image, ie_image, new_fs_image):
         work_item.existing_images.append((fs_image, ie_image, new_fs_image))
@@ -135,5 +139,72 @@ def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source, source_type):
                 break
 
 def bg_proc_ie_work_item(work_item):
-    get_ie_image_thumbnails(work_item.get_thumbnail)
-    get_ie_image_exifs(work_item.get_exif)
+    def pub(msg, data):
+        pass
+    get_ie_image_thumbnails(work_item.get_thumbnail, pub)
+    get_ie_image_exifs(work_item.get_exif, pub)
+
+
+class IECmd(object):
+    ''' state of an import/export command '''
+
+    def __init__(self, session, ie_cfg, fs_source):
+        self.session = session
+        self.ie_cfg = ie_cfg
+        self.fs_source = fs_source
+        self.worklist = get_ie_worklist(session, fs_source, ie_cfg.source_type, ie_cfg.paths)
+        self.worklist_idx = 0
+        self.cancelling = False
+        self.pub('ie.begun', len(self.worklist))
+        self.step_begin()
+
+    def pub(self, msg, data):
+        # do a PubSub for the front end's benefit
+        raise NotImplementedError('pub')
+
+    def step_begin(self):
+        if self.cancelling or self.worklist_idx >= len(self.worklist):
+            self.done(False)
+        else:
+            work_item = self.worklist[self.worklist_idx]
+            fg_proc_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
+            if len(work_item.get_exif) > 0 or len(work_item.get_exif) > 0:
+                self.bg_spawn()
+            else:
+                self.step_done()
+
+    def bg_spawn(self):
+        # start a background thread, executing self.bg_proc()
+        raise NotImplementedError('bg_spawn')
+
+    def bg_proc(self):
+        # run in a background thread by bg_spawn
+
+        def pub(msg, data):
+            self.pub(msg, data)
+        work_item = self.worklist[self.worklist_idx]
+        if len(work_item.get_thumbnail) > 0:
+            self.pub('ie.import thumbnails', len(work_item.get_thumbnail))
+            get_ie_image_thumbnails(work_item.get_thumbnail, pub)
+        if len(work_item.get_exif) > 0:
+            self.pub('ie.import tags', len(work_item.get_exif))
+            get_ie_image_exifs(work_item.get_exif, pub)
+        self.bg_done()
+
+    def bg_done(self):
+        # do something which causes self.step_done() to be called in the main thread
+        raise NotImplementedError('bg_done')
+
+    def step_done(self):
+        self.pub('ie.folder_done', self.worklist[self.worklist_idx].ie_folder.name)
+        self.worklist_idx += 1
+        self.step_begin()
+
+    def done(self, cancelled):
+        self.pub('ie.done', self.cancelling)
+
+    def cancel(self):
+        self.cancelling = True
+
+
+
