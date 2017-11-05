@@ -59,7 +59,7 @@ def check_worklist_with_fs_folders(
             pass
         assert work.fs_folder is fs_folder
         assert work.ie_folder.fs_name == expected[0]
-        session.expunge(fs_folder)
+        # session.expunge(fs_folder)
 
 def test_get_workist_dir_set_my_dirs():
     session = open_mem_db()
