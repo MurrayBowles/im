@@ -1,7 +1,7 @@
 ''' persistent data for Import/Export: cfg.ie '''
 
 from enum import Enum
-import wx
+# import wx
 
 
 class SourceType(Enum):
@@ -59,7 +59,8 @@ class IECfg(object):
         self.reports = []
 
     def clear_paths(self):
-        self.chooser_path = wx.StandardPaths.Get().GetDocumentsDir()
+        # self.chooser_path = wx.StandardPaths.Get().GetDocumentsDir()
+        self.chooser_path = ''
         self.paths = []
 
     def clear_reports(self):

@@ -37,6 +37,8 @@ class IEMsgType(Enum):
         # (IEFolder)
     CANT_FIND_IMAGE     = ("internal error: can't find folder image from pathmane", 'p')
         # (IEFolder)
+    NAME_NEEDS_EDIT     = ('the folder name needs to be edited', 's')
+        # (IEFolder)
 
 class IEMsg(object):
 
@@ -50,7 +52,7 @@ class IEMsg(object):
 
     @classmethod
     def fmt_arg(self, fmt_char, data):
-        if fmt_char == 'p':
+        if fmt_char == 'p' or fmt_char == 's':
             return data
         raise ValueError('bad format character')
 
@@ -71,6 +73,14 @@ class IEMsg(object):
         for child in self.children:
             self.map_lines(child, fn, '  ' + pfx)
 
+    @classmethod
+    def find(cls, msg_type, msgs):
+        for msg in msgs:
+            if msg.type == msg_type:
+                return msg.data
+        else:
+            return None
+
 
 class IEFolder(object):
 
@@ -88,6 +98,8 @@ class IEFolder(object):
     def __repr__(self):
         return '<IEFolder %s>' % self.fs_name
 
+thumbnail_exts = [ '.jpg', '.jpg-hi' ] # TODO: silly PIL doesn't do TIFFs
+exif_exts = [ '.tif', '.psd', '.jpg', '.jpg-hi' ]
 
 class IEImage(object):
 
@@ -98,12 +110,19 @@ class IEImage(object):
         self.msgs = []          # list of IENote
         self.insts = {}         # extension (e.g. 'jpg-hi') -> list of IEImageInst
 
+        self.newest_inst_with_thumbnail = None  # read by proc_ie_work_item
+        self.thumbnail = None                   # set when/if the thumbnail is extracted
+        self.tags = None                        # set when/if the tags are extracted
 
     def __repr__(self):
         return '<IEImage %s|%s>' % (self.ie_folder.fs_name, self.name)
 
-thumbnail_exts = [ '.jpg', '.jpg-hi' ] # TODO: silly PIL doesn't do TIFFs
-
+    def set_attrs_from_exiftool_json(self, item):
+        if 'ImageSize' in item:
+            w, h = item['ImageSize'].split('x')
+            self.image_size = (int(w), int(h))
+        if 'Subject' in item:
+            self.tags = item['Subject']
 
 class IEImageInst(object):
 
@@ -114,8 +133,14 @@ class IEImageInst(object):
         self.ext = ext          # key in ie_image.insts, e.g '.jpg', '.jpg-hi'
         self.mod_datetime = mod_datetime
         self.msgs = []          # list of IEMsg
-        self.tags = []          # list of tag strings
+
+        # add to the IEFolder's pathname => IEImageInst map
         ie_image.ie_folder.image_insts[fs_path] = self
+
+        if ext in thumbnail_exts and (
+                ie_image.newest_inst_with_thumbnail is None or
+                mod_datetime > ie_image.newest_inst_with_thumbnail.mod_datetime):
+            ie_image.newest_inst_with_thumbnail = self
 
     def __repr__(self):
         return '<IEImageInst %s|%s|%s>' % (
@@ -132,86 +157,84 @@ class IEImageInst(object):
         except:
             return None
 
-    def set_attrs_from_exiftool_json(self, item):
-        if 'ImageSize' in item:
-            w, h = item['ImageSize'].split('x')
-            self.image_size = (int(w), int(h))
-        if 'Subject' in item:
-            self.tags.extend(item['Subject'])
+_exiftool_args = [
+    'exiftool', '-S', '-j', '-q',
+    '-ImageSize',
+    '-XMP-dc:subject',
+    '-XMP-lr:hierarchicalSubject'
+]
 
-def ext_thumb_quality(ext):
-    map = {
-        '.jpg':     3,
-        '.jpg-hi':  2,
-        '.psd' :    1,
-        '.tif':     0
-    }
-    return map[ext] if ext in map else 0
-
-def cmp_thumb_quality(ext1, ext2):
-    return ext_thumb_quality(ext1) - ext_thumb_quality(ext2)
-
-def get_ie_folder_exifs_by_dir(ie_folder):
-    ''' get the exif data for all the IEImageInsts instances under IEFolder
-        runs exiftool once for each filesystem directory involved
-    '''
-    path_exts = {}
-    for ie_image in ie_folder.images.values():
-        for ie_image_inst_list in ie_image.insts.values():
-            for ie_image_inst in ie_image_inst_list:
-                inst_path = ie_image_inst.fs_path
-                dir_path = os.path.dirname(inst_path)
-                fs_ext = ie_image_inst.ext
-                if fs_ext.endswith('-hi'):
-                    fs_ext = fs_ext[0:-3]
-                if dir_path not in path_exts:
-                    path_exts[dir_path] = set([fs_ext])
-                else:
-                    path_exts[dir_path].add(fs_ext)
-    argv = [
-        'exiftool', '-S', '-j',
-        '-ImageSize',
-        '-XMP-dc:subject',
-        '-XMP-lr:hierarchicalSubject',
-    ]
-    argv_len0 = len(argv)
-    for dir_path, ext_set in path_exts.items():
-        for ext in ext_set:
-            argv.append(os.path.join(dir_path, '*' + ext))
-    if len(argv) == argv_len0: # no images
-        ie_folder.msgs.append(IEMsg(IEMsgType.NO_IMAGES, ie_folder.fs_path))
-        return
+def _get_exiftool_json(argv):
+    ''' runs exiftool on <argv> and returns a list of dictionaries containing the results '''
     outb = subprocess.check_output(argv)
     outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '')
-    outo = json.loads(outs)
-    for item in outo:
-        fs_path = os.path.abspath(item['SourceFile'])
-        drive, fs_path = os.path.splitdrive(fs_path)
-        if fs_path in ie_folder.image_insts:
-            ie_image_inst = ie_folder.image_insts[fs_path]
-            ie_image_inst.set_attrs_from_exiftool_json(item)
-        else:
-            ie_folder.msgs.append(IEMsg(IEMsgType.CANT_FIND_IMAGE, fs_path))
+    exiftool_json = json.loads(outs)
+    return exiftool_json
 
-def get_ie_folder_exifs_by_file(ie_folder):
-    ''' get the exif data for all the IEImageInsts instances under IEFolder
-        runs exiftool once for each file involved
+def get_ie_image_exifs(ie_image_set):
+    ''' get exif data for all the images in <ie_image_set>
+        deletes images from the set as their exifs are processed
     '''
-    for ie_image in ie_folder.images.values():
-        for ie_image_inst_list in ie_image.insts.values():
-            for ie_image_inst in ie_image_inst_list:
-                argv = [
-                    'exiftool', '-S', '-j',
-                    '-ImageSize',
-                    '-XMP-dc:subject',
-                    '-XMP-lr:hierarchicalSubject',
-                    ie_image_inst.fs_path
-                ]
-                outb = subprocess.check_output(argv)
-                outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '')
-                outo = json.loads(outs)
-                assert len(outo) == 1
-                ie_image_inst.set_attrs_from_exiftool_json(outo[0])
+
+    def proc_exiftool_json(ie_image_set, inst_paths, exiftool_json):
+        for item in exiftool_json:
+            fs_path = os.path.abspath(item['SourceFile'])
+            drive, fs_path = os.path.splitdrive(fs_path)
+            if fs_path in inst_paths:
+                ie_image_inst = inst_paths[fs_path]
+                ie_image_inst.ie_image.set_attrs_from_exiftool_json(item)
+                ie_image_set.remove(ie_image_inst.ie_image)
+            else:
+                logging.error("can't find ie_image_inst inf ie_folders map: %s", fs_path)
+
+    # attempt in the order of exif_exts
+    for ext in exif_exts:
+        if len(ie_image_set) == 0:
+            break
+        # collect IEImageInsts and their directories
+        dir_insts = {} # map: directory pathname => list of IEImageInst
+        inst_paths = {} # map: fs_path => image_inst
+        for ie_image in ie_image_set:
+            if ext in ie_image.insts:
+                for ie_image_inst in ie_image.insts[ext]:
+                    inst_path = ie_image_inst.fs_path
+                    inst_paths[inst_path] = ie_image_inst
+                    dir_path = os.path.dirname(inst_path)
+                    if dir_path in dir_insts:
+                        dir_insts[dir_path].append(ie_image_inst)
+                    else:
+                        dir_insts[dir_path] = [ie_image_inst]
+        if len(dir_insts) == 0:
+            continue
+        fs_ext = ext[0:-3] if ext.endswith('-hi') else ext
+        for dir_path, worklist in dir_insts.items():
+            num_dir_files = len(os.listdir(dir_path))
+            if len(worklist) > num_dir_files / 2:
+                # run exiftools on the whole directory
+                argv = list(_exiftool_args)
+                argv.append(os.path.join(dir_path, '*' + fs_ext))
+                exiftool_json = _get_exiftool_json(argv)
+                proc_exiftool_json(ie_image_set, inst_paths, exiftool_json)
+            else:
+                # run exiftools on lists of files
+                while len(worklist) > 0:
+                    n = min(len(worklist), 10)
+                    sublist, worklist = worklist[0:n], worklist[n:] # FIXME: do this better
+                    argv = list(_exiftool_args)
+                    for ie_image_inst in sublist:
+                        argv.append(ie_image_inst.fs_path)
+                    exiftool_json = _get_exiftool_json(argv)
+                    proc_exiftool_json(ie_image_set, inst_paths, exiftool_json)
+
+def get_ie_image_thumbnails(ie_image_set):
+    ''' extract thumbnails for the images in <ie_image_set>
+        deletes images from the set as their thumbnails are proecesed
+    '''
+    for ie_image in ie_image_set:
+        ie_image_inst = ie_image.newest_inst_with_thumbnail
+        assert ie_image_inst is not None
+        ie_image.thumbnail = ie_image_inst.get_thumbnail()
+    # clear(ie_image_set) FIXME: why does this fail?
 
 # a std_dirname has the form 'yymmdd name'
 leading_date_space = re.compile(r'^\d{6,6} ')
@@ -286,10 +309,12 @@ ignored_subdirectories = [ 'del' ]
 
 def scan_std_dir_files(ie_folder):
     def acquire_file(file_path, file_name, high_res):
+        got_folder_tags = False
         if file_name == 'New Text Document.txt':
-            tag_lines = open(file_path, 'r').readline()
+            got_folder_tags = True
+            tag_lines = open(file_path, 'r').readlines()
             for tag_line in tag_lines:
-                ie_folder.tags.extend(tag_line.split(','))
+                ie_folder.tags.extend([l.lstrip(' ') for l in tag_line.split(',')])
         elif os.path.isfile(file_path):
             base_name, ext = os.path.splitext(file_name)
             base_name = base_name.lower()
@@ -326,10 +351,12 @@ def scan_std_dir_files(ie_folder):
         else:
             # special file -- ignore
             pass
+        return got_folder_tags
 
     def acquire_dir(pathname, high_res):
         # TODO: detect high_res from exif dimensions
         logging.debug('scan_std_dir_images(%s)', pathname)
+        got_folder_tags = False
         file_name_list = os.listdir(pathname)
         for file_name in file_name_list:
             file_path = os.path.join(pathname, file_name)
@@ -337,9 +364,12 @@ def scan_std_dir_files(ie_folder):
                 if file_name not in ignored_subdirectories:
                     acquire_dir(file_path, file_name == 'hi')
             else:
-                acquire_file(file_path, file_name, high_res)
+                got_folder_tags |= acquire_file(file_path, file_name, high_res)
+        return got_folder_tags
 
-    acquire_dir(ie_folder.fs_path, high_res=False)
+    got_folder_tags = acquire_dir(ie_folder.fs_path, high_res=False)
+    if not got_folder_tags:
+        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.name))
     # TODO: adjust seq numbers for Nikon 9999 rollover
 
 trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
@@ -373,6 +403,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         words = name.split('_')
         ie_folder = IEFolder(file_pathname, file_name, date, name, mtime)
         ie_folder.tags = words
+        ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))
         folders.append(ie_folder)
     else:
         ie_folder = folders[-1]

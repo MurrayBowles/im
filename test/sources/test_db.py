@@ -70,9 +70,17 @@ class _Tester(object):
         key2 = self.mk_key2()
         if key2 is not None:
             assert self._do_find2(key2) is None
-        obj = self.create(session, key, key2)
+        if hasattr(self, 'get'):
+            obj, new_obj = self.get(session, key, key2)
+            assert new_obj
+        else:
+            obj = self.create(session, key, key2)
         assert obj is not None
         session.commit()
+        if hasattr(self, 'get'):
+            found_obj2, new_obj = self.get(session, key, key2)
+            assert not new_obj
+            assert found_obj2 == obj
         key = self.get_key(obj)
         found_obj = self._do_find(key)
         assert found_obj is obj
@@ -116,8 +124,10 @@ class _DbFolder_Tester(_Tester):
         return (_mk_date(), _mk_name('folder'))
 
     def create(self, session, key, key2):
-        folder = DbFolder.add(session, date=key2[0], name=key2[1])
-        return folder
+        return DbFolder.add(session, date=key2[0], name=key2[1])
+
+    def get(self, session, key, key2):
+        return DbFolder.get(session, date=key2[0], name=key2[1])
 
     def find(self, key):
         return  session.query(DbFolder).filter_by(id=key).first()
@@ -152,8 +162,10 @@ class _DbImage_Tester(_Tester):
         return (self.dep_objs[0], _mk_name(''))
 
     def create(self, session, key, key2):
-        image = DbImage.add(session, folder=key2[0], name=key2[1])
-        return image
+        return DbImage.add(session, folder=key2[0], name=key2[1])
+
+    def get(selfself, session, key, key2):
+        return DbImage.get(session, folder=key2[0], name=key2[1])
 
     def find(self, key):
         return session.query(DbImage).filter_by(id=key).first()
@@ -386,6 +398,15 @@ class _FsFolder_Tester(_Tester):
         )
         return source
 
+    def get(self, session, key, key2):
+        source = FsFolder.get(
+            session,
+            source=key2[0],
+            fs_name=key2[1],
+            db_folder=self.dep_objs[1]
+        )
+        return source
+
     def find(self, key):
         return  session.query(FsFolder).filter_by(id=key).first()
 
@@ -412,13 +433,20 @@ class _FsImage_Tester(_Tester):
         return (self.dep_objs[0], _mk_name(''))
 
     def create(self, session, key, key2):
-        image = FsImage.add(
+        return FsImage.add(
             session,
             folder=key2[0],
             name=key2[1],
             db_image=self.dep_objs[1]
         )
-        return image
+
+    def get(self, session, key, key2):
+        return FsImage.get(
+            session,
+            folder=key2[0],
+            name=key2[1],
+            db_image=self.dep_objs[1]
+        )
 
     def find(self, key):
         return  session.query(FsImage).filter_by(id=key).first()
@@ -443,10 +471,13 @@ def _test_association(tester_classes, list_names):
     testers = []
     objs = []
     for tester_cls in tester_classes:
+        # create a _Tester for the class
         tester = tester_cls()
         testers.append(tester)
+        # call its add function
         objs.append(tester.add())
     for j in range(2):
+        # check here vs there (j == 0) and there vs here (j == 1)
         here = objs[j]
         here_list = getattr(here, list_names[j])
         there = objs[1 - j]
@@ -459,6 +490,7 @@ def _test_association(tester_classes, list_names):
         assert len(here_list) == 0
         assert len(there_list) == 0
     for tester in testers:
+        # clean up
         tester.delete()
 
 def test_associations():

@@ -1,5 +1,6 @@
 ''' test ie_fs (import/export folders/images from/to the file system) '''
 
+from pathlib import Path
 import pytest
 
 from ie_cfg import SourceType
@@ -8,6 +9,10 @@ import re
 
 base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
+
+def touch_file(path):
+    ''' update the modification date of the file at <path> '''
+    Path(path).touch()
 
 _ext_map = {
     'n': '.nef',
@@ -40,8 +45,6 @@ def _test_scan_dir_set(dir_set_pathname, test, proc, expected_list):
     for folder in got_list:
         scan_std_dir_files(folder)
     _check_dir_results(got_list, expected_list)
-    for ie_folder in got_list:
-        get_ie_folder_exifs_by_dir(ie_folder)
 
 
 test_scan_dir_set_expected_list = [
@@ -83,8 +86,6 @@ def _test_scan_dir_sel(dir_pathname_list, expected_list):
     for folder in got_list:
         scan_std_dir_files(folder)
     _check_dir_results(got_list, expected_list)
-    for ie_folder in got_list:
-        get_ie_folder_exifs_by_dir(ie_folder)
 
 test_scan_dir_sel_selected_list = [
     os.path.join(base_path, 'my format', '171007 virginia'),
@@ -115,8 +116,6 @@ def _check_file_results(got_list, expected_list):
 def _test_scan_file_set(file_set_pathname, test, proc, expected_list):
     got_list = scan_file_set(file_set_pathname, test, proc)
     _check_file_results(got_list, expected_list)
-    for ie_folder in got_list:
-        get_ie_folder_exifs_by_file(ie_folder)
 
 test_scan_file_set_corbett_psds_expected_list = [
     ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', [
@@ -139,9 +138,6 @@ def test_scan_file_set_corbett_psds():
 def _test_scan_file_sel(file_pathname_list, proc, expected_list):
     got_list = scan_file_sel(file_pathname_list, proc)
     _check_file_results(got_list, expected_list)
-    for ie_folder in got_list:
-        get_ie_folder_exifs_by_file(ie_folder)
-    pass
 
 test_scan_file_sel_corbett_psds_selected_list = [
     os.path.join(base_path, 'main1415 corbett psds',

@@ -59,7 +59,7 @@ class DbFolder(Item):
     ''' represents a single photo-shooting session '''
     __tablename__ = 'db-folder'
 
-    # isa Item
+    # isa Item (name is
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'DbFolder'}
 
@@ -87,6 +87,15 @@ class DbFolder(Item):
     @classmethod
     def find(cls, session, date, name):
         return session.query(DbFolder).filter_by(date=date, name=name).first()
+
+    @classmethod
+    def get(cls, session, date, name):
+        ''' find or create a DbFolder: return db_folder, is_new'''
+        db_folder = cls.find(session, date, name)
+        if db_folder is None:
+            return cls.add(session, date, name), True
+        else:
+            return db_folder, False
 
     def __repr__(self):
         return '<DbFolder %s %s>' % ( (self.date), self.name)
@@ -132,6 +141,7 @@ class DbImage(Item):
     __mapper_args__ = {'polymorphic_identity': 'DbImage'}
 
     thumbnail = Column(LargeBinary())
+    thumbnail_timestamp = Column(DateTime)
 
     # DbImage <<-> DbFolder
     folder_id = Column(Integer, ForeignKey('db-folder.id'))
@@ -157,6 +167,14 @@ class DbImage(Item):
     def find(cls, session, db_folder,  name):
         return session.query(DbImage).filter_by(folder_id=db_folder.id, name=name).first()
     # TODO: find_in_date vs find_in_folder
+
+    @classmethod
+    def get(cls, session, folder, name):
+        db_image = cls.find(session, folder, name)
+        if db_image is None:
+            return cls.add(session, folder, name), True
+        else:
+            return db_image, False
 
     def __repr__(self):
         return '<Image %s-%s>' % (yymmdd(self.folder.date), self.name)
@@ -373,8 +391,16 @@ class FsFolder(Item):
     def find(cls, session, source, name):
         return session.query(FsFolder).filter_by(source_id=source.id, name=name).first()
 
+    @classmethod
+    def get(cls, session, source, fs_name, db_folder=None):
+        fs_folder = cls.find(session, source, fs_name)
+        if fs_folder is None:
+            return cls.add(session, source, fs_name, db_folder), True
+        else:
+            return fs_folder, False
+
     def __repr__(self):
-        return "<FsFolder %s/%s>" % (str(self.source), self.name)
+        return "<FsFolder %s|%s>" % (str(self.source), self.name)
 
 
 class FsImage(Item):
@@ -407,6 +433,16 @@ class FsImage(Item):
         return  session.query(FsImage).filter(
             FsImage.folder_id == folder.id, FsImage.name == name
         ).first()
+
+    @classmethod
+    def get(cls, session, folder, name, db_image=None):
+        ''' find or add an FsImage: return fs_image, is_new '''
+        fs_image = cls.find(session, folder, name)
+        if fs_image is None:
+            return cls.add(session, folder, name, db_image), True
+        else:
+            return fs_image, False
+
 
     def __repr__(self):
         return "<FsImage %s/%s>" % (str(self.folder), self.name)
