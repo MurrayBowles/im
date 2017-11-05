@@ -205,21 +205,21 @@ def get_ie_image_exifs(ie_image_set):
                     else:
                         dir_insts[dir_path] = [ie_image_inst]
         if len(dir_insts) == 0:
-            continue
-        fs_ext = ext[0:-3] if ext.endswith('-hi') else ext
+            continue # no image files with this extenstion
+        fs_ext = ext[0:-3] if ext.endswith('-hi') else ext # .jpg-hi => .jpg
         for dir_path, worklist in dir_insts.items():
             num_dir_files = len(os.listdir(dir_path))
             if len(worklist) > num_dir_files / 2:
-                # run exiftools on the whole directory
+                # run exiftools on <dir>/*.<ext>
                 argv = list(_exiftool_args)
                 argv.append(os.path.join(dir_path, '*' + fs_ext))
                 exiftool_json = _get_exiftool_json(argv)
                 proc_exiftool_json(ie_image_set, inst_paths, exiftool_json)
             else:
-                # run exiftools on lists of files
+                # run exiftools on <file1> <file2> ...
                 while len(worklist) > 0:
-                    n = min(len(worklist), 10)
-                    sublist, worklist = worklist[0:n], worklist[n:] # FIXME: do this better
+                    n = min(len(worklist), 10) # up to 10 files per run
+                    sublist, worklist = worklist[:n], worklist[n:]
                     argv = list(_exiftool_args)
                     for ie_image_inst in sublist:
                         argv.append(ie_image_inst.fs_path)
@@ -404,6 +404,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         ie_folder = IEFolder(file_pathname, file_name, date, name, mtime)
         ie_folder.tags = words
         ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))
+        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, file_pathname))
         folders.append(ie_folder)
     else:
         ie_folder = folders[-1]

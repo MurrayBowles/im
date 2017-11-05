@@ -31,12 +31,12 @@ def check_images(fs_folder, ie_image_iter, image_expected_list):
         if fs_folder.db_folder is not None:
             for ext in thumbnail_exts:
                 if ext in ie_image.insts:
-                    if ie_image.thumbnail is None:
-                        pass
                     assert ie_image.thumbnail is not None
         exp_image, exp_exts = expected_image_str.split('-')
         if exp_exts[0] == 'X':
-            assert len(ie_image.tags) != 0
+            if ie_image.tags is None:
+                pass
+            assert ie_image.tags is not None
 
 def check_worklist_no_fs_folders(
         session, fs_source, source_type, paths, expected_list):

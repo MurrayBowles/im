@@ -28,10 +28,11 @@ def _check_image_results(got_folder, expected):
         exp_image, exp_exts = expected_image_str.split('-')
         assert exp_image in got_folder.images
         got_image = got_folder.images[exp_image]
+        if exp_exts[0] == 'X':
+            # X used by ie_test_db
+            exp_exts = exp_exts[1:]
         assert len(exp_exts) == len(got_image.insts)
         for c in exp_exts:
-            if c == 'X':
-                continue # used by test_ie_db
             ext = _ext_map[c]
             assert ext in got_image.insts
 
@@ -124,10 +125,10 @@ test_scan_file_set_corbett_psds_expected_list = [
         '9336-p', '9337-p'
     ]),
     ('BLATZ_15_ASBESTOS_11_03_90-2744.psd', [
-        '2744-p', '2745-p'
+        '2744-Xp', '2745-p'
     ]),
     ('FIFTEEN_TRIBE_8_JAWBREAKER_GILMAN_11_15&16_91-5605.psd', [
-        '5605-p', '5631-p'
+        '5605-Xp', '5631-Xp'
     ])
 ]
 
@@ -154,7 +155,7 @@ test_scan_file_sel_corbett_psds_expected_list = [
         '9336-p'
     ]),
     ('BLATZ_15_ASBESTOS_11_03_90-2744.psd', [
-        '2744-p', '2745-p'
+        '2744-Xp', '2745-p'
     ])
 ]
 
