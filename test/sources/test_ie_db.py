@@ -25,14 +25,25 @@ ie_cfg = IECfg()
 ie_cfg.import_thumbnails = True
 # FIXME: make .source_type track tests
 
+def check_images(fs_folder, ie_image_iter, image_expected_list):
+    assert len(ie_image_iter) == len(image_expected_list)
+    for ie_image, expected_image_str in zip(ie_image_iter, image_expected_list):
+        if fs_folder.db_folder is not None:
+            for ext in thumbnail_exts:
+                if ext in ie_image.insts:
+                    if ie_image.thumbnail is None:
+                        pass
+                    assert ie_image.thumbnail is not None
+        exp_image, exp_exts = expected_image_str.split('-')
+        if exp_exts[0] == 'X':
+            assert len(ie_image.tags) != 0
+
 def check_worklist_no_fs_folders(
         session, fs_source, source_type, paths, expected_list):
     worklist = get_ie_worklist(
         session, fs_source, source_type, paths)
     assert len(worklist) == len(expected_list)
     for work, expected in zip(worklist, expected_list):
-        if work.fs_folder is not None:
-            pass
         assert work.fs_folder is None
         assert work.ie_folder.fs_name == expected[0]
     ie_cfg.source_type = source_type
@@ -41,6 +52,9 @@ def check_worklist_no_fs_folders(
             session, ie_cfg, work, fs_source, source_type)
         bg_proc_ie_work_item(work)
         pass
+    for work, expected in zip(worklist, expected_list):
+        assert work.fs_folder is not None
+        check_images(work.fs_folder, work.ie_folder.images.values(), expected[1])
 
 def check_worklist_with_fs_folders(
         session, fs_source, source_type, paths, expected_list):
@@ -50,13 +64,9 @@ def check_worklist_with_fs_folders(
         fs_folders.append(fs_folder)
     worklist = get_ie_worklist(
         session, fs_source, source_type, paths)
-    if len(worklist) != len(expected_list):
-        pass
     assert len(worklist) == len(expected_list)
     for work, expected, fs_folder in zip(
             worklist, expected_list, fs_folders):
-        if work.fs_folder is not fs_folder:
-            pass
         assert work.fs_folder is fs_folder
         assert work.ie_folder.fs_name == expected[0]
         # session.expunge(fs_folder)

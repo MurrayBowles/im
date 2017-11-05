@@ -30,6 +30,8 @@ def _check_image_results(got_folder, expected):
         got_image = got_folder.images[exp_image]
         assert len(exp_exts) == len(got_image.insts)
         for c in exp_exts:
+            if c == 'X':
+                continue # used by test_ie_db
             ext = _ext_map[c]
             assert ext in got_image.insts
 
