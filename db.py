@@ -298,6 +298,10 @@ class FsTagSource(Base):
         if obj is not None: session.add(obj)
         return obj
 
+    @classmethod
+    def find_id(cls, session, id):
+        return session.query(FsTagSource).filter_by(id=id).first()
+
     def __repr__(self):
         return '<FsTagSource %s>' % self.description
 
@@ -341,16 +345,33 @@ class FsSource(Item):
         return obj
 
     @classmethod
+    def all(cls, session):
+        return session.query(FsSource).all() # TODO: test
+
+    @classmethod
+    def find_id(cls, session, id):
+        return session.query(FsSource).filter_by(id=id).first()
+
+    @classmethod
     def find(cls, session, volume, path):
         return session.query(FsSource).filter_by(volume=volume, path=path).first()
 
     def label(self):
         return self.volume if self.volume is not None and not self.volume.endswith(':') else None
 
+    def text(self):
+        s = ''
+        if self.name is not None:
+            s += '(%s) ' % (self.name)
+        if self.volume.endswith(':'):
+            s + self.volume
+        else:
+            s += '[%s]' % (self.volume)
+        s += self.path
+        return s
+
     def __repr__(self):
-        return '<FsSource %s %s>' % (
-            self.name,
-            self.label() if self.label() is not None else '-')
+        return '<FsSource %s>' % (self.text())
 
 
 class FsFolder(Item):
@@ -447,13 +468,17 @@ class FsImage(Item):
     def __repr__(self):
         return "<FsImage %s/%s>" % (str(self.folder), self.name)
 
+session = None
+
 def _open_db(url):
     ''' open a database and return a session '''
+    global session
     engine = create_engine(url)
     Base.metadata.create_all(engine)
     from sqlalchemy.orm import sessionmaker
     Session = sessionmaker(bind=engine)
-    return Session()
+    session = Session()
+    return session
 
 def open_mem_db():
     ''' open a memory database '''
@@ -462,3 +487,9 @@ def open_mem_db():
 def close_db():
     ''' close the database '''
     pass
+
+def open_preloaded_mem_db():
+    session = open_mem_db()
+    ts = FsTagSource.add(session, 'satan')
+    s1 = FsSource.add(session, 'main1234', '/photos', FsSourceType.DIR, True, ts)
+    session.commit()

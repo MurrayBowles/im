@@ -48,6 +48,8 @@ class IEImageAct(Enum):
 class IECfg(object):
 
     def __init__(self):
+        self.tag_source_id = -1
+        self.img_source_id = -1
         self.chooser_path = ''
         self.source_type = SourceType.default()
         self.paths = []

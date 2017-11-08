@@ -6,6 +6,7 @@ import wx.aui
 from wx.lib.pubsub import pub
 
 from cfg import cfg
+import db
 from ie_gui import ImportExportTab
 from tags_gui import TagsTab
 
@@ -77,7 +78,37 @@ class GuiTop(wx.Frame):
     def on_exit(self, event):
         self.Close()
 
+def qqq():
+    pass
+
+class B:
+
+    def __init__(self, fn):
+        a = 12
+        self.b = 12
+        x = fn
+        self.y = fn
+        z = x
+        z = self.y
+        pass
+
+class C:
+
+    def __init__(self):
+        b1 = B(qqq)
+        b2 = B(self.rrr)
+        pass
+
+    def rrr(self):
+        pass
+
 def gui_test():
+    B(qqq)
+    C()
     app = GuiApp(False)
     app.MainLoop()
     cfg.save()
+
+if __name__=='__main__':
+    db.open_preloaded_mem_db()
+    gui_test()

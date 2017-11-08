@@ -347,7 +347,7 @@ class _FsTagSource_Tester(_Tester):
         return tag_source
 
     def find(self, key):
-        return  session.query(FsTagSource).filter_by(id=key).first()
+        return  FsTagSource.find_id(session, key)
 
 
 class _FsSource_Tester(_Tester):
@@ -371,7 +371,7 @@ class _FsSource_Tester(_Tester):
         return source
 
     def find(self, key):
-        return session.query(FsSource).filter_by(id=key).first()
+        return FsSource.find_id(session, key)
 
     def find2(self, key2):
         return FsSource.find(session, key2[0], key2[1])
