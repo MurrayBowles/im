@@ -14,6 +14,24 @@ def volume_label(path):
         vl = ''
     return vl
 
+def win_path(volume, path):
+    # determine which volumes are currently available
+    drives = win32api.GetLogicalDriveStrings()
+    drives = drives.split('\000')
+
+    if volume.endswith(':'):
+        # no volume name: <volume> is the drive letter
+        for d in drives:
+            if volume == d[0:2]:
+                return volume + path
+    else:
+        for d in drives:
+            label = volume_label(d)
+            if label == volume:
+                return d[0:2] + path
+    return None
+
+
 def _hit_guess_idx(ctrl, pos):
     pos -= ctrl.GetClientAreaOrigin()
     scroll = ctrl.GetScrollPos(pos.y)

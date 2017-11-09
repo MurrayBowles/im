@@ -490,6 +490,9 @@ def close_db():
 
 def open_preloaded_mem_db():
     session = open_mem_db()
-    ts = FsTagSource.add(session, 'satan')
-    s1 = FsSource.add(session, 'main1234', '/photos', FsSourceType.DIR, True, ts)
+    ts1 = FsTagSource.add(session, 'standard')
+    ts2 = FsTagSource.add(session, 'corbett')
+    s1 = FsSource.add(session, 'main1234', '/photos', FsSourceType.DIR, True, ts1)
+    s2 = FsSource.add(session, 'C:', '/photos', FsSourceType.DIR, False, ts1)
+    s1 = FsSource.add(session, 'HD2', '/corbett-psds', FsSourceType.FILE, False, ts2)
     session.commit()

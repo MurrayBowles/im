@@ -1,4 +1,4 @@
-''' classes for wxPython / database interaction '''
+''' wrappers for wxPython widgets and sizers '''
 
 from bisect import *
 import db
@@ -29,6 +29,15 @@ class Button:
             self.button.Enable()
         else:
             self.button.Disable()
+
+    def set_hidden(self, hidden):
+        if hidden:
+            self.button.Hide()
+        else:
+            self.button.Show()
+
+    def set_label(self, text):
+        self.button.SetLabel(text)
 
 
 class DialogButtons:
@@ -74,6 +83,7 @@ class CheckBox:
         self.on_click_fn=on_click
 
         self.check_box = wx.CheckBox(parent, label=label)
+        self.check_box.SetValue(init_value)
         self.check_box.Bind(wx.EVT_CHECKBOX, self.on_click)
         sizer.Add(self.check_box)
 
@@ -146,7 +156,6 @@ class ListBox:
         size = default_box,
         id_fn = lambda x: x.id,
         name_fn = lambda x: x.name,
-        add_fn = None,      # called to add an item
         select_fn = None,   # called initially, and when the current selection changes
         edit_fn = None,     # called when an item is double-clicked
         label = None,
@@ -156,7 +165,6 @@ class ListBox:
         self.parent = parent
         self.id_fn = id_fn
         self.name_fn = name_fn
-        self.add_fn = add_fn
         self.edit_fn = edit_fn
         self.select_fn = select_fn
 
@@ -170,7 +178,9 @@ class ListBox:
         choices, init_sel_idx = self._get_choices(init_id, init_list)
         self.list_box = wx.ListBox(parent, size=size, choices=choices)
         sizer.Add(self.list_box)
-        self.list_box.SetSelection(init_sel_idx)
+        if init_sel_idx != -1:
+            self.list_box.SetSelection(init_sel_idx)
+            self.selection = self.objs[init_sel_idx]
         self.list_box.Bind(wx.EVT_LISTBOX, self._on_select)
         if edit_fn is not None:
             self.list_box.Bind(wx.EVT_LISTBOX_DCLICK, self._on_edit)
@@ -190,21 +200,18 @@ class ListBox:
             self.names.append(self.name_fn(obj))
             if self.id_fn(obj) == init_id:
                 init_idx = x
-        if self.add_fn is not None:
-            self.names.append('(click to add)')
         return self.names, init_idx
 
     def _on_select(self, event): # single-click on an item
         # select the item
         sel_idx = self.list_box.GetSelection()
-        if sel_idx < len(self.objs):
-            # selecting an existing object
-            sel_obj = self.objs[sel_idx]
+        sel_obj = self.objs[sel_idx]
+        if sel_obj != self.selection:
             if self.select_fn is not None:
-                self.select_fn(sel_obj)
-        else:
-            # adding a new object
-            self,add_fn(parent)
+                if self.select_fn(sel_obj) is None:
+                    self.list_box.SetSelection(wx.NOT_FOUND)
+                else:
+                    self.selection = sel_obj
 
     def _on_edit(self, event): # double-click on an item
         # call self.edit_fn on the item
@@ -282,15 +289,19 @@ class ListBoxAED:
 
     def on_select(self, obj):
         # called by db_gui.ListBox and our on_add method
+        if self.select_fn is not None:
+            if self.select_fn(obj) is None:
+                return None
         self.selection = obj
         self._fix_buttons()
-        if self.select_fn is not None:
-            self.select_fn(obj)
+        return self.selection
+
 
     def on_add(self, event):
         # called by our Add button
         obj = self.add_fn()
         if obj is not None:
+            self.list_box.add(obj)
             self.on_select(obj)
 
     def on_edit(self, event):
@@ -306,37 +317,93 @@ class ListBoxAED:
             self.selection = None
             self._fix_buttons()
 
+    def set_item_color(self, rgb):
+        self.list_box.SetItemColour(rgb)
+
+
+class RadioButton:
+
+    def __init__(
+        self, parent, sizer,
+        label = None, choices = [], change_fn = None,
+        init_value = 0
+    ):
+        self.parent = parent
+        self.value = init_value
+        self.change_fn = change_fn
+
+        self.radio_box = wx.RadioBox(parent, label=label, choices=choices)
+        self.radio_box.SetSelection(init_value)
+        self.radio_box.Bind(wx.EVT_RADIOBOX, self.on_click)
+        sizer.Add(self.radio_box)
+
+    def on_click(self, event):
+        new_value = self.radio_box.GetSelection()
+        if new_value != self.value:
+            self.value = new_value
+            if self.change_fn is not None:
+                self.change_fn(new_value)
+
+    def set_enabled(self, enabled):
+        if enabled:
+            self.radio_box.Enable()
+        else:
+            self.radio_box.Disable()
+
+
+class StaticText:
+
+    def __init__(
+        self, parent, sizer,
+        text
+    ):
+        self.parent = parent
+        self.static_text = wx.StaticText(parent, label=text)
+        sizer.Add(self.static_text)
+
+    def set_color(self, rgb):
+        self.static_text.SetForegroundColour(rgb)
+
 
 class TextCtrl:
 
     def __init__(
         self, parent, sizer,
         label,
-        size = default_line, init_value='', on_enter=None
+        size = default_line, init_value='', change_fn = None, enter_fn=None
     ):
         self.parent = parent
         self.value = init_value
-        self.on_enter_fn=on_enter
+        self.change_fn = change_fn
+        self.enter_fn = enter_fn
 
         text_sizer=wx.BoxSizer(wx.HORIZONTAL)
 
         self.label = wx.StaticText(parent, label=label + ': ')
         text_sizer.Add(self.label)
 
-        if on_enter is not None:
+        if enter_fn is not None:
             self.text_ctrl = wx.TextCtrl(
                 parent, size=size, value=init_value, style=wx.TE_PROCESS_ENTER)
             self.text_ctrl.Bind(wx.EVT_TEXT_ENTER, self.on_enter)
         else:
             self.text_ctrl = wx.TextCtrl(parent, value=init_value)
+        if self.change_fn is not None:
+            self.text_ctrl.Bind(wx.EVT_TEXT, self.on_text)
+
         text_sizer.Add(self.text_ctrl)
 
         sizer.Add(text_sizer)
 
+    def on_text(self, event):
+        self.value = event.GetEventObject().GetValue()
+        if self.change_fn is not None: # it shouldn't be
+            self.change_fn(self.value)
+
     def on_enter(self, event):
         self.value = event.GetEventObject().GetValue()
-        if self.on_enter_fn is not None: # it shouldn't be
-            self.on_enter_fn(self.value)
+        if self.enter_fn is not None: # it shouldn't be
+            self.enter_fn(self.value)
 
     def set_enabled(self, enabled):
         if enabled:
@@ -350,21 +417,24 @@ class AttrTextCtrl(TextCtrl):
     def __init__(
         self, parent, sizer,
         label, obj, attr,
-        size = default_line, on_enter=None
+        size = default_line, change_fn=None, enter_fn=None
     ):
         self.obj = obj
         self.attr = attr
-        self.attr_on_enter_fn = on_enter
+        self.attr_change_fn = change_fn
+        self.attr_enter_fn = enter_fn
 
         super().__init__(
             parent, sizer, label, size=size,
-            init_value=getattr(obj, attr), on_enter=self.attr_on_enter)
-        self.text_ctrl.Bind(wx.EVT_TEXT, self.attr_on_text)
+            init_value=getattr(obj, attr),
+            change_fn=self.attr_on_text, enter_fn=self.attr_on_enter)
 
-    def attr_on_text(self, event):
-        setattr(self.obj, self.attr, event.GetEventObject().GetValue())
+    def attr_on_text(self, text):
+        setattr(self.obj, self.attr, text)
+        if self.attr_change_fn is not None:
+            self.attr_change_fn(text)
 
-    def attr_on_enter(self, event):
-        if self.attr_on_enter_fn is not None:
-            self.attr_on_enter_fn(event.GetEventObject.GetValue())
+    def attr_on_enter(self, text):
+        if self.attr_enter_fn is not None:
+            self.attr_enter_fn(text)
 
