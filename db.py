@@ -1,6 +1,7 @@
 ''' database classes '''
 
 from enum import Enum as PyEnum
+from enum import IntEnum as PyIntEnum
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -180,7 +181,7 @@ class DbImage(Item):
         return '<Image %s-%s>' % (yymmdd(self.folder.date), self.name)
 
 
-class DbTagType(PyEnum):
+class DbTagType(PyIntEnum):
     '''' the relation between a tag and its .base_tag '''
 
     BASE = 1        # this is a normal (base) tag; .base_tag is None
@@ -231,7 +232,7 @@ class DbTag(Item):
         return "<Tag %s>" % tag_str(self)
 
 
-class DbTextType(PyEnum):
+class DbTextType(PyIntEnum):
     ''' the syntax of a DbNote's text '''
     TEXT = 1        # simple text
     URL = 2         # a URL
@@ -306,8 +307,10 @@ class FsTagSource(Base):
         return '<FsTagSource %s>' % self.description
 
 
-class FsSourceType(PyEnum):
-    ''' whether the FsSource is a directory of directories or a directory of image files '''
+class FsSourceType(PyIntEnum):
+    ''' whether the FsSource is a directory of directories or a directory of image files
+        IntEnum because SQLAlchemy creates int python attributes when you say Column(Enum)
+    '''
     DIR = 1
     FILE = 2
 
@@ -324,7 +327,7 @@ class FsSource(Item):
     volume = Column(String(32)) # source volume: '<volume letter>:' or '<volume label>'
     path = Column(String(260))  # source pathname
 
-    source_type = Column(Integer) # FsSourceType.value
+    source_type = Column(Enum(FsSourceType))
     readonly = Column(Boolean)
 
     # FsSource -> FsTagSourceId

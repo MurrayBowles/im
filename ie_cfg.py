@@ -4,33 +4,14 @@ from enum import Enum
 # import wx
 
 
-class SourceType(Enum):
+class ImportMode(Enum):
 
-    DIR_SET = 0     # specify the parent directory of a set of directories
-    DIR_SEL = 1     # specify a selection of directories
-    FILE_SET = 2    # specify the parent directory of a set of files
-    FILE_SEL = 3    # specify a selection of files
+    SET = 0 # specify the parent directory of a set of directories/files
+    SEL = 1 # specify a selection of directories/files
 
     @classmethod
     def default(cls):
-        return SourceType.DIR_SET
-
-    @classmethod
-    def names(cls):
-        return ['folder set', 'folder selection', 'file set', 'file selection']
-
-    def __str__(self):
-        return SourceType.names()[self.value]
-
-    def is_file(self):
-        return self == SourceType.FILE_SEL
-
-    def is_directory(self):
-        return self != SourceType.FILE_SEL
-
-    def is_multiple(self):
-        return self == SourceType.DIR_SEL or self == SourceType.FILE_SEL
-
+        return ImportMode.SET
 
 class IEFolderAct(Enum):
     ''' import/export actions on a folder '''
@@ -50,8 +31,6 @@ class IECfg(object):
     def __init__(self):
         self.tag_source_id = -1
         self.img_source_id = -1
-        self.chooser_path = ''
-        self.source_type = SourceType.default()
         self.paths = []
         self.clear_paths()
         self.import_folder_tags = True
@@ -59,10 +38,12 @@ class IECfg(object):
         self.export_image_tags = True
         self.import_thumbnails = False
         self.reports = []
+        # not really persisted -- just here for communication with ie_fs
+        # FIXME: clean this up
+        self.import_mode = ImportMode.default()
 
     def clear_paths(self):
         # self.chooser_path = wx.StandardPaths.Get().GetDocumentsDir()
-        self.chooser_path = ''
         self.paths = []
 
     def clear_reports(self):

@@ -3,7 +3,6 @@
 from pathlib import Path
 import pytest
 
-from ie_cfg import SourceType
 from ie_fs import *
 import re
 

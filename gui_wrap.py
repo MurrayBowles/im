@@ -184,10 +184,6 @@ class ListBox:
         self.list_box.Bind(wx.EVT_LISTBOX, self._on_select)
         if edit_fn is not None:
             self.list_box.Bind(wx.EVT_LISTBOX_DCLICK, self._on_edit)
-        if init_sel_idx != -1:
-            self.selection = self.objs[init_sel_idx]
-            if self.select_fn:
-                self.select_fn(self.selection)
 
     def _get_choices(self, init_id, init_list):
         # return choices-list, selection-index

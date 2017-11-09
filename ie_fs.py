@@ -401,7 +401,6 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         # start a new IEFolder
         match = trailing_date.search(base)
         if match is None:
-            errors.add(IEMsg(IEMsgType.NO_DATE))
             date = None
             name = base
         else:
@@ -419,6 +418,8 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         ie_folder.tags = words
         ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))
         ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, name))
+        if date is None:
+            ie_folder.msgs.append(IEMsg(IEMsgType.NO_DATE, file_pathname))
         folders.append(ie_folder)
     else:
         ie_folder = folders[-1]
@@ -444,6 +445,10 @@ def scan_file_set(file_set_pathname, test, proc):
         if the filename has a new prefix, adds a new IEFolder to folders
     '''
     folders = []
+    try:
+        os.listdir(file_set_pathname)
+    except:
+        pass
     for file in os.listdir(file_set_pathname):
         file_path = os.path.join(file_set_pathname, file)
         if os.path.isfile(file_path) and test(file):

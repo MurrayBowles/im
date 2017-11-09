@@ -1,7 +1,7 @@
 ''' import/export folders/images to/from the database '''
 
 from collections import deque
-from db import DbFolder, DbImage, FsFolder, FsImage
+from db import DbFolder, DbImage, FsFolder, FsImage, FsSourceType
 from ie_cfg import *
 from ie_fs import *
 from threading import Thread
@@ -27,23 +27,24 @@ class IEWorkItem(object):
             str(self.ie_folder) if self.ie_folder is not None else 'NoIE'
         )
 
-def get_ie_worklist(session, fs_source, source_type, paths):
+def get_ie_worklist(session, fs_source, import_mode, paths):
     ''' return a list of IEWorkItems '''
 
-    if source_type == SourceType.DIR_SET:
-        ie_folders = scan_dir_set(paths[0], is_std_dirname, proc_std_dirname)
-    elif source_type == SourceType.DIR_SEL:
-        ie_folders = scan_dir_sel(paths, proc_std_dirname)
-    elif source_type == SourceType.FILE_SET:
-        ie_folders = scan_file_set(paths[0], lambda filename: True, proc_corbett_filename)
-    elif source_type == SourceType.FILE_SEL:
-        ie_folders = scan_file_sel(paths, proc_corbett_filename)
-    else:
-        raise ValueError('unknown source type')
+    if import_mode == ImportMode.SET:
+        if fs_source.source_type == FsSourceType.DIR:
+            ie_folders = scan_dir_set(paths[0], is_std_dirname, proc_std_dirname)
+        else: # FsSourceType.FILE
+            ie_folders = scan_file_set(paths[0], lambda filename: True, proc_corbett_filename)
+
+    else: # ImportMode.SEL
+        if fs_source.source_type == FsSourceType.DIR:
+            ie_folders = scan_dir_sel(paths, proc_std_dirname)
+        else: # FsSourceType.FILE
+            ie_folders = scan_file_sel(paths, proc_corbett_filename)
 
     worklist = deque()
 
-    if source_type.is_multiple():   # DIR_SEL or FILE_SEL
+    if import_mode == ImportMode.SEL:
         # get all FsFolders that match folders
         for ie_folder in ie_folders:
             fs_folder = FsFolder.find(session, fs_source, ie_folder.fs_name)
@@ -71,7 +72,7 @@ def get_ie_worklist(session, fs_source, source_type, paths):
     return worklist
 
 def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
-    source_type = ie_cfg.source_type
+    import_mode = ie_cfg.import_mode
 
     def import_ie_image(fs_image, ie_image, new_fs_image):
         work_item.existing_images.append((fs_image, ie_image, new_fs_image))
@@ -91,7 +92,7 @@ def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
 
     fs_folder = work_item.fs_folder
     ie_folder = work_item.ie_folder
-    if source_type == SourceType.DIR_SET or source_type == SourceType.DIR_SEL:
+    if fs_source.source_type == FsSourceType.DIR:
         # scan the folder's image files
         # (this has already been done in the FILE_SET/SEL case by scan_file_set/sel)
         scan_std_dir_files(ie_folder)
@@ -105,7 +106,7 @@ def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
             db_folder = DbFolder.get(session, ie_folder.date, ie_folder.name)[0]
             fs_folder.db_folder = db_folder
     db_folder = fs_folder.db_folder # this may be None
-    if source_type == SourceType.FILE_SEL:
+    if import_mode == ImportMode.SEL and fs_source.source_type == FsSourceType.FILE:
         # find/create FsImages corresponding to each IeImage
         for ie_image in work_item.ie_folder.images.values():
             fs_image, new_fs_image = FsImage.get(session, fs_folder, ie_image.name)
@@ -124,11 +125,13 @@ def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
                 if fs_image.name == ie_image.name:
                     import_ie_image(fs_image, ie_image, False)
                 elif fs_image.name < ie_image.name:
+                    # FIXME: no worklist
                     worklist.deleted_images.append(fs_image)
                 else: # ie_image.name < fs_image.name
                     fs_image = FsImage.add(session, fs_folder, ie_image.name)
                     import_ie_image(fs_image, ie_image, True)
             elif len(fs_images) != 0:
+                # FIXME: no worklist
                 worklist.deleted_images.extend(fs_images)
                 break
             elif len(ie_images) != 0:
@@ -152,7 +155,7 @@ class IECmd(object):
         self.session = session
         self.ie_cfg = ie_cfg
         self.fs_source = fs_source
-        self.worklist = get_ie_worklist(session, fs_source, ie_cfg.source_type, ie_cfg.paths)
+        self.worklist = get_ie_worklist(session, fs_source, ie_cfg.import_mode, ie_cfg.paths)
         self.worklist_idx = 0
         self.cancelling = False
         self.pub('ie.begun', len(self.worklist))

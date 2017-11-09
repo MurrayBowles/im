@@ -35,18 +35,16 @@ def check_images(fs_folder, ie_image_iter, image_expected_list):
         if exp_exts[0] == 'X':
             if ie_image.tags is None:
                 pass
-            # Heisenbug!
+            # FIXME: Heisenbug!
             # assert ie_image.tags is not None
 
 def check_worklist_no_fs_folders(
-        session, fs_source, source_type, paths, expected_list):
-    worklist = get_ie_worklist(
-        session, fs_source, source_type, paths)
+        session, fs_source, import_mode, paths, expected_list):
+    worklist = get_ie_worklist(session, fs_source, import_mode, paths)
     assert len(worklist) == len(expected_list)
     for work, expected in zip(worklist, expected_list):
         assert work.fs_folder is None
         assert work.ie_folder.fs_name == expected[0]
-    ie_cfg.source_type = source_type
     for work in worklist:
         fg_proc_ie_work_item(session, ie_cfg, work, fs_source)
         bg_proc_ie_work_item(work)
@@ -56,13 +54,12 @@ def check_worklist_no_fs_folders(
         check_images(work.fs_folder, work.ie_folder.images.values(), expected[1])
 
 def check_worklist_with_fs_folders(
-        session, fs_source, source_type, paths, expected_list):
+        session, fs_source, import_mode, paths, expected_list):
     fs_folders = []
     for expected in expected_list:
         fs_folder = FsFolder.get(session, fs_source, expected[0])[0]
         fs_folders.append(fs_folder)
-    worklist = get_ie_worklist(
-        session, fs_source, source_type, paths)
+    worklist = get_ie_worklist(session, fs_source, import_mode, paths)
     assert len(worklist) == len(expected_list)
     for work, expected, fs_folder in zip(
             worklist, expected_list, fs_folders):
@@ -72,35 +69,35 @@ def check_worklist_with_fs_folders(
 
 def test_get_workist_dir_set_my_dirs():
     session = open_mem_db()
-    ie_cfg.source_type = SourceType.DIR_SET
+    ie_cfg.import_mode = ImportMode.SET
 
     path = os.path.join(base_path, 'my format')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
-        session, fs_source, SourceType.DIR_SET, [path],
+        session, fs_source, ie_cfg.import_mode, [path],
         test_scan_dir_set_expected_list
     )
     check_worklist_with_fs_folders(
-        session, fs_source, SourceType.DIR_SET, [path],
+        session, fs_source, ie_cfg.import_mode, [path],
         test_scan_dir_set_expected_list
     )
     session.commit()
 
 def test_get_workist_dir_sel_my_dirs():
     session = open_mem_db()
-    ie_cfg.source_type = SourceType.DIR_SEL
+    ie_cfg.import_mode = ImportMode.SEL
 
     path = os.path.join(base_path, 'my format')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
-        session, fs_source, SourceType.DIR_SEL, test_scan_dir_sel_selected_list,
+        session, fs_source, ie_cfg.import_mode, test_scan_dir_sel_selected_list,
         test_scan_dir_sel_expected_list
     )
     fs_folders = []
     check_worklist_with_fs_folders(
-        session, fs_source, SourceType.DIR_SEL,
+        session, fs_source, ImportMode.SEL,
         test_scan_dir_sel_selected_list,
         test_scan_dir_sel_expected_list
     )
@@ -108,35 +105,35 @@ def test_get_workist_dir_sel_my_dirs():
 
 def test_get_worklist_file_set_corbett_psds():
     session = open_mem_db()
-    ie_cfg.source_type = SourceType.FILE_SET
+    ie_cfg.import_mode = ImportMode.SET
 
     path = os.path.join(base_path, 'main1415 corbett psds')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
-        session, fs_source, SourceType.FILE_SET, [path],
+        session, fs_source, ie_cfg.import_mode, [path],
         test_scan_file_set_corbett_psds_expected_list
     )
     check_worklist_with_fs_folders(
-        session, fs_source, SourceType.FILE_SET, [path],
+        session, fs_source, ie_cfg.import_mode, [path],
         test_scan_file_set_corbett_psds_expected_list
     )
     session.commit()
 
 def test_get_worklist_file_sel_corbett_psds():
     session = open_mem_db()
-    ie_cfg.source_type = SourceType.FILE_SEL
+    ie_cfg.import_mode = ImportMode.SEL
 
     path = os.path.join(base_path, 'main1415 corbett psds')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
-        session, fs_source, SourceType.FILE_SEL,
+        session, fs_source, ie_cfg.import_mode,
         test_scan_file_sel_corbett_psds_selected_list,
         test_scan_file_sel_corbett_psds_expected_list
     )
     check_worklist_with_fs_folders(
-        session, fs_source, SourceType.FILE_SEL,
+        session, fs_source, ie_cfg.import_mode,
         test_scan_file_sel_corbett_psds_selected_list,
         test_scan_file_sel_corbett_psds_expected_list
     )
@@ -162,7 +159,7 @@ def test_cmd():
     path = os.path.join(base_path, 'my format')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
-    ie_cfg.source_type = SourceType.DIR_SET
+    ie_cfg.import_mode = ImportMode.SET
     ie_cfg.paths = [path]
     cmd = _TestIECmd(session, ie_cfg, fs_source)
     pass
