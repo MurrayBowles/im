@@ -133,8 +133,9 @@ class DirCtrl:
         self.parent = parent
         self.label = label
         self.select_fn = select_fn
+        self.multiple = (style & wx.DIRCTRL_MULTIPLE) != 0
 
-        self.selection = None
+        self.paths = []
 
         if label is not None:
             label_text = wx.StaticText(parent, label=label)
@@ -149,10 +150,13 @@ class DirCtrl:
         self.dir_ctrl.Bind(wx.EVT_TREE_SEL_CHANGED, self._on_select, tree_ctrl)
 
     def _on_select(self, event):
-        path = self.dir_ctrl.GetPath()
+        if self.multiple:
+            paths = self.dir_ctrl.GetPaths()
+        else:
+            paths = [self.dir_ctrl.GetPath()]
         if self.select_fn is not None:
-            self.select_fn(path)
-        self.selection = path
+            self.select_fn(paths)
+        self.paths = paths
 
     def set_hidden(self, hidden):
         if hidden:

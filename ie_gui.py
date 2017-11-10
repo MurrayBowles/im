@@ -119,9 +119,12 @@ class ImportExportTab(wx.Panel):
                     self, self.source_actions_box, sizer_idx=self.dir_ctrl_sizer_idx,
                     init_path=path,
                     style=(
-                        wx.DIRCTRL_MULTIPLE +
-                        wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0))
+                        wx.DIRCTRL_MULTIPLE |
+                        (wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0)))
             else:
+                # FIXME: not quite sure how many of the lines below are necessary
+                # if the wxPython docs were correct, just a Remove and a Layout should work,
+                # but they don't
                 self.source_actions_box.Hide(self.dir_ctrl_sizer_idx)
                 self.source_actions_box.Remove(self.dir_ctrl_sizer_idx)
             self.showing_dir_ctrl = show_dir_ctrl
