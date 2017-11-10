@@ -125,7 +125,10 @@ class DirCtrl:
         self, parent, sizer,
         size = default_box,
         label = None,
-        select_fn = None    # (path) called whenever the selection changes
+        init_path = None,
+        select_fn = None,   # (path) called whenever the selection changes
+        style = 0,
+        sizer_idx = -1     # insertion index in sizer
     ):
         self.parent = parent
         self.label = label
@@ -137,8 +140,11 @@ class DirCtrl:
             label_text = wx.StaticText(parent, label=label)
             sizer.Add(label_text)
         self.dir_ctrl = wx.GenericDirCtrl(
-            parent, style=wx.DIRCTRL_DIR_ONLY, size=size)
-        sizer.Add(self.dir_ctrl)
+            parent, style=style, size=size, dir=init_path)
+        if sizer_idx  != -1:
+            sizer.Insert(sizer_idx, self.dir_ctrl)
+        else:
+            sizer.Add(self.dir_ctrl)
         tree_ctrl = self.dir_ctrl.GetTreeCtrl()
         self.dir_ctrl.Bind(wx.EVT_TREE_SEL_CHANGED, self._on_select, tree_ctrl)
 
@@ -147,6 +153,12 @@ class DirCtrl:
         if self.select_fn is not None:
             self.select_fn(path)
         self.selection = path
+
+    def set_hidden(self, hidden):
+        if hidden:
+            self.dir_ctrl.Hide()
+        else:
+            self.dir_ctrl.Show()
 
 
 class ListBox:
@@ -321,7 +333,7 @@ class RadioButton:
 
     def __init__(
         self, parent, sizer,
-        label = None, choices = [], change_fn = None,
+        label = '', choices = [], change_fn = None,
         init_value = 0
     ):
         self.parent = parent
@@ -345,6 +357,13 @@ class RadioButton:
             self.radio_box.Enable()
         else:
             self.radio_box.Disable()
+
+    def set_selection(self, value):
+        self.value = value
+        self.radio_box.SetSelection(value)
+
+    def set_item_label(self, idx, label):
+        self.radio_box.SetItemLabel(idx, label)
 
 
 class StaticText:

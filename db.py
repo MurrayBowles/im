@@ -12,7 +12,7 @@ from sqlalchemy import Float, ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
 
-from ie_cfg import IEFolderAct, IEImageAct
+import util
 
 # DbXxx: the database's representation of folders/images/tags/notes
 
@@ -361,6 +361,9 @@ class FsSource(Item):
 
     def label(self):
         return self.volume if self.volume is not None and not self.volume.endswith(':') else None
+
+    def win_path(self):
+        return util.win_path(self.volume, self.path)
 
     def text(self):
         s = ''

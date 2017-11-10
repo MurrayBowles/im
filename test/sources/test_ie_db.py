@@ -35,8 +35,11 @@ def check_images(fs_folder, ie_image_iter, image_expected_list):
         if exp_exts[0] == 'X':
             if ie_image.tags is None:
                 pass
+            else:
+                pass
             # FIXME: Heisenbug!
             # assert ie_image.tags is not None
+    pass
 
 def check_worklist_no_fs_folders(
         session, fs_source, import_mode, paths, expected_list):
@@ -52,6 +55,7 @@ def check_worklist_no_fs_folders(
     for work, expected in zip(worklist, expected_list):
         assert work.fs_folder is not None
         check_images(work.fs_folder, work.ie_folder.images.values(), expected[1])
+    pass
 
 def check_worklist_with_fs_folders(
         session, fs_source, import_mode, paths, expected_list):

@@ -135,6 +135,9 @@ class IEImage(object):
             self.image_size = (int(w), int(h))
         if 'Subject' in item:
             self.tags = item['Subject']
+        else:
+            pass
+        pass
 
 class IEImageInst(object):
 
@@ -183,6 +186,8 @@ def _get_exiftool_json(argv):
     exiftool_json = json.loads(outs)
     return exiftool_json
 
+ie_image_set0 = None
+
 def get_ie_image_exifs(ie_image_set, pub):
     ''' get exif data for all the images in <ie_image_set>
         deletes images from the set as their exifs are processed
@@ -197,9 +202,12 @@ def get_ie_image_exifs(ie_image_set, pub):
                 ie_image_inst.ie_image.set_attrs_from_exiftool_json(item)
                 ie_image_set.remove(ie_image_inst.ie_image)
             else:
-                logging.error("can't find ie_image_inst inf ie_folders map: %s", fs_path)
+                logging.error("can't find ie_image_inst in ie_folders map: %s", fs_path)
+        pass
 
     # attempt in the order of exif_exts
+    global ie_image_set0
+    ie_image_set0 = ie_image_set.copy()
     for ext in exif_exts:
         if len(ie_image_set) == 0:
             break
@@ -356,11 +364,9 @@ def scan_std_dir_files(ie_folder):
                 if ext not in ie_image.insts:
                     ie_image.insts[ext] = [ie_image_inst]
                 else:
-                    logging.error('multiple insts for %s', str(ie_image_inst))
                     ie_image.msgs.add(IEMsg(IEMsgType.EXTRA_INSTS, file_path))
                     ie_image.insts[ext].append(ie_image_inst)
             else:
-                logging.error('unexpected file %s', file_name)
                 ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
         else:
             # special file -- ignore

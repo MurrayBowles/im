@@ -22,9 +22,9 @@ class IEState(Enum):
     IE_GOING = 1,
     IE_CANCELLING = 2
 
-class ImportExportTab(wx.Panel):
+source_type_map = { 1: 'directories', 2: 'files' }
 
-    # source_types = ['folder set', 'folder selection', 'file set', 'file selection']
+class ImportExportTab(wx.Panel):
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
@@ -32,16 +32,20 @@ class ImportExportTab(wx.Panel):
         box = wx.BoxSizer(wx.VERTICAL)
         self.top_box = box
         self.source = None
-        self.source_type = SourceType.DIR_SET
+        self.import_mode = ImportMode.SET
 
         # FsSource selection
         FsSourceCtrl(self, box, change_fn = self.on_source_changed)
 
         self.source_actions_box = wx.BoxSizer(wx.VERTICAL)
 
-        # select button
-        self.select_button = gui_wrap.Button(self, self.source_actions_box, '', self.on_select_button)
-        self.select_button.set_hidden(True, )
+        # all directories/files vs selected directories/files
+        self.select_radio = gui_wrap.RadioButton(
+            self, self.source_actions_box, choices=['All', 'Some'], change_fn = self.on_select_radio)
+
+        # directory/file selection goes here
+        self.dir_ctrl_sizer_idx = 2 # in source_actions_box
+        self.showing_dir_ctrl = False
 
         # flags
         self.import_folder_tags = gui_wrap.AttrCheckBox(
@@ -73,16 +77,10 @@ class ImportExportTab(wx.Panel):
         self.Fit()
 
     def _fix_source_actions(self):
-        self.source_actions_box.ShowItems(self.source is not None)
-
-    def on_set_sel_changed(self, val): # FIXME: unused now
-        if self.source is not None:
-            if val == 0:
-                self.source_type = (
-                    SourceType.DIR_SET if self.source.source_type == 1 else SourceType.FILE_SET)
-            else:
-                self.source_type = (
-                    SourceType.DIR_SEL if self.source.source_type == 1 else SourceType.FILE_SEL)
+        show = self.source is not None
+        if show:
+            self.fix_select_radio()
+        self.source_actions_box.ShowItems(show)
 
     def on_source_changed(self, obj):
         if obj is not None and util.win_path(obj.volume, obj.path) is None:
@@ -90,13 +88,44 @@ class ImportExportTab(wx.Panel):
             obj = None
         self.source = obj
         if obj is not None:
-            sel_map = { 1: 'Select directories', 2: 'Select files' }
-            self.select_button.set_label(sel_map[obj.source_type])
+            if self.import_mode == ImportMode.SEL:
+                self.import_mode = ImportMode.SET
+                self.fix_dir_ctrl()
+            self.fix_select_radio()
+            self.fix_dir_ctrl()
         self._fix_source_actions()
         self.Layout()
 
-    def on_select_button(self, event):
+    def fix_select_radio(self):
+        self.select_radio.set_selection(0)  # All <what>
+        what = source_type_map[self.source.source_type]
+        self.select_radio.set_item_label(0, 'All ' + what)
+        self.select_radio.set_item_label(1, 'Selected ' + what)
         pass
+
+    def on_select_radio(self, value):
+        import_mode = ImportMode(value)
+        self.import_mode = import_mode
+        self.fix_dir_ctrl()
+        self.Fit()
+        self.Layout()
+
+    def fix_dir_ctrl(self):
+        show_dir_ctrl = self.source is not None and self.import_mode == ImportMode.SEL
+        if show_dir_ctrl != self.showing_dir_ctrl:
+            if show_dir_ctrl:
+                path = self.source.win_path()
+                self.dir_ctrl = gui_wrap.DirCtrl(
+                    self, self.source_actions_box, sizer_idx=self.dir_ctrl_sizer_idx,
+                    init_path=path,
+                    style=(
+                        wx.DIRCTRL_MULTIPLE +
+                        wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0))
+            else:
+                self.source_actions_box.Remove(self.dir_ctrl_sizer_idx)
+            self.showing_dir_ctrl = show_dir_ctrl
+            self.Fit()
+            self.Layout()
 
     def on_go_cancel(self, event):
         cfg.save()
@@ -252,7 +281,8 @@ class FsSourceAEDialog(wx.Dialog):
 
         if self.obj  is None:  # Add
             # directory
-            gui_wrap.DirCtrl(self, box, select_fn=self.on_dir_selected)
+            gui_wrap.DirCtrl(
+                self, box, select_fn=self.on_dir_selected, style = wx.DIRCTRL_DIR_ONLY)
         else:                       # Edit
             gui_wrap.StaticText(self, box, 'source: ' + self.obj.text())
 
