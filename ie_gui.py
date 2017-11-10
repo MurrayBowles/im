@@ -44,7 +44,7 @@ class ImportExportTab(wx.Panel):
             self, self.source_actions_box, choices=['All', 'Some'], change_fn = self.on_select_radio)
 
         # directory/file selection goes here
-        self.dir_ctrl_sizer_idx = 2 # in source_actions_box
+        self.dir_ctrl_sizer_idx = 1 # in source_actions_box
         self.showing_dir_ctrl = False
 
         # flags
@@ -122,8 +122,10 @@ class ImportExportTab(wx.Panel):
                         wx.DIRCTRL_MULTIPLE +
                         wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0))
             else:
+                self.source_actions_box.Hide(self.dir_ctrl_sizer_idx)
                 self.source_actions_box.Remove(self.dir_ctrl_sizer_idx)
             self.showing_dir_ctrl = show_dir_ctrl
+            self.source_actions_box.Layout()
             self.Fit()
             self.Layout()
 
