@@ -125,14 +125,12 @@ def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
                 if fs_image.name == ie_image.name:
                     import_ie_image(fs_image, ie_image, False)
                 elif fs_image.name < ie_image.name:
-                    # FIXME: no worklist
-                    worklist.deleted_images.append(fs_image)
+                    work_item.deleted_images.append(fs_image)
                 else: # ie_image.name < fs_image.name
                     fs_image = FsImage.add(session, fs_folder, ie_image.name)
                     import_ie_image(fs_image, ie_image, True)
             elif len(fs_images) != 0:
-                # FIXME: no worklist
-                worklist.deleted_images.extend(fs_images)
+                work_item.deleted_images.extend(fs_images)
                 break
             elif len(ie_images) != 0:
                 ie_image = ie_images.pop(0)
@@ -162,7 +160,7 @@ class IECmd:
         self.step_begin()
 
     def do_pub(self, msg, data):
-        # do a PubSub for the front end's benefit
+        '''  do a pubsub.pub in the main thread '''
         pass
 
     def step_begin(self):
@@ -177,12 +175,13 @@ class IECmd:
                 self.step_done()
 
     def bg_spawn(self):
-        # start a background thread, executing self.bg_proc()
+        ''' start a background thread, executing self.bg_proc() '''
         raise NotImplementedError('bg_spawn')
 
     def bg_proc(self):
-        # run in a background thread by bg_spawn
-
+        ''' extract the exifs and/or thumbnails for a folder
+            run in the background thread created by bg_spawn
+        '''
         def pub_fn(msg, data):
             self.do_pub(msg, data)
         work_item = self.worklist[self.worklist_idx]
@@ -195,7 +194,9 @@ class IECmd:
         self.bg_done()
 
     def bg_done(self):
-        # do something which causes self.step_done() to be called in the main thread
+        ''' do something which causes self.step_done() to be called in the main thread
+            run in the background thread created by bg_spawn
+        '''
         raise NotImplementedError('bg_done')
 
     def step_done(self):
