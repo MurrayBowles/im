@@ -1,5 +1,6 @@
 ''' test ie_db (import/export folders/images to/from the database) '''
 
+from collections import deque
 import os
 import pytest
 
@@ -49,7 +50,7 @@ def check_worklist_no_fs_folders(
         assert work.fs_folder is None
         assert work.ie_folder.fs_name == expected[0]
     for work in worklist:
-        fg_proc_ie_work_item(session, ie_cfg, work, fs_source)
+        fg_start_ie_work_item(session, ie_cfg, work, fs_source)
         bg_proc_ie_work_item(work)
         pass
     for work, expected in zip(worklist, expected_list):
@@ -146,17 +147,28 @@ def test_get_worklist_file_sel_corbett_psds():
 class _TestIECmd(IECmd):
 
     def __init__(self, session, ie_cfg, fs_source):
-        self.pubs = []
+        self.queue = deque()
         IECmd.__init__(self, session, ie_cfg, fs_source)
+        while len(self.queue) > 0:
+            item = self.queue.popleft()
+            if item[0] == 'ie.cmd.start item':
+                self.start_item()
+            elif item[0] == 'ie.cmd.finish item':
+                self.finish_item()
+            else:
+                if not item[0].startswith('ie.sts'):
+                    pass
+                assert item[0].startswith('ie.sts')
+        pass
+
+    def do_pub(self, msg, data=None):
+        self.queue.append((msg, data))
 
     def bg_spawn(self):
         self.bg_proc()
 
-    def bg_done(self):
-        self.step_done()
-
     def pub(self, msg, data):
-        self.pubs.append((msg, data))
+        self.queue.append((msg, data))
 
 def test_cmd():
     session = open_mem_db()

@@ -148,14 +148,18 @@ class ImportExportTab(wx.Panel):
             self.ie_state = IEState.IE_GOING
             self.gc_button.SetLabel('Stop')
 
-            pub.subscribe(self.on_ie_begun, 'ie.begun')
-            pub.subscribe(self.on_ie_import_thumbnails, 'ie.import thumbnails')
-            pub.subscribe(self.on_ie_imported_thumbnails, 'ie.imported thumbnails')
-            pub.subscribe(self.on_ie_import_tags, 'ie.import tags')
-            pub.subscribe(self.on_ie_imported_tags, 'ie.imported tags')
-            pub.subscribe(self.on_ie_background_done, 'ie.background done')
-            pub.subscribe(self.on_ie_folder_done, 'ie.folder done')
-            pub.subscribe(self.on_ie_done, 'ie.done')
+            # control messages
+            pub.subscribe(self.ie_start_item, 'ie.cmd.start item')
+            pub.subscribe(self.ie_finish_item, 'ie.cmd.finish item')
+
+            # status messages
+            pub.subscribe(self.on_ie_begun, 'ie.sts.begun')
+            pub.subscribe(self.on_ie_import_thumbnails, 'ie.sts.import thumbnails')
+            pub.subscribe(self.on_ie_imported_thumbnails, 'ie.sts.imported thumbnails')
+            pub.subscribe(self.on_ie_import_tags, 'ie.sts.import tags')
+            pub.subscribe(self.on_ie_imported_tags, 'ie.sts.imported tags')
+            pub.subscribe(self.on_ie_folder_done, 'ie.sts.folder done')
+            pub.subscribe(self.on_ie_done, 'ie.sts.done')
 
             self.ie_cmd = GuiIECmd(self.import_mode, self.source, self.paths)
         elif self.ie_state == IEState.IE_GOING:
@@ -168,13 +172,22 @@ class ImportExportTab(wx.Panel):
         self.progress.set_text('  ' + self.progress_text)
         pass
 
+    # control message handlers
+
+    def start_item(self, data):
+        self.ie_cmd.start_item()
+
+    def finish_item(self, data):
+        self.ie_cmd.finish_item()
+
+    # status message handlers
+
     def on_ie_begun(self, data):
         self.worklist = data
         self.num_folders = len(data)
         self.cur_folders = 0
         self.progress_text = '%u/%u folders' % (self.cur_folders, self.num_folders)
         self.on_progress()
-        pass
 
     def on_ie_import_thumbnails(self, data):
         self.num_thumbnails = data
@@ -202,9 +215,6 @@ class ImportExportTab(wx.Panel):
             self.cur_folders, self.num_folders, self.cur_tags, self.num_tags)
         self.on_progress()
 
-    def on_ie_background_done(self, data):
-        self.ie_cmd.step_done()
-
     def on_ie_folder_done(self, data):
         self.cur_folders += 1
         self.progress_text = '%u/%u folders' % (self.cur_folders, self.num_folders)
@@ -212,7 +222,7 @@ class ImportExportTab(wx.Panel):
 
     def on_ie_done(self, data):
         cancelled = data
-        logging.info('import/export ended')
+        logging.info('import/export %s', 'cancelled' if cancelled else 'done')
         self.progress_text = ''
         self.on_progress()
         self.ie_state = IEState.IE_IDLE
@@ -243,9 +253,6 @@ class GuiIECmd(IECmd):
 
     def bg_spawn(self):
         GuiIECmdThread(self)
-
-    def bg_done(self):
-        self.do_pub('ie.background done', data=None)
 
 
 class GuiIECmdThread(Thread):

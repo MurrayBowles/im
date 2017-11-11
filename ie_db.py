@@ -71,7 +71,7 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
                 break
     return worklist
 
-def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
+def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     import_mode = ie_cfg.import_mode
 
     def import_ie_image(fs_image, ie_image, new_fs_image):
@@ -80,6 +80,8 @@ def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
             db_image = DbImage.get(session, db_folder, ie_image.name)[0]
             if fs_image.db_image is None:
                 fs_image.db_image = db_image
+            if ie_cfg.import_thumbnails and ie_image.newest_inst_with_thumbnail is not None:
+                pass
             if ie_cfg.import_thumbnails and ie_image.newest_inst_with_thumbnail is not None and (
                             db_image.thumbnail is None or
                             ie_image.latest_inst_with_timestamp.mod_datetime > db_image.thumbnail_timestamp):
@@ -139,7 +141,14 @@ def fg_proc_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
+def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source):
+    ''' do auto-tagging, move thumbnails to DbImage '''
+    pass
+
 def bg_proc_ie_work_item(work_item):
+    ''' get thumbnails or exifs for a work item
+        run in a background thread
+    '''
     def pub(msg, data):
         pass
     get_ie_image_thumbnails(work_item.get_thumbnail, pub)
@@ -156,26 +165,34 @@ class IECmd:
         self.worklist = get_ie_worklist(session, fs_source, ie_cfg.import_mode, ie_cfg.paths)
         self.worklist_idx = 0
         self.cancelling = False
-        self.do_pub('ie.begun', self.worklist)
-        self.step_begin()
+        self.do_pub('ie.sts.begun', self.worklist)
+        self.do_pub('ie.cmd.start item')
 
-    def do_pub(self, msg, data):
-        '''  do a pubsub.pub in the main thread '''
+    def do_pub(self, msg, data=None):
+        ''' do a pubsub.pub in the main thread
+            must be overridden
+        '''
         pass
 
-    def step_begin(self):
+    def start_item(self):
+        ''' preprocess the work item, gathering image files in some cases,
+            then spawn a background process if thumbnails or EXIFs need to be read
+            called by the main thread when it receives ie.cmd.start item
+        '''
         if self.cancelling or self.worklist_idx >= len(self.worklist):
-            self.done(False)
+            self.do_pub('ie.sts.done', self.cancelling)
         else:
             work_item = self.worklist[self.worklist_idx]
-            fg_proc_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
-            if len(work_item.get_exif) > 0 or len(work_item.get_exif) > 0:
+            fg_start_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
+            if len(work_item.get_exif) > 0 or len(work_item.get_thumbnail) > 0:
                 self.bg_spawn()
             else:
-                self.step_done()
+                self.do_pub('ie.cmd.finish item')
 
     def bg_spawn(self):
-        ''' start a background thread, executing self.bg_proc() '''
+        ''' start a background thread, executing self.bg_proc()
+            must be overridden
+        '''
         raise NotImplementedError('bg_spawn')
 
     def bg_proc(self):
@@ -186,28 +203,26 @@ class IECmd:
             self.do_pub(msg, data)
         work_item = self.worklist[self.worklist_idx]
         if len(work_item.get_thumbnail) > 0:
-            self.do_pub('ie.import thumbnails', len(work_item.get_thumbnail))
+            self.do_pub('ie.sts.import thumbnails', len(work_item.get_thumbnail))
             get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
         if len(work_item.get_exif) > 0:
-            self.do_pub('ie.import tags', len(work_item.get_exif))
+            self.do_pub('ie.sts.import tags', len(work_item.get_exif))
             get_ie_image_exifs(work_item.get_exif, pub_fn)
-        self.bg_done()
+        self.do_pub('ie.cmd.finish item')
 
-    def bg_done(self):
-        ''' do something which causes self.step_done() to be called in the main thread
-            run in the background thread created by bg_spawn
+    def finish_item(self):
+        ''' post-process the work item, autotagging the folder and its images
+            where possible, then report completion of the folder to the GUI
+           called by the main thread when it receives ie.cmd.start item
         '''
-        raise NotImplementedError('bg_done')
-
-    def step_done(self):
-        self.do_pub('ie.folder done', self.worklist[self.worklist_idx].ie_folder.name)
+        work_item = self.worklist[self.worklist_idx]
+        fg_finish_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
+        self.do_pub('ie.sts.folder done', self.worklist[self.worklist_idx].ie_folder.name)
         self.worklist_idx += 1
-        self.step_begin()
-
-    def done(self, cancelled):
-        self.do_pub('ie.done', self.cancelling)
+        self.do_pub('ie.cmd.start item')
 
     def cancel(self):
+        ''' mark the wowklist for cancellation '''
         self.cancelling = True
 
 

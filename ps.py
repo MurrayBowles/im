@@ -7,12 +7,17 @@ def set_status(text):
 
 #from ie_gui.GuiIECmd / ie_db/IECmd
 #
-# ie.begun, worklist
-# ie.import thumbnails, #thumbnails
-# ie.imported thumnails, #thumbnails
-# ie.import tags, #tags
-# ie.imported tags, #tags
-# ie.background done
-# ie.folder done, folder-name
-# ie.done, cancelling
+# ie.sts.begun, worklist
+# ie.sts.import thumbnails, #thumbnails
+# ie.sts.imported thumnails, #thumbnails
+# ie.sts.import exifs, #tags
+# ie.sts.imported exifs, #tags
+# ie.sts.folder done, folder-name
+# ie.sts.done, cancelled
+#
+# ie.cmd.start item
+# ie.cmd.finish item
+
+# ie.step end
+
 
