@@ -151,7 +151,30 @@ class DirCtrl:
 
     def _on_select(self, event):
         if self.multiple:
-            paths = self.dir_ctrl.GetPaths()
+            def get_item_path(tree_ctrl, item):
+                path = ''
+                sep = ''
+                while True:
+                    try:
+                        # yep, GetItemParent doesn't return None when there's no parent
+                        # go figure
+                        path = tree_ctrl.GetItemText(item) + sep + path
+                    except:
+                        break
+                    item = tree_ctrl.GetItemParent(item)
+                    sep = '/'
+                # <label> (<drive letter>:)<path> => <drive letter>:<path>
+                left_paren_idx = path.find('(')     # FIXME: what if the label contains parens?
+                right_paren_idx = path.find(')')
+                path = path[left_paren_idx + 1:right_paren_idx] + path[right_paren_idx + 1:]
+                return path
+            paths = []
+            # self.dir_ctrl.GetPaths(paths) # weird API, AND it doesn't work. Thanks wxPython!
+            tree_ctrl = self.dir_ctrl.GetTreeCtrl()
+            items = tree_ctrl.GetSelections()
+            for item in items:
+                path = get_item_path(tree_ctrl, item)
+                paths.append(path)
         else:
             paths = [self.dir_ctrl.GetPath()]
         if self.select_fn is not None:
@@ -163,6 +186,9 @@ class DirCtrl:
             self.dir_ctrl.Hide()
         else:
             self.dir_ctrl.Show()
+
+    def get_paths(self):
+        return self.paths
 
 
 class ListBox:

@@ -133,6 +133,7 @@ class ImportExportTab(wx.Panel):
             self.Layout()
 
     def on_go_cancel(self, event):
+        paths = self.dir_ctrl.get_paths()
         cfg.save()
         if self.ie_state == IEState.IE_IDLE:
             logging.info('import/export begun')
@@ -317,7 +318,8 @@ class FsSourceAEDialog(wx.Dialog):
         self.dialog_buttons.set_ok_enabled(
             self.tag_source is not None and self.path is not None)
 
-    def on_dir_selected(self, path):
+    def on_dir_selected(self, paths):
+        path = paths[0]
         volume = util.volume_label(path)
         if len(volume) == 0:
             volume, path = os.path.splitdrive(path)
