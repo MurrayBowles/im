@@ -1,19 +1,20 @@
 ''' import/export GUI '''
 
-from enum import Enum
+import copy
 import logging
 import os
 import ps
+from wx.lib.pubsub import pub
 from threading import Thread
 import time
 import wx
 from wx.lib.pubsub import pub
-import wx.lib.agw.multidirdialog as mdd
 
 import db
 import gui_wrap
 from cfg import cfg
 from ie_cfg import *
+from ie_db import IECmd
 import util
 
 class IEState(Enum):
@@ -33,6 +34,7 @@ class ImportExportTab(wx.Panel):
         self.top_box = box
         self.source = None
         self.import_mode = ImportMode.SET
+        self.paths = None
 
         # FsSource selection
         FsSourceCtrl(self, box, change_fn = self.on_source_changed)
@@ -64,9 +66,9 @@ class ImportExportTab(wx.Panel):
         self.gc_button.Bind(wx.EVT_BUTTON, self.on_go_cancel)
         self.gc_box.Add(self.gc_button)
 
-        #self.gc_progress1 = wx.Gauge(self, -1, range = 24)
-        #self.gc_progress1.SetValue(12)
-        #self.gc_box.Add(self.gc_progress1)
+        # progress string
+        self.progress = gui_wrap.StaticText(self, self.gc_box, '', size=(200,20))
+        # FIXME: should auto-resize with the text
 
         self.source_actions_box.Add(self.gc_box)
         self._fix_source_actions()
@@ -91,6 +93,7 @@ class ImportExportTab(wx.Panel):
             if self.import_mode == ImportMode.SEL:
                 self.import_mode = ImportMode.SET
                 self.fix_dir_ctrl()
+            self.paths = [self.source.win_path()]
             self.fix_select_radio()
             self.fix_dir_ctrl()
         self._fix_source_actions()
@@ -114,62 +117,146 @@ class ImportExportTab(wx.Panel):
         show_dir_ctrl = self.source is not None and self.import_mode == ImportMode.SEL
         if show_dir_ctrl != self.showing_dir_ctrl:
             if show_dir_ctrl:
+                self.paths = []
                 path = self.source.win_path()
                 self.dir_ctrl = gui_wrap.DirCtrl(
                     self, self.source_actions_box, sizer_idx=self.dir_ctrl_sizer_idx,
-                    init_path=path,
+                    init_path=path, select_fn=self.on_select_paths,
                     style=(
                         wx.DIRCTRL_MULTIPLE |
                         (wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0)))
             else:
                 # FIXME: not quite sure how many of the lines below are necessary
-                # if the wxPython docs were correct, just a Remove and a Layout should work,
-                # but they don't
+                # if the wxPython docs were correct, just a Remove and a Layout would suffice,
+                # but (1) a Layout on WHAT and (2) they don't
                 self.source_actions_box.Hide(self.dir_ctrl_sizer_idx)
                 self.source_actions_box.Remove(self.dir_ctrl_sizer_idx)
+                self.paths = [self.source.win_path()]
             self.showing_dir_ctrl = show_dir_ctrl
             self.source_actions_box.Layout()
             self.Fit()
             self.Layout()
 
+    def on_select_paths(self, paths):
+        self.paths = paths
+
     def on_go_cancel(self, event):
-        paths = self.dir_ctrl.get_paths()
         cfg.save()
+
         if self.ie_state == IEState.IE_IDLE:
             logging.info('import/export begun')
             self.ie_state = IEState.IE_GOING
             self.gc_button.SetLabel('Stop')
+
             pub.subscribe(self.on_ie_begun, 'ie.begun')
-            pub.subscribe(self.on_ie_step, 'ie.step')
-            pub.subscribe(self.on_ie_ended, 'ie.ended')
-            self.ie_thread = IEThread(self)
+            pub.subscribe(self.on_ie_import_thumbnails, 'ie.import thumbnails')
+            pub.subscribe(self.on_ie_imported_thumbnails, 'ie.imported thumbnails')
+            pub.subscribe(self.on_ie_import_tags, 'ie.import tags')
+            pub.subscribe(self.on_ie_imported_tags, 'ie.imported tags')
+            pub.subscribe(self.on_ie_background_done, 'ie.background done')
+            pub.subscribe(self.on_ie_folder_done, 'ie.folder done')
+            pub.subscribe(self.on_ie_done, 'ie.done')
+
+            self.ie_cmd = GuiIECmd(self.import_mode, self.source, self.paths)
         elif self.ie_state == IEState.IE_GOING:
             logging.info('import/export stopping')
             self.ie_state = IEState.IE_CANCELLING
             self.gc_button.Disable()
+            self.ie_cmd.cancel()
+
+    def on_progress(self):
+        self.progress.set_text('  ' + self.progress_text)
+        pass
 
     def on_ie_begun(self, data):
-        self.ie_total_steps = data
-        self.ie_cur_steps = 0
-        self.gc_progress = wx.Gauge(self, -1, range = self.ie_total_steps)
-        self.gc_progress.SetValue(self.ie_cur_steps)
-        self.gc_box.Add(self.gc_progress)
-        self.gc_stats = wx.StaticText(self, -1, '%u/%u' % (self.ie_cur_steps, self.ie_total_steps))
-        self.gc_box.Add(self.gc_stats)
-        self.top_box.Layout()
+        self.worklist = data
+        self.num_folders = len(data)
+        self.cur_folders = 0
+        self.progress_text = '%u/%u folders' % (self.cur_folders, self.num_folders)
+        self.on_progress()
+        pass
 
-    def on_ie_step(self, data):
-        self.ie_cur_steps += data
-        self.gc_progress.SetValue(self.ie_cur_steps)
-        self.gc_stats.SetLabel('%u/%u' % (self.ie_cur_steps, self.ie_total_steps))
+    def on_ie_import_thumbnails(self, data):
+        self.num_thumbnails = data
+        self.cur_thumbnails = 0
+        self.progress_text = '%u/%u folders, %u/%u thumbnails' % (
+            self.cur_folders, self.num_folders, self.cur_thumbnails, self.num_thumbnails)
+        self.on_progress()
 
-    def on_ie_ended(self):
+    def on_ie_imported_thumbnails(self, data):
+        self.cur_thumbnails +=  data
+        self.progress_text = '%u/%u folders, %u/%u thumbnails' % (
+            self.cur_folders, self.num_folders, self.cur_thumbnails, self.num_thumbnails)
+        self.on_progress()
+
+    def on_ie_import_tags(self, data):
+        self.num_tags = data
+        self.cur_tags = 0
+        self.progress_text = '%u/%u folders, %u/%u EXIFs' % (
+            self.cur_folders, self.num_folders, self.cur_tags, self.num_tags)
+        self.on_progress()
+
+    def on_ie_imported_tags(self, data):
+        self.cur_tags += data
+        self.progress_text = '%u/%u folders, %u/%u EXIFs' % (
+            self.cur_folders, self.num_folders, self.cur_tags, self.num_tags)
+        self.on_progress()
+
+    def on_ie_background_done(self, data):
+        self.ie_cmd.step_done()
+
+    def on_ie_folder_done(self, data):
+        self.cur_folders += 1
+        self.progress_text = '%u/%u folders' % (self.cur_folders, self.num_folders)
+        self.on_progress()
+
+    def on_ie_done(self, data):
+        cancelled = data
         logging.info('import/export ended')
-        self.gc_box.Remove(1)
-        self.gc_box.Remove(1)
+        self.progress_text = ''
+        self.on_progress()
         self.ie_state = IEState.IE_IDLE
         self.gc_button.SetLabel('Import/Export')
         self.gc_button.Enable()
+        self.Layout()
+        pass
+
+
+class GuiIECmd(IECmd):
+
+    def __init__(self, import_mode, fs_source, paths):
+
+        self.ie_cfg = copy.deepcopy(cfg.ie)
+        self.ie_cfg.import_mode = import_mode
+        self.ie_cfg.paths = paths
+        self.fs_source = fs_source
+
+        super().__init__(db.session, self.ie_cfg, self.fs_source)
+
+    def do_pub(self, msg, data):
+
+        def do_do_pub(msg, data):
+            pub.sendMessage(msg, data=data)
+
+        wx.CallAfter(do_do_pub, msg, data=data)
+        pass
+
+    def bg_spawn(self):
+        GuiIECmdThread(self)
+
+    def bg_done(self):
+        self.do_pub('ie.background done', data=None)
+
+
+class GuiIECmdThread(Thread):
+
+    def __init__(self, cmd):
+        self.cmd = cmd
+        Thread.__init__(self)
+        self.start()  # start the thread
+
+    def run(self):
+        self.cmd.bg_proc()
 
 
 class FsSourceCtrl:
@@ -431,22 +518,4 @@ class FsTagSourceAEDialog(wx.Dialog):
     def on_change(self, text):
         self.dialog_buttons.set_ok_enabled(text != '')
 
-
-class IEThread(Thread):
-
-    def __init__(self, gui):
-        Thread.__init__(self)
-        self.gui = gui
-        self.dirs_done = 0
-        self.dirs_to_do = 23
-        self.start()    # start the thread
-
-    def run(self):
-        pub.sendMessage('ie.begun', data = self.dirs_to_do)
-        for i in range(self.dirs_to_do):
-            if self.gui.ie_state == IEState.IE_CANCELLING:
-                break
-            time.sleep(1)
-            pub.sendMessage('ie.step', data = 1)
-        pub.sendMessage('ie.ended')
 

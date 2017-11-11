@@ -42,7 +42,7 @@ class IEMsgType(Enum):
         # (IEFolder)
     CANT_FIND_IMAGE     = ("internal error: can't find folder image from pathmane", 'Ep')
         # (IEFolder)
-    NAME_NEEDS_EDIT     = ('folder name needs exiting', 'is')
+    NAME_NEEDS_EDIT     = ('folder name needs editing', 'is')
         # (IEFolder)
 
 class IEMsg(object):
@@ -182,8 +182,11 @@ _exiftool_args = [
 def _get_exiftool_json(argv):
     ''' runs exiftool on <argv> and returns a list of dictionaries containing the results '''
     outb = subprocess.check_output(argv)
-    outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '')
-    exiftool_json = json.loads(outs)
+    outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '').replace(r"\'", "'")
+    try:
+        exiftool_json = json.loads(outs)
+    except:
+        pass
     return exiftool_json
 
 ie_image_set0 = None
@@ -193,17 +196,15 @@ def get_ie_image_exifs(ie_image_set, pub):
         deletes images from the set as their exifs are processed
     '''
 
-    def proc_exiftool_json(ie_image_set, inst_paths, exiftool_json):
+    def proc_exiftool_json(ie_image_set, ext_paths, exiftool_json):
         for item in exiftool_json:
-            fs_path = os.path.abspath(item['SourceFile'])
-            drive, fs_path = os.path.splitdrive(fs_path)
-            if fs_path in inst_paths:
-                ie_image_inst = inst_paths[fs_path]
-                ie_image_inst.ie_image.set_attrs_from_exiftool_json(item)
-                ie_image_set.remove(ie_image_inst.ie_image)
-            else:
-                logging.error("can't find ie_image_inst in ie_folders map: %s", fs_path)
-        pass
+            fs_path = item['SourceFile']
+            if fs_path in ext_paths:
+                ie_image_inst = ext_paths[fs_path]
+                ie_image = ie_image_inst.ie_image
+                if ie_image in ie_image_set:
+                    ie_image_inst.ie_image.set_attrs_from_exiftool_json(item)
+                    ie_image_set.remove(ie_image_inst.ie_image)
 
     # attempt in the order of exif_exts
     global ie_image_set0
@@ -213,12 +214,12 @@ def get_ie_image_exifs(ie_image_set, pub):
             break
         # collect IEImageInsts and their directories
         dir_insts = {} # map: directory pathname => list of IEImageInst
-        inst_paths = {} # map: fs_path => image_inst
+        ext_paths = {} # map: fs_path => image_inst for images witn this extension
         for ie_image in ie_image_set:
             if ext in ie_image.insts:
                 for ie_image_inst in ie_image.insts[ext]:
-                    inst_path = ie_image_inst.fs_path
-                    inst_paths[inst_path] = ie_image_inst
+                    inst_path = os.path.abspath(ie_image_inst.fs_path).replace('\\', '/')
+                    ext_paths[inst_path] = ie_image_inst
                     dir_path = os.path.dirname(inst_path)
                     if dir_path in dir_insts:
                         dir_insts[dir_path].append(ie_image_inst)
@@ -231,21 +232,24 @@ def get_ie_image_exifs(ie_image_set, pub):
             num_dir_files = len(os.listdir(dir_path))
             if len(worklist) > num_dir_files / 2:
                 # run exiftools on <dir>/*.<ext>
+                len0 = len(ie_image_set)
                 argv = list(_exiftool_args)
                 argv.append(os.path.join(dir_path, '*' + fs_ext))
                 exiftool_json = _get_exiftool_json(argv)
-                proc_exiftool_json(ie_image_set, inst_paths, exiftool_json)
+                proc_exiftool_json(ie_image_set, ext_paths, exiftool_json)
+                pub('ie.imported tags', len0 - len(ie_image_set))
             else:
                 # run exiftools on <file1> <file2> ...
                 while len(worklist) > 0:
-                    n = min(len(worklist), 10) # up to 10 files per run
+                    n = min(len(worklist), 30) # up to 30 files per run
                     sublist, worklist = worklist[:n], worklist[n:]
+                    len0 = len(ie_image_set)
                     argv = list(_exiftool_args)
                     for ie_image_inst in sublist:
                         argv.append(ie_image_inst.fs_path)
                     exiftool_json = _get_exiftool_json(argv)
-                    proc_exiftool_json(ie_image_set, inst_paths, exiftool_json)
-            pub('ie.imported_tags', len(exiftool_json))
+                    proc_exiftool_json(ie_image_set, ext_paths, exiftool_json)
+                    pub('ie.imported tags', len0 - len(ie_image_set))
 
 def get_ie_image_thumbnails(ie_image_set, pub):
     ''' extract thumbnails for the images in <ie_image_set>
@@ -255,7 +259,7 @@ def get_ie_image_thumbnails(ie_image_set, pub):
         ie_image_inst = ie_image.newest_inst_with_thumbnail
         assert ie_image_inst is not None
         ie_image.thumbnail = ie_image_inst.get_thumbnail()
-        pub('ie.imported thumbnail', 1)
+        pub('ie.imported thumbnails', 1)
     # clear(ie_image_set) FIXME: why does this fail?
 
 # a std_dirname has the form 'yymmdd name'
@@ -364,7 +368,7 @@ def scan_std_dir_files(ie_folder):
                 if ext not in ie_image.insts:
                     ie_image.insts[ext] = [ie_image_inst]
                 else:
-                    ie_image.msgs.add(IEMsg(IEMsgType.EXTRA_INSTS, file_path))
+                    ie_image.msgs.append(IEMsg(IEMsgType.EXTRA_INSTS, file_path))
                     ie_image.insts[ext].append(ie_image_inst)
             else:
                 ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))

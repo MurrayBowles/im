@@ -164,7 +164,9 @@ class DirCtrl:
                     item = tree_ctrl.GetItemParent(item)
                     sep = '/'
                 # <label> (<drive letter>:)<path> => <drive letter>:<path>
-                left_paren_idx = path.find('(')     # FIXME: what if the label contains parens?
+                # FIXME: what if the label contains a paren?
+                # searching from the right won't help -- filenames CAN contain parens
+                left_paren_idx = path.find('(')
                 right_paren_idx = path.find(')')
                 path = path[left_paren_idx + 1:right_paren_idx] + path[right_paren_idx + 1:]
                 return path
@@ -400,14 +402,14 @@ class StaticText:
 
     def __init__(
         self, parent, sizer,
-        text
+        text, size=default_line
     ):
         self.parent = parent
-        self.static_text = wx.StaticText(parent, label=text)
+        self.static_text = wx.StaticText(parent, label=text, size=size)
         sizer.Add(self.static_text)
 
-    def set_color(self, rgb):
-        self.static_text.SetForegroundColour(rgb)
+    def set_text(self, text):
+        self.static_text.SetLabel(text)
 
 
 class TextCtrl:

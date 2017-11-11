@@ -148,7 +148,7 @@ def bg_proc_ie_work_item(work_item):
     get_ie_image_exifs(work_item.get_exif, pub)
 
 
-class IECmd(object):
+class IECmd:
     ''' state of an import/export command '''
 
     def __init__(self, session, ie_cfg, fs_source):
@@ -158,12 +158,12 @@ class IECmd(object):
         self.worklist = get_ie_worklist(session, fs_source, ie_cfg.import_mode, ie_cfg.paths)
         self.worklist_idx = 0
         self.cancelling = False
-        self.pub('ie.begun', len(self.worklist))
+        self.do_pub('ie.begun', self.worklist)
         self.step_begin()
 
-    def pub(self, msg, data):
+    def do_pub(self, msg, data):
         # do a PubSub for the front end's benefit
-        raise NotImplementedError('pub')
+        pass
 
     def step_begin(self):
         if self.cancelling or self.worklist_idx >= len(self.worklist):
@@ -183,15 +183,15 @@ class IECmd(object):
     def bg_proc(self):
         # run in a background thread by bg_spawn
 
-        def pub(msg, data):
-            self.pub(msg, data)
+        def pub_fn(msg, data):
+            self.do_pub(msg, data)
         work_item = self.worklist[self.worklist_idx]
         if len(work_item.get_thumbnail) > 0:
-            self.pub('ie.import thumbnails', len(work_item.get_thumbnail))
-            get_ie_image_thumbnails(work_item.get_thumbnail, pub)
+            self.do_pub('ie.import thumbnails', len(work_item.get_thumbnail))
+            get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
         if len(work_item.get_exif) > 0:
-            self.pub('ie.import tags', len(work_item.get_exif))
-            get_ie_image_exifs(work_item.get_exif, pub)
+            self.do_pub('ie.import tags', len(work_item.get_exif))
+            get_ie_image_exifs(work_item.get_exif, pub_fn)
         self.bg_done()
 
     def bg_done(self):
@@ -199,12 +199,12 @@ class IECmd(object):
         raise NotImplementedError('bg_done')
 
     def step_done(self):
-        self.pub('ie.folder_done', self.worklist[self.worklist_idx].ie_folder.name)
+        self.do_pub('ie.folder done', self.worklist[self.worklist_idx].ie_folder.name)
         self.worklist_idx += 1
         self.step_begin()
 
     def done(self, cancelled):
-        self.pub('ie.done', self.cancelling)
+        self.do_pub('ie.done', self.cancelling)
 
     def cancel(self):
         self.cancelling = True
