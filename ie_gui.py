@@ -174,10 +174,10 @@ class ImportExportTab(wx.Panel):
 
     # control message handlers
 
-    def start_item(self, data):
+    def ie_start_item(self, data):
         self.ie_cmd.start_item()
 
-    def finish_item(self, data):
+    def ie_finish_item(self, data):
         self.ie_cmd.finish_item()
 
     # status message handlers
@@ -243,7 +243,7 @@ class GuiIECmd(IECmd):
 
         super().__init__(db.session, self.ie_cfg, self.fs_source)
 
-    def do_pub(self, msg, data):
+    def do_pub(self, msg, data=None):
 
         def do_do_pub(msg, data):
             pub.sendMessage(msg, data=data)
