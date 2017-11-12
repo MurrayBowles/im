@@ -79,6 +79,8 @@ class _Tester(object):
         session.commit()
         if hasattr(self, 'get'):
             found_obj2, new_obj = self.get(session, key, key2)
+            if new_obj:
+                pass
             assert not new_obj
             assert found_obj2 == obj
         key = self.get_key(obj)
@@ -235,11 +237,11 @@ class _DbCollectionImage_Tester(_Tester):
 class _DbTag_Tester(_Tester):
 
     def create(self, session, key, key2):
-        tag = DbTag.add(session, parent=None, name=_mk_name('tag'))
+        tag = DbTag.add(session, name=_mk_name('tag'))
         return tag
 
     def find(self, key):
-        return session.query(DbTag).filter_by(id=key).first()
+        return DbTag.find_id(session, key)
 
 
 class _DbTagTree_Tester(_Tester):

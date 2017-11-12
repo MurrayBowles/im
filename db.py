@@ -220,10 +220,14 @@ class DbTag(Item):
         }[self.type.value]
 
     @classmethod
-    def add(cls, session, parent, name, tag_type=DbTagType.BASE, base_tag=None):
+    def add(cls, session, name, parent=None, tag_type=DbTagType.BASE, base_tag=None):
         obj = cls(parent=parent, name=name, tag_type=tag_type.value, base_tag=base_tag)
         if obj is not None: session.add(obj)
         return obj
+
+    @classmethod
+    def find_id(cls, session, id):
+        return session.query(DbTag).filter_by(id=id).first()
 
     def __repr__(self):
         def tag_str(tag):
@@ -426,8 +430,11 @@ class FsFolder(Item):
         else:
             return fs_folder, False
 
+    def text(self):
+        return '%s|%s' % (self.source.text(), self.name)
+
     def __repr__(self):
-        return "<FsFolder %s|%s>" % (str(self.source), self.name)
+        return '<FsFolder %s>' % (self.text())
 
 
 class FsImage(Item):
@@ -470,9 +477,11 @@ class FsImage(Item):
         else:
             return fs_image, False
 
+    def text(self):
+        return '%s|%s' % (self.folder.text(), self.name)
 
     def __repr__(self):
-        return "<FsImage %s/%s>" % (str(self.folder), self.name)
+        return "<FsImage %s>" % (self.text())
 
 session = None
 
