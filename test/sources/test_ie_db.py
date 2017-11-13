@@ -48,7 +48,7 @@ def check_worklist_no_fs_folders(
     assert len(worklist) == len(expected_list)
     for work, expected in zip(worklist, expected_list):
         assert work.fs_folder is None
-        assert work.ie_folder.fs_name == expected[0]
+        assert fs_source.rel_path(work.ie_folder.fs_path) == expected[0]
     for work in worklist:
         fg_start_ie_work_item(session, ie_cfg, work, fs_source)
         bg_proc_ie_work_item(work)
@@ -69,7 +69,7 @@ def check_worklist_with_fs_folders(
     for work, expected, fs_folder in zip(
             worklist, expected_list, fs_folders):
         assert work.fs_folder is fs_folder
-        assert work.ie_folder.fs_name == expected[0]
+        assert fs_source.rel_path(work.ie_folder.fs_path) == expected[0]
         # session.expunge(fs_folder)
 
 def test_get_workist_dir_set_my_dirs():

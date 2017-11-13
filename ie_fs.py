@@ -10,6 +10,8 @@ from PIL import Image
 import re
 import subprocess
 
+import util
+
 
 class IEMsgType(Enum):
 
@@ -26,7 +28,7 @@ class IEMsgType(Enum):
     #   1   a single object
     #   N   a tuple with N elements
 
-    NO_DATE             = ('folder name contains no date', 'ip')
+    NO_DATE             = ('IEFolder.date is None', 'ip')
         # (IEFolder)
     FOLDER_ADDED        = ('folder added to imports', 'ip')
         # (IEWorkItem)
@@ -42,7 +44,7 @@ class IEMsgType(Enum):
         # (IEFolder)
     CANT_FIND_IMAGE     = ("internal error: can't find folder image from pathmane", 'Ep')
         # (IEFolder)
-    NAME_NEEDS_EDIT     = ('folder name needs editing', 'is')
+    NAME_NEEDS_EDIT     = ('IEFolder.name needs editing', 'is')
         # (IEFolder)
 
 class IEMsg(object):
@@ -50,7 +52,6 @@ class IEMsg(object):
     def __init__(self, type, data, report_list = []):
         self.type = type    # IEMsgType
         self.data = data    # depends on type
-        self.children = []  # TODO: maybe not necessary: worklist is tree-structured
         if report_list is not None:
             report_list.append(self)
         if type.value[1][0] == 'i':
@@ -80,11 +81,6 @@ class IEMsg(object):
                 sep = ', '
         return s
 
-    def map_lines(self, fn, pfx = ''):
-        fn(pfx + self.fmt_line())
-        for child in self.children:
-            self.map_lines(child, fn, '  ' + pfx)
-
     @classmethod
     def find(cls, msg_type, msgs):
         for msg in msgs:
@@ -96,11 +92,13 @@ class IEMsg(object):
 
 class IEFolder(object):
 
-    def __init__(self, fs_path, fs_name, date, name, mod_datetime):
-        self.fs_path = fs_path  # filesystem pathname
-        self.fs_name = fs_name  # filename, e.g. '171007 virginia'
-        self.date = date        # the folder date, e.g. 10/07/2017
-        self.name = name        # just the name, e.g. 'virginia'
+    def __init__(self, fs_path, db_date, db_name, mod_datetime):
+        self.fs_path = fs_path  # filesystem absolute path
+
+        # DbFolder date and name suggested by import/export code (e.g. scan_dir_set)
+        self.db_date = db_date  # folder date, e.g. 10/07/2017, may be None
+        self.db_name = db_name  # the name, e.g. 'virginia'
+
         self.mod_datetime = mod_datetime
         self.images = {}        # IEImage.name -> IEImage
         self.msgs = []          # list of IENote
@@ -108,7 +106,9 @@ class IEFolder(object):
         self.image_insts = {}   # map: IEImageInst.fs_path => IEImageInst
 
     def __repr__(self):
-        return '<IEFolder %s>' % self.fs_name
+        return '<IEFolder %s %s>' % (
+            str(self.db_date) if self.db_date is not None else '-',
+            self.db_name)
 
 thumbnail_exts = [ '.jpg', '.jpg-hi' ] # TODO: silly PIL doesn't do TIFFs
 exif_exts = [ '.tif', '.psd', '.jpg', '.jpg-hi' ]
@@ -119,7 +119,7 @@ class IEImage(object):
 
         self.ie_folder = ie_folder
         self.name = name        # just the sequence suffix, e.g. 123
-        self.msgs = []          # list of IENote
+        self.msgs = []          # list of IEMsg
         self.insts = {}         # extension (e.g. 'jpg-hi') -> list of IEImageInst
 
         self.newest_inst_with_thumbnail = None  # read by proc_ie_work_item
@@ -272,27 +272,19 @@ def is_std_dirname(dirname):
     return True
     # TODO: return leading_date_space.match(dirname) is not None
 
-def date_from_yymmdd(yymmdd):
-    ''' return a datetime.date from a 'yymmdd' string '''
-    year = int(yymmdd[0:2])
-    year += 1900 if year >= 70 else 2000
-    month = int(yymmdd[2:4])
-    day = int(yymmdd[4:6])
-    return datetime.date(year, month, day)
-
 def proc_std_dirname(dir_pathname, dir_name):
     match = leading_date.match(dir_name)
     if match is None:
-        date = None
-        name = dir_name
+        db_date = None
+        db_name = dir_name
     else:
         yymmdd = match.group()
-        date = date_from_yymmdd(yymmdd)
-        name = dir_name[match.end():].lstrip(' ')
+        db_date = util.date_from_yymmdd(yymmdd)
+        db_name = dir_name[match.end():].lstrip(' ')
     stat_mtime = os.path.getmtime(dir_pathname)
     mtime = datetime.datetime.fromtimestamp(stat_mtime)
-    folder = IEFolder(dir_pathname, dir_name, date, name, mtime)
-    if date is None:
+    folder = IEFolder(dir_pathname, db_date, db_name, mtime)
+    if db_date is None:
         folder.msgs.append(IEMsg(IEMsgType.NO_DATE, dir_pathname))
     return folder
 
@@ -309,7 +301,7 @@ def scan_dir_set(dir_set_pathname, test, proc):
             folder = proc(dir_path, dir)
             if folder is not None:
                 folders.append(folder)
-    folders.sort(key=lambda folder: folder.fs_name)
+    folders.sort(key=lambda folder: folder.fs_path)
     return folders
 
 def scan_dir_sel(dir_pathname_list, proc):
@@ -324,7 +316,7 @@ def scan_dir_sel(dir_pathname_list, proc):
             folder = proc(dir_path, os.path.basename(dir_path))
             if folder is not None:
                 folders.append(folder)
-    folders.sort(key=lambda folder: folder.fs_name)
+    folders.sort(key=lambda folder: folder.fs_path)
     return folders
 
 # recognized image file extensions
@@ -392,11 +384,10 @@ def scan_std_dir_files(ie_folder):
                 got_folder_tags |= acquire_file(file_path, file_name, high_res)
         return got_folder_tags
 
-    if ie_folder is None:
-        pass
+    assert ie_folder is not None
     got_folder_tags = acquire_dir(ie_folder.fs_path, high_res=False)
     if not got_folder_tags:
-        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.name))
+        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
     # TODO: adjust seq numbers for Nikon 9999 rollover
 
 trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
@@ -410,12 +401,12 @@ def proc_corbett_filename(file_pathname, file_name, folders):
     stat_mtime = os.path.getmtime(file_pathname)
     mtime = datetime.datetime.fromtimestamp(stat_mtime)
 
-    if len(folders) == 0 or base != folders[-1].fs_name.split('-')[0].lower():
+    if len(folders) == 0 or base != os.path.basename(folders[-1].fs_path).split('-')[0].lower():
         # start a new IEFolder
         match = trailing_date.search(base)
         if match is None:
-            date = None
-            name = base
+            db_date = None
+            db_name = base.replace('_', ' ')
         else:
             date_str = match.group()[1:] # drop the leading underscore
             date_str = amper_date.sub('', date_str)
@@ -424,14 +415,14 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             year += 1900 if year >= 70 else 2000
             month = int(month_str)
             day = int(day_str)
-            date = datetime.date(year, month, day)
-            name = base_name[0:match.start()]
-        words = name.split('_')
-        ie_folder = IEFolder(file_pathname, file_name, date, name, mtime)
+            db_date = datetime.date(year, month, day)
+            db_name = base_name[0:match.start()].replace('_', ' ')
+        words = db_name.split(' ')
+        ie_folder = IEFolder(file_pathname, db_date, db_name, mtime)
         ie_folder.tags = words
         ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))
-        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, name))
-        if date is None:
+        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, db_name))
+        if db_date is None:
             ie_folder.msgs.append(IEMsg(IEMsgType.NO_DATE, file_pathname))
         folders.append(ie_folder)
     else:
@@ -452,7 +443,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
 def scan_file_set(file_set_pathname, test, proc):
     ''' return a list of IEFolders (each containing IEImages)
         representing the folders and images found in file_set_pathname
-        the list is sorted by folder fs_name
+        the list is sorted by folder fs_path
         test(file_name) checks whether the directory should be processed
         proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
         if the filename has a new prefix, adds a new IEFolder to folders
@@ -466,14 +457,14 @@ def scan_file_set(file_set_pathname, test, proc):
         file_path = os.path.join(file_set_pathname, file)
         if os.path.isfile(file_path) and test(file):
             proc(file_path, file, folders)
-    folders.sort(key=lambda folder: folder.fs_name)
+    folders.sort(key=lambda folder: folder.fs_path)
 
     return folders
 
 def scan_file_sel(file_pathname_list, proc):
     ''' return a list of IEFolders (each containing IEImages)
         representing the folders and images found in file_pathname_list
-        the list is sorted by folder fs_name
+        the list is sorted by folder fs_path
         test(file_name) checks whether the directory should be processed
         proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
         if the filename has a new prefix, adds a new IEFolder to folders
@@ -482,5 +473,5 @@ def scan_file_sel(file_pathname_list, proc):
     for file_path in file_pathname_list:
         if os.path.isfile(file_path):
             proc(file_path, os.path.basename(file_path), folders)
-    folders.sort(key=lambda folder: folder.fs_name)
+    folders.sort(key=lambda folder: folder.fs_path)
     return folders

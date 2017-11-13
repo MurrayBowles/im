@@ -79,8 +79,6 @@ class _Tester(object):
         session.commit()
         if hasattr(self, 'get'):
             found_obj2, new_obj = self.get(session, key, key2)
-            if new_obj:
-                pass
             assert not new_obj
             assert found_obj2 == obj
         key = self.get_key(obj)
@@ -129,10 +127,12 @@ class _DbFolder_Tester(_Tester):
         return DbFolder.add(session, date=key2[0], name=key2[1])
 
     def get(self, session, key, key2):
-        return DbFolder.get(session, date=key2[0], name=key2[1])
+        res = DbFolder.get(session, date=key2[0], name=key2[1])
+        return res
 
     def find(self, key):
-        return  session.query(DbFolder).filter_by(id=key).first()
+        res =  session.query(DbFolder).filter_by(id=key).first()
+        return res
 
     def find2(self, key2):
         return DbFolder.find(session, key2[0], key2[1])
@@ -170,7 +170,8 @@ class _DbImage_Tester(_Tester):
         return DbImage.get(session, folder=key2[0], name=key2[1])
 
     def find(self, key):
-        return session.query(DbImage).filter_by(id=key).first()
+        res = session.query(DbImage).filter_by(id=key).first()
+        return res
 
     def find2(self, key):
         return DbImage.find(session, key[0], key[1])
@@ -395,7 +396,7 @@ class _FsFolder_Tester(_Tester):
         source = FsFolder.add(
             session,
             source=key2[0],
-            fs_name=key2[1],
+            name=key2[1],
             db_folder=self.dep_objs[1]
         )
         return source
@@ -404,7 +405,7 @@ class _FsFolder_Tester(_Tester):
         source = FsFolder.get(
             session,
             source=key2[0],
-            fs_name=key2[1],
+            name=key2[1],
             db_folder=self.dep_objs[1]
         )
         return source
@@ -464,10 +465,13 @@ class _FsImage_Tester(_Tester):
 
 
 def test_classes():
-    for cls in _Tester.__subclasses__():
+    classes = _Tester.__subclasses__()
+    # classes = [ _FsFolder_Tester ]
+    for cls in classes:
         test_obj = cls()
         obj = test_obj.add()
         test_obj.delete()
+        pass
 
 def _test_association(tester_classes, list_names):
     testers = []

@@ -28,7 +28,11 @@ class IEWorkItem(object):
         )
 
 def get_ie_worklist(session, fs_source, import_mode, paths):
-    ''' return a list of IEWorkItems '''
+    ''' return a list of IEWorkItems
+        1) scan <paths> to obtain a list of IEFolders
+        2) for each, check whether there's already an FsFolder
+        an IEWorkItem is a fs_folder/ie_folder pair, where one item may be None
+    '''
 
     if import_mode == ImportMode.SET:
         if fs_source.source_type == FsSourceType.DIR:
@@ -47,7 +51,8 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
     if import_mode == ImportMode.SEL:
         # get all FsFolders that match folders
         for ie_folder in ie_folders:
-            fs_folder = FsFolder.find(session, fs_source, ie_folder.fs_name)
+            fs_folder = FsFolder.find(
+                session, fs_source, fs_source.rel_path(ie_folder.fs_path))
             worklist.append(IEWorkItem(fs_folder, ie_folder))
     else:                           # DIR_SET or FILE_SET
         # get all FsFolders in the FsSource
@@ -55,17 +60,20 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
         # merge fs_folders with ie_folders
         while True:
             if len(fs_folders) != 0 and len(ie_folders) != 0:
-                fs_name = fs_folders[0].name
-                ie_name = ie_folders[0].fs_name
-                if fs_name == ie_name:
+                # we're updating a known FsFolder
+                fs_rel_path = fs_folders[0].name
+                ie_rel_path = fs_source.rel_path(ie_folders[0].fs_path)
+                if fs_rel_path == ie_rel_path:
                     worklist.append(IEWorkItem(fs_folders.pop(0), ie_folders.pop(0)))
-                elif fs_name < ie_name:
+                elif fs_rel_path < ie_rel_path:
                     worklist.append(IEWorkItem(fs_folders.pop(0), None))
                 else:
                     worklist.append(IEWorkItem(None, ie_folders.pop(0)))
             elif len(fs_folders) != 0:
+                # an FsFolder in the database was not seen in this filesystem scan
                 worklist.append(IEWorkItem(fs_folders.pop(0), None))
             elif len(ie_folders) != 0:
+                # a folder has been found in the filesystem which is not in the FsFolder database
                 worklist.append(IEWorkItem(None, ie_folders.pop(0)))
             else:
                 break
@@ -96,16 +104,16 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     ie_folder = work_item.ie_folder
     if fs_source.source_type == FsSourceType.DIR:
         # scan the folder's image files
-        # (this has already been done in the FILE_SET/SEL case by scan_file_set/sel)
+        # (this has already been done in the FsSourceType.FILE case by scan_file_set/sel)
         scan_std_dir_files(ie_folder)
     if fs_folder is None:
         # create an FsFolder
-        fs_folder = FsFolder.get(session, fs_source, ie_folder.fs_name)[0]
+        fs_folder = FsFolder.get(session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
         work_item.fs_folder = fs_folder
         # also auto-create a DbFolder if ie_folder has a good name and date
         if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
                     IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
-            db_folder = DbFolder.get(session, ie_folder.date, ie_folder.name)[0]
+            db_folder = DbFolder.get(session, ie_folder.db_date, ie_folder.db_name)[0]
             fs_folder.db_folder = db_folder
     db_folder = fs_folder.db_folder # this may be None
     if import_mode == ImportMode.SEL and fs_source.source_type == FsSourceType.FILE:
@@ -217,7 +225,7 @@ class IECmd:
         '''
         work_item = self.worklist[self.worklist_idx]
         fg_finish_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
-        self.do_pub('ie.sts.folder done', self.worklist[self.worklist_idx].ie_folder.name)
+        self.do_pub('ie.sts.folder done', self.worklist[self.worklist_idx].ie_folder.db_name)
         self.worklist_idx += 1
         self.do_pub('ie.cmd.start item')
 

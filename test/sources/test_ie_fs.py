@@ -39,7 +39,7 @@ def _check_dir_results(got_list, expected_list):
     assert len(got_list) == len(expected_list)
     for j in range(len(got_list)):
         ie_folder = got_list[j]
-        assert ie_folder.fs_name == expected_list[j][0]
+        assert os.path.basename(ie_folder.fs_path) == expected_list[j][0]
         _check_image_results(ie_folder, expected_list[j])
 
 def _test_scan_dir_set(dir_set_pathname, test, proc, expected_list):
@@ -112,7 +112,7 @@ def _check_file_results(got_list, expected_list):
     for j in range(len(got_list)):
         got_folder = got_list[j]
         expected_folder = expected_list[j]
-        assert got_folder.fs_name == expected_folder[0]
+        assert os.path.basename(got_folder.fs_path) == expected_folder[0]
         _check_image_results(got_folder, expected_folder)
 
 def _test_scan_file_set(file_set_pathname, test, proc, expected_list):

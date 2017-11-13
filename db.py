@@ -60,7 +60,7 @@ class DbFolder(Item):
     ''' represents a single photo-shooting session '''
     __tablename__ = 'db-folder'
 
-    # isa Item (name is
+    # isa Item
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'DbFolder'}
 
@@ -77,7 +77,7 @@ class DbFolder(Item):
     thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
-    Index('db-folder-index', 'date, ''name', unique=True)
+    Index('db-folder-index', 'date', 'name', unique=True)
 
     @classmethod
     def add(cls, session, date, name):
@@ -99,7 +99,7 @@ class DbFolder(Item):
             return db_folder, False
 
     def __repr__(self):
-        return '<DbFolder %s %s>' % ( (self.date), self.name)
+        return '<DbFolder %s %s>' % (str(self.date), self.name)
 
 
 class DbCollection(Item):
@@ -323,7 +323,7 @@ class FsSource(Item):
     ''' the filesystem parent directory from which a set of folders/images was imported '''
     __tablename__ = 'fs-source'
 
-    # isa Item
+    # isa Item (.name is the user-assigned name, or None)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsSource'}
 
@@ -369,6 +369,12 @@ class FsSource(Item):
     def win_path(self):
         return util.win_path(self.volume, self.path)
 
+    def rel_path(self, child_path):
+        prefix = util.path_plus_separator(self.path)
+        assert child_path.startswith(prefix)
+        rel_path = child_path[len(prefix):]
+        return rel_path
+
     def text(self):
         s = ''
         if self.name is not None:
@@ -391,9 +397,15 @@ class FsFolder(Item):
     '''
     __tablename__ = 'fs-folder'
 
-    # isa Item (.name is the same as IEFolder.fs_name)
+    # isa Item (.name is relative path from FsSource.path to IEFolder.fs_path)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
+
+    # DbFolder date and name suggested by import/export code (e.g scan_dir_set)
+    # may each be None
+    # copied from the corresponding members in IEFolder
+    db_date = Column(Date)
+    db_name = Column(String)
 
     # last-import timestamps
     last_scan = Column('last-scan', DateTime)
@@ -413,8 +425,10 @@ class FsFolder(Item):
     Index('fs-folder-index', 'source_id', 'name', unique=True)
 
     @classmethod
-    def add(cls, session, source, fs_name, db_folder=None):
-        obj = cls(source=source, name=fs_name, db_folder=db_folder)
+    def add(cls, session, source, name, db_date=None, db_name=None, db_folder=None):
+        obj = cls(
+            source=source, name=name,
+            db_date=db_date, db_name=db_name, db_folder=db_folder)
         if obj is not None: session.add(obj)
         return obj
 
@@ -423,10 +437,10 @@ class FsFolder(Item):
         return session.query(FsFolder).filter_by(source_id=source.id, name=name).first()
 
     @classmethod
-    def get(cls, session, source, fs_name, db_folder=None):
-        fs_folder = cls.find(session, source, fs_name)
+    def get(cls, session, source, name, db_date=None, db_name='', db_folder=None):
+        fs_folder = cls.find(session, source, name)
         if fs_folder is None:
-            return cls.add(session, source, fs_name, db_folder), True
+            return cls.add(session, source, name, db_date, db_name, db_folder), True
         else:
             return fs_folder, False
 
@@ -434,7 +448,7 @@ class FsFolder(Item):
         return '%s|%s' % (self.source.text(), self.name)
 
     def __repr__(self):
-        return '<FsFolder %s>' % (self.text())
+        return '<FsFolder %s>' % self.text()
 
 
 class FsImage(Item):
@@ -507,7 +521,11 @@ def open_preloaded_mem_db():
     session = open_mem_db()
     ts1 = FsTagSource.add(session, 'standard')
     ts2 = FsTagSource.add(session, 'corbett')
-    s1 = FsSource.add(session, 'main1234', '/photos', FsSourceType.DIR, True, ts1)
-    s2 = FsSource.add(session, 'C:', '/photos', FsSourceType.DIR, False, ts1)
-    s1 = FsSource.add(session, 'HD2', '/corbett-psds', FsSourceType.FILE, False, ts2)
+    s1 = FsSource.add(session, 'main1234', '\\photos', FsSourceType.DIR, True, ts1)
+    s2 = FsSource.add(session, 'C:', '\\photos', FsSourceType.DIR, False, ts1)
+    s1 = FsSource.add(session, 'HD2', '\\corbett-psds', FsSourceType.FILE, False, ts2)
     session.commit()
+    pass
+
+if __name__=='__main__':
+    open_preloaded_mem_db()

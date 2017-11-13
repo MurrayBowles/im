@@ -1,7 +1,16 @@
 ''' assorted utilities '''
 
+import datetime
 import os
 import win32api
+
+def date_from_yymmdd(yymmdd):
+    ''' return a datetime.date from a 'yymmdd' string '''
+    year = int(yymmdd[0:2])
+    year += 1900 if year >= 70 else 2000
+    month = int(yymmdd[2:4])
+    day = int(yymmdd[4:6])
+    return datetime.date(year, month, day)
 
 def drive(path):
     return os.path.splitdrive(path)[0]
@@ -13,6 +22,10 @@ def volume_label(path):
     except:
         vl = ''
     return vl
+
+def path_plus_separator(path):
+    # return <path> plus the host separator (e.g. / or \)
+    return os.path.join(path, 'a')[0:-1]
 
 def win_path(volume, path):
     # determine which volumes are currently available
@@ -31,20 +44,3 @@ def win_path(volume, path):
                 return d[0:2] + path
     return None
 
-
-def _hit_guess_idx(ctrl, pos):
-    pos -= ctrl.GetClientAreaOrigin()
-    scroll = ctrl.GetScrollPos(pos.y)
-    extent = ctrl.GetTextExtent('Aq')[1]
-    y = pos.y + scroll * extent
-    return y / extent
-
-def _hit_check_idx(ctrl, idx):
-    if idx < 0 or idx >= ctrl.GetCount():
-        return None
-    # FIXME: this should integerize the index
-    return idx
-
-def hit_get_idx(event):
-    ctrl = event.GetEventObject()
-    return _hit_check_idx(ctrl, _hit_guess_idx(ctrl, event.GetPosition()))
