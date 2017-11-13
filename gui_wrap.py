@@ -6,7 +6,7 @@ from enum import Enum
 import wx
 
 default_box=(200,100)
-default_line=(150,20)
+default_line=(200,20)
 
 class Button:
 
@@ -125,7 +125,7 @@ class DirCtrl:
         self, parent, sizer,
         size = default_box,
         label = None,
-        init_path = None,
+        init_path = '',
         select_fn = None,   # (path) called whenever the selection changes
         style = 0,
         sizer_idx = -1     # insertion index in sizer
@@ -411,6 +411,12 @@ class StaticText:
     def set_text(self, text):
         self.static_text.SetLabel(text)
 
+    def set_hidden(self, hidden):
+        if hidden:
+            self.static_text.Hide()
+        else:
+            self.static_text.Show()
+
 
 class TextCtrl:
 
@@ -434,7 +440,7 @@ class TextCtrl:
                 parent, size=size, value=init_value, style=wx.TE_PROCESS_ENTER)
             self.text_ctrl.Bind(wx.EVT_TEXT_ENTER, self.on_enter)
         else:
-            self.text_ctrl = wx.TextCtrl(parent, value=init_value)
+            self.text_ctrl = wx.TextCtrl(parent, size=size, value=init_value)
         if self.change_fn is not None:
             self.text_ctrl.Bind(wx.EVT_TEXT, self.on_text)
 
@@ -457,6 +463,13 @@ class TextCtrl:
             self.text_ctrl.Enable()
         else:
             self.text_ctrl.Disable()
+
+    def set_hidden(self, hidden):
+        # FIXME: this doesn't hide the label!
+        if hidden:
+            pass # self.text_ctrl.Hide()
+        else:
+            self.text_ctrl.Show()
 
 
 class AttrTextCtrl(TextCtrl):

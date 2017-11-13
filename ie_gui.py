@@ -7,6 +7,7 @@ import ps
 from wx.lib.pubsub import pub
 from threading import Thread
 import time
+import urllib
 import wx
 from wx.lib.pubsub import pub
 
@@ -23,7 +24,11 @@ class IEState(Enum):
     IE_GOING = 1,
     IE_CANCELLING = 2
 
-source_type_map = { 1: 'directories', 2: 'files' }
+source_type_map = {
+    db.FsSourceType.DIR:    'directories',
+    db.FsSourceType.FILE:   'files',
+    db.FsSourceType.WEB:    '(error)'
+}
 
 class ImportExportTab(wx.Panel):
 
@@ -36,28 +41,40 @@ class ImportExportTab(wx.Panel):
         self.import_mode = ImportMode.SET
         self.paths = None
 
+        self.accessible_source = False      # accessible_source_box is being displayed
+        self.fs_source = False              # fs_source_box is being displayed
+        self.selected_fs_source = False     # dir_ctrl is being displayed
+
         # FsSource selection
         FsSourceCtrl(self, box, change_fn = self.on_source_changed)
+        
+        # accessible_source_box gets inserted here
+        self.accessible_source_box_idx = 1
 
-        self.source_actions_box = wx.BoxSizer(wx.VERTICAL)
+        self.fix_display()
+        box.SetSizeHints(self)
+        self.SetSizer(box)
+        self.Fit()
 
-        # all directories/files vs selected directories/files
-        self.select_radio = gui_wrap.RadioButton(
-            self, self.source_actions_box, choices=['All', 'Some'], change_fn = self.on_select_radio)
-
-        # directory/file selection goes here
-        self.dir_ctrl_sizer_idx = 1 # in source_actions_box
-        self.showing_dir_ctrl = False
-
+    def hide_box_item(self, box, item_idx):
+        box.Hide(item_idx)
+        box.Remove(item_idx)
+        
+    def add_accessible_source_box(self):
+        self.accessible_source_box = wx.BoxSizer(wx.VERTICAL)
+        
+        # fs_source box gets inserted here
+        self.fs_source_box_idx = 0  # in accessible_source_box
+        
         # flags
-        self.import_folder_tags = gui_wrap.AttrCheckBox(
-            self, self.source_actions_box, 'import folder tags', cfg.ie, 'import_folder_tags')
-        self.import_image_tags = gui_wrap.AttrCheckBox(
-            self, self.source_actions_box, 'import image tags', cfg.ie, 'import_image_tags')
-        self.import_thumbnails = gui_wrap.AttrCheckBox(
-            self, self.source_actions_box, 'import thumbnails', cfg.ie, 'import_thumbnails')
-        self.export_image_tags = gui_wrap.AttrCheckBox(
-            self, self.source_actions_box, 'export image tags', cfg.ie, 'export_image_tags')
+        self.import_folder_tags = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+            'import folder tags', cfg.ie, 'import_folder_tags')
+        self.import_image_tags = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+            'import image tags', cfg.ie, 'import_image_tags')
+        self.import_thumbnails = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+            'import thumbnails', cfg.ie, 'import_thumbnails')
+        self.export_image_tags = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+            'export image tags', cfg.ie, 'export_image_tags')
 
         # action
         self.gc_box = wx.BoxSizer(wx.HORIZONTAL)
@@ -67,75 +84,107 @@ class ImportExportTab(wx.Panel):
         self.gc_box.Add(self.gc_button)
 
         # progress string
-        self.progress = gui_wrap.StaticText(self, self.gc_box, '', size=(200,20))
+        self.progress = gui_wrap.StaticText(self, self.gc_box, '', size=(200, 20))
         # FIXME: should auto-resize with the text
 
-        self.source_actions_box.Add(self.gc_box)
-        self._fix_source_actions()
-        box.Add(self.source_actions_box)
+        self.accessible_source_box.Add(self.gc_box)
+        
+        self.top_box.Insert(self.accessible_source_box_idx, self.accessible_source_box)
 
-        box.SetSizeHints(self)
-        self.SetSizer(box)
-        self.Fit()
+    def del_accessible_source_box(self):
+        self.hide_box_item(self.top_box, self.accessible_source_box_idx)
 
-    def _fix_source_actions(self):
-        show = self.source is not None
-        if show:
-            self.fix_select_radio()
-        self.source_actions_box.ShowItems(show)
+    def add_fs_source_box(self):
+        self.fs_source_box = wx.BoxSizer(wx.VERTICAL)
+        self.fs_source_box_idx = 0  # in accessible_source_box
+
+        # all directories/files vs selected directories/files
+        what = source_type_map[self.source.source_type]
+        self.select_radio = gui_wrap.RadioButton(
+            self, self.fs_source_box,
+            choices=['All ' + what, 'Some ' + what],
+            change_fn=self.on_select_radio)
+
+        # directory/file selection DirCtrl gets inserted here when self.selected_fs_source
+        self.dir_ctrl_sizer_idx = 1  # in fs_source_box
+
+        self.accessible_source_box.Insert(self.fs_source_box_idx, self.fs_source_box)
+
+    def del_fs_source_box(self):
+        self.hide_box_item(self.accessible_source_box, self.fs_source_box_idx)
+
+    def add_dir_ctrl(self):
+        self.paths = []
+        path = self.source.win_path()
+        self.dir_ctrl = gui_wrap.DirCtrl(
+            self, self.fs_source_box, sizer_idx=self.dir_ctrl_sizer_idx,
+            init_path=path, select_fn=self.on_select_paths,
+            style=(
+                wx.DIRCTRL_MULTIPLE |
+                (wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0)))
+
+    def del_dir_ctrl(self):
+        # self.paths = [self.source.win_path()]
+        self.hide_box_item(self.fs_source_box, self.dir_ctrl_sizer_idx)
+
+    def fix_display(self):
+        ''' show/hide add/remove display items depending on state '''
+        new_accessible_source = self.source != None and self.source.accessible()
+        new_fs_source = (new_accessible_source and
+            self.source.source_type != db.FsSourceType.WEB)
+        new_selected_fs_source = (new_fs_source and
+            self.import_mode == ImportMode.SEL)
+
+        changed = False
+        if new_accessible_source and not self.accessible_source:
+            self.add_accessible_source_box()
+            changed = True
+        if new_fs_source and not self.fs_source:
+            self.add_fs_source_box()
+            changed = True
+        if new_selected_fs_source and not self.selected_fs_source:
+            self.add_dir_ctrl()
+            changed = True
+        if not new_selected_fs_source and self.selected_fs_source:
+            self.del_dir_ctrl()
+            changed = True
+        if not new_fs_source and self.fs_source:
+            self.del_fs_source_box()
+            changed = True
+        if not new_accessible_source and self.accessible_source:
+            self.del_accessible_source_box()
+            changed = True
+
+        if changed:
+            self.accessible_source = new_accessible_source
+            self.fs_source = new_fs_source
+            self.selected_fs_source = new_selected_fs_source
+            self.Layout()
+            self.Fit()
 
     def on_source_changed(self, obj):
-        if obj is not None and util.win_path(obj.volume, obj.path) is None:
+        if obj is not None and not obj.accessible():
             # obj.volume is not mounted
             obj = None
         self.source = obj
         if obj is not None:
             if self.import_mode == ImportMode.SEL:
                 self.import_mode = ImportMode.SET
-                self.fix_dir_ctrl()
             self.paths = [self.source.win_path()]
             self.fix_select_radio()
-            self.fix_dir_ctrl()
-        self._fix_source_actions()
-        self.Layout()
+        self.fix_display()
 
     def fix_select_radio(self):
-        self.select_radio.set_selection(0)  # All <what>
-        what = source_type_map[self.source.source_type]
-        self.select_radio.set_item_label(0, 'All ' + what)
-        self.select_radio.set_item_label(1, 'Selected ' + what)
-        pass
+        if self.fs_source:
+            self.select_radio.set_selection(0)  # All <what>
+            what = source_type_map[self.source.source_type]
+            self.select_radio.set_item_label(0, 'All ' + what)
+            self.select_radio.set_item_label(1, 'Selected ' + what)
 
     def on_select_radio(self, value):
         import_mode = ImportMode(value)
         self.import_mode = import_mode
-        self.fix_dir_ctrl()
-        self.Fit()
-        self.Layout()
-
-    def fix_dir_ctrl(self):
-        show_dir_ctrl = self.source is not None and self.import_mode == ImportMode.SEL
-        if show_dir_ctrl != self.showing_dir_ctrl:
-            if show_dir_ctrl:
-                self.paths = []
-                path = self.source.win_path()
-                self.dir_ctrl = gui_wrap.DirCtrl(
-                    self, self.source_actions_box, sizer_idx=self.dir_ctrl_sizer_idx,
-                    init_path=path, select_fn=self.on_select_paths,
-                    style=(
-                        wx.DIRCTRL_MULTIPLE |
-                        (wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0)))
-            else:
-                # FIXME: not quite sure how many of the lines below are necessary
-                # if the wxPython docs were correct, just a Remove and a Layout would suffice,
-                # but (1) a Layout on WHAT and (2) they don't
-                self.source_actions_box.Hide(self.dir_ctrl_sizer_idx)
-                self.source_actions_box.Remove(self.dir_ctrl_sizer_idx)
-                self.paths = [self.source.win_path()]
-            self.showing_dir_ctrl = show_dir_ctrl
-            self.source_actions_box.Layout()
-            self.Fit()
-            self.Layout()
+        self.fix_display()
 
     def on_select_paths(self, paths):
         self.paths = paths
@@ -278,17 +327,11 @@ class FsSourceCtrl:
         self.change_fn = change_fn
 
         def source_text(source):
-            s = ''
-            if source.name is not None:
-                s = '%s = ' % (source.name)
-            if source.volume.endswith(':'):
-                v = source.volume + source.path
-            else:
-                v =  '[%s]' % (source.volume) + source.path
-            if util.win_path(source.volume, source.path) is None:
-                v = '(' + v + ')'   # TODO: should be greyed, but ListBox won't do that
-            s += v
-            return s
+            t = source.live_text()
+            if not source.accessible():
+                t = '(' + t + ')'
+            return t
+
         sources = db.FsSource.all(db.session)
         self.list_box = gui_wrap.ListBoxAED(
             self.parent, sizer, label='import/export source',
@@ -308,8 +351,7 @@ class FsSourceCtrl:
                 self.change_fn(obj)
 
     def selection_accessible(self):
-        obj = self.obj
-        return obj is not None and util.win_path(obj.volume, obj.path) is not None
+        return self.obj is not none and self.obj.accessible()
 
     def on_select(self, obj):
         self._set_obj(obj)
@@ -345,7 +387,7 @@ class FsSourceCtrl:
 
 class FsSourceAEDialog(wx.Dialog):
     ''' dialog for adding or editing an import/export source
-        collects source_name, read_only, volume, path
+        collects source_name, readonly, volume, path
     '''
 
     def __init__(self, *args, **kw):
@@ -353,9 +395,11 @@ class FsSourceAEDialog(wx.Dialog):
         # the presence of edit_obj indicates this is an edit, not an add dialog
         if 'edit_obj' in kw:
             self.obj = kw['edit_obj']
-            init_tag_source_id = self.obj.tag_source.id if self.obj.tag_source is not None else -1
+            init_tag_source_id = (
+                self.obj.tag_source.id if self.obj.tag_source is not None else -1)
             self.volume = self.obj.volume
             self.path = self.obj.path
+            self.read_only = self.obj.readonly
             kw.pop('edit_obj')
             ok_label = 'Set'
         else:
@@ -364,6 +408,7 @@ class FsSourceAEDialog(wx.Dialog):
             ok_label = 'Add'
             self.volume = ''
             self.path = ''
+            self.read_only = False
         cancel_label = 'Cancel'
 
         super().__init__(*args, **kw)
@@ -372,33 +417,45 @@ class FsSourceAEDialog(wx.Dialog):
 
         self.source_name = ''
         self.tag_source = None
-        self.source_type = db.FsSourceType.DIR # TODO: add an editor
-        self.read_only = False
+        self.source_type = db.FsSourceType.DIR
 
         self.SetTitle('%s Import/Export Source' % ('Add' if self.obj is None else 'Edit'))
         panel = wx.Panel(self)
         box = wx.BoxSizer(wx.VERTICAL)
 
-        if self.obj  is None:  # Add
+        types = {
+            db.FsSourceType.DIR:   'set of directories',
+            db.FsSourceType.FILE:  'set of files',
+            db.FsSourceType.WEB:   'web site'
+        }
+
+        if self.obj  is None: # Add
+            # source type
+            gui_wrap.RadioButton(
+                self, box, label='source type: ', choices=list(types.values()),
+                change_fn=self.on_source_type_changed)
+
             # directory
-            gui_wrap.DirCtrl(
+            self.dir_ctrl = gui_wrap.DirCtrl(
                 self, box, select_fn=self.on_dir_selected, style = wx.DIRCTRL_DIR_ONLY)
-        else:                       # Edit
+
+            # URL
+            self.text_ctrl = gui_wrap.TextCtrl(
+                self, box, 'URL', size = (300, 20), change_fn = self.on_text_changed)
+            # self.text_ctrl.set_hidden(True)
+        else: # Edit
+            gui_wrap.StaticText(self, box, 'source type: ' + types[self.obj.source_type])
             gui_wrap.StaticText(self, box, 'source: ' + self.obj.text())
 
         # name
         gui_wrap.AttrTextCtrl(self, box, 'name', self, 'source_name')
 
         # tag source
-        FsTagSourceCtrl(self, box, change_fn = self.on_tag_source_changed, init_id=init_tag_source_id)
+        FsTagSourceCtrl(
+            self, box, change_fn = self.on_tag_source_changed, init_id=init_tag_source_id)
 
         # read-only
-        gui_wrap.AttrCheckBox(self, box, 'read-only', self, 'read_only')
-
-        # source type
-        gui_wrap.RadioButton(self, box, label = 'source type: ', choices = [
-            'set of directories', 'set of files'
-        ], change_fn = self.on_source_type_changed)
+        gui_wrap.AttrCheckBox(self, box, 'read only', self, 'read_only')
 
         # OK/CANCEL buttons
         self.dialog_buttons = gui_wrap.DialogButtons(
@@ -407,6 +464,16 @@ class FsSourceAEDialog(wx.Dialog):
 
         self.SetSizer(box)
         self.Fit()
+
+    def on_source_type_changed(self, value):
+        self.source_type = [
+            db.FsSourceType.DIR,
+            db.FsSourceType.FILE,
+            db.FsSourceType.WEB
+        ][value]
+        # self.dir_ctrl.set_hidden(self.source_type == db.FsSource.WEB)
+        # self.text_ctrl.set_hidden(self.source_type != db.FsSource.WEB)
+        self.Layout()
 
     def _fix_dialog_buttons(self):
         self.dialog_buttons.set_ok_enabled(
@@ -423,12 +490,19 @@ class FsSourceAEDialog(wx.Dialog):
         self.path = path
         self._fix_dialog_buttons()
 
+    def on_text_changed(self, text):
+        # this happens on every keystroke, so text can be an invalid URL at any point
+        if text.find(':') != -1:
+            self.volume, self.path = text.split(':', 1)
+            self.volume += ':'
+        else:
+            self.volume = None
+            self.path = text
+        self._fix_dialog_buttons()
+
     def on_tag_source_changed(self, obj):
         self.tag_source = obj
         self._fix_dialog_buttons()
-
-    def on_source_type_changed(self, value):
-        self.source_type = db.FsSourceType.DIR if value == 0 else db.FsSourceType.FILE
 
 
 class FsTagSourceCtrl:

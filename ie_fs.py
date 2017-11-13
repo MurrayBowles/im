@@ -118,7 +118,7 @@ class IEImage(object):
     def __init__(self, ie_folder, name):
 
         self.ie_folder = ie_folder
-        self.name = name        # just the sequence suffix, e.g. 123
+        self.name = name        # <seq>[<suffix>] (copied to FsImage and DbImage)
         self.msgs = []          # list of IEMsg
         self.insts = {}         # extension (e.g. 'jpg-hi') -> list of IEImageInst
 

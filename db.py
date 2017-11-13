@@ -137,7 +137,7 @@ class DbImage(Item):
     ''' a single image (usually with multiple files: NEF/TIFF/PSD/JPEG) '''
     __tablename__ = 'db-image'
 
-    # isa Item
+    # isa Item (name is <seq>[<suffix>], as with FsImage and IEImage)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'DbImage'}
 
@@ -315,8 +315,9 @@ class FsSourceType(PyIntEnum):
     ''' whether the FsSource is a directory of directories or a directory of image files
         IntEnum because SQLAlchemy creates int python attributes when you say Column(Enum)
     '''
-    DIR = 1
-    FILE = 2
+    DIR     = 1 # a directory of image directories
+    FILE    = 2 # a directory of image files
+    WEB     = 3 # a web site to be scraped
 
 
 class FsSource(Item):
@@ -329,7 +330,7 @@ class FsSource(Item):
 
     # secondary key (TODO index? enforce uniqueness?)
     volume = Column(String(32)) # source volume: '<volume letter>:' or '<volume label>'
-    path = Column(String(260))  # source pathname
+    path = Column(String(260))  # source pathname (if source_type == WEB, a URL)
 
     source_type = Column(Enum(FsSourceType))
     readonly = Column(Boolean)
@@ -367,7 +368,9 @@ class FsSource(Item):
         return self.volume if self.volume is not None and not self.volume.endswith(':') else None
 
     def win_path(self):
-        return util.win_path(self.volume, self.path)
+        return (
+            self.path if self.source_type == FsSourceType.WEB else
+            util.win_path(self.volume, self.path))
 
     def rel_path(self, child_path):
         prefix = util.path_plus_separator(self.path)
@@ -378,13 +381,28 @@ class FsSource(Item):
     def text(self):
         s = ''
         if self.name is not None:
-            s += '(%s) ' % (self.name)
+            s += '%s = ' % (self.name)
         if self.volume.endswith(':'):
-            s + self.volume
+            s += self.volume
         else:
             s += '[%s]' % (self.volume)
         s += self.path
         return s
+
+    def live_text(self):
+        s = ''
+        if self.name is not None:
+            s += '%s = ' % (self.name)
+        if not self.volume.endswith(':'):
+            s += '[' + self.volume + ']'
+        if self.accessible():
+            s += self.win_path()
+        else:
+            s += self.path
+        return s
+
+    def accessible(self):
+        return self.source_type == FsSourceType.WEB or (self.win_path() is not None)
 
     def __repr__(self):
         return '<FsSource %s>' % (self.text())
@@ -458,7 +476,7 @@ class FsImage(Item):
     '''
     __tablename__ = 'fs-image'
 
-    # isa Item (.name is the same as IEImage.name)
+    # isa Item (name is <seq>[<suffix>], as with DbImage and FsImage)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsImage'}
 
@@ -523,7 +541,9 @@ def open_preloaded_mem_db():
     ts2 = FsTagSource.add(session, 'corbett')
     s1 = FsSource.add(session, 'main1234', '\\photos', FsSourceType.DIR, True, ts1)
     s2 = FsSource.add(session, 'C:', '\\photos', FsSourceType.DIR, False, ts1)
-    s1 = FsSource.add(session, 'HD2', '\\corbett-psds', FsSourceType.FILE, False, ts2)
+    s3 = FsSource.add(session, 'HD2', '\\corbett-psds', FsSourceType.FILE, False, ts2)
+    s4 = FsSource.add(
+        session, 'http:', '//www.pbase.com/murraybowles', FsSourceType.WEB, True, ts1)
     session.commit()
     pass
 
