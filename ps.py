@@ -12,6 +12,8 @@ def set_status(text):
 # ie.sts.imported thumnails, #thumbnails
 # ie.sts.import exifs, #tags
 # ie.sts.imported exifs, #tags
+# ie.sts.import webpage
+# ie.sts.imported webpage
 # ie.sts.folder done, folder-name
 # ie.sts.done, cancelled
 #

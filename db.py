@@ -331,6 +331,7 @@ class FsSource(Item):
     # secondary key (TODO index? enforce uniqueness?)
     volume = Column(String(32)) # source volume: '<volume letter>:' or '<volume label>'
     path = Column(String(260))  # source pathname (if source_type == WEB, a URL)
+    # for source_tyep == WEB, volume is 'http[s]:' and 'path' is the rest of the URL
 
     source_type = Column(Enum(FsSourceType))
     readonly = Column(Boolean)
@@ -373,7 +374,12 @@ class FsSource(Item):
             util.win_path(self.volume, self.path))
 
     def rel_path(self, child_path):
-        prefix = util.path_plus_separator(self.path)
+        if self.source_type == FsSourceType.WEB:
+            if child_path == self.path:
+                return ''
+            prefix = self.path + '/'
+        else:
+            prefix = util.path_plus_separator(self.path)
         assert child_path.startswith(prefix)
         rel_path = child_path[len(prefix):]
         return rel_path

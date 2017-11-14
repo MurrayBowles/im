@@ -44,3 +44,7 @@ def win_path(volume, path):
                 return d[0:2] + path
     return None
 
+def last_url_component(url):
+    right_slash = url.rfind('/')
+    assert right_slash != -1
+    return url[right_slash + 1:]

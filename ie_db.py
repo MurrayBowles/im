@@ -5,6 +5,7 @@ from db import DbFolder, DbImage, FsFolder, FsImage, FsSourceType
 from ie_cfg import *
 from ie_fs import *
 from threading import Thread
+import web_ie_db
 
 
 class IEWorkItem(object):
@@ -15,7 +16,10 @@ class IEWorkItem(object):
         self.ie_folder = ie_folder
         self.msgs = []  # list() # of IENote
 
-        # set by proc_work_item()
+        # set by web_ie_db.scan_web_page (FsSourceType.WEB)
+        self.child_paths = []
+
+        # set by fs_start_work_item()
         self.deleted_images = []    # list of FsImages that have been deleted from the import source
         self.existing_images = []   # list of existing (FsImage, IEImage, is_new)
         self.get_exif = set()       # set of ie_images to get the exif data (e.g. tags) for
@@ -27,6 +31,30 @@ class IEWorkItem(object):
             str(self.ie_folder) if self.ie_folder is not None else 'NoIE'
         )
 
+def get_web_ie_work_item(session, fs_source, path, top_level):
+    child_paths = []
+
+    page_name = util.last_url_component(path)
+    match = leading_date_space.match(page_name)
+    if match is None:
+        db_date = None
+        db_name = page_name
+    else:
+        yymmdd = match.group()
+        db_date = util.date_from_yymmdd(yymmdd)
+        db_name = page_name[match.end():].lstrip('_')
+    db_name = db_name.replace('_', ' ')
+    mtime =  datetime.datetime.now() # updated by scan_web_page
+    ie_folder = IEFolder(path, db_date, db_name, mtime)
+    if db_date == None:
+        ie_folder.msgs.append(IEMsg(IEMsgType.NO_DATE, path))
+
+    fs_folder = FsFolder.find(
+        session, fs_source, fs_source.rel_path(ie_folder.fs_path))
+    work_item = IEWorkItem(fs_folder, ie_folder)
+    work_item.top_level = top_level
+    return work_item
+
 def get_ie_worklist(session, fs_source, import_mode, paths):
     ''' return a list of IEWorkItems
         1) scan <paths> to obtain a list of IEFolders
@@ -34,19 +62,23 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
         an IEWorkItem is a fs_folder/ie_folder pair, where one item may be None
     '''
 
+    worklist = deque()
     if import_mode == ImportMode.SET:
         if fs_source.source_type == FsSourceType.DIR:
             ie_folders = scan_dir_set(paths[0], is_std_dirname, proc_std_dirname)
-        else: # FsSourceType.FILE
+        elif fs_source.source_type == FsSourceType.FILE:
             ie_folders = scan_file_set(paths[0], lambda filename: True, proc_corbett_filename)
+        else:
+            assert fs_source.source_type == FsSourceType.WEB
+            return [get_web_ie_work_item(session, fs_source, paths[0], top_level=True)]
 
     else: # ImportMode.SEL
         if fs_source.source_type == FsSourceType.DIR:
             ie_folders = scan_dir_sel(paths, proc_std_dirname)
         else: # FsSourceType.FILE
+            assert fs_source.source_type == FsSourceType.FILE
             ie_folders = scan_file_sel(paths, proc_corbett_filename)
 
-    worklist = deque()
 
     if import_mode == ImportMode.SEL:
         # get all FsFolders that match folders
@@ -102,10 +134,15 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
 
     fs_folder = work_item.fs_folder
     ie_folder = work_item.ie_folder
+
     if fs_source.source_type == FsSourceType.DIR:
         # scan the folder's image files
         # (this has already been done in the FsSourceType.FILE case by scan_file_set/sel)
         scan_std_dir_files(ie_folder)
+    elif fs_source.source_type == FsSourceType.WEB:
+        # all the work is done inn the background thread
+        return
+
     if fs_folder is None:
         # create an FsFolder
         fs_folder = FsFolder.get(session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
@@ -149,19 +186,35 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
-def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source):
+def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     ''' do auto-tagging, move thumbnails to DbImage '''
+
+    # for the WEB case, queue processing for child pages
+    for child_path in work_item.child_paths:
+        # FIXME: this be inside fg_finish_workitem
+        child_work_item = get_web_ie_work_item(
+            session, fs_source, child_path, top_level=False)
+        worklist.append(child_work_item)
     pass
 
-def bg_proc_ie_work_item(work_item):
+def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
     ''' get thumbnails or exifs for a work item
+        do all the processing for a web page
         run in a background thread
     '''
-    def pub(msg, data):
-        pass
-    get_ie_image_thumbnails(work_item.get_thumbnail, pub)
-    get_ie_image_exifs(work_item.get_exif, pub)
-
+    if fs_source.source_type == FsSourceType.WEB:
+        if work_item.ie_folder is not None:
+            pub_fn('ie.sts.import webpage', 1)
+            web_ie_db.scan_web_page_children(
+                work_item.ie_folder, work_item.child_paths, work_item.top_level)
+            pub_fn('ie.sts.imported webpage', 1)
+    else:
+        if len(work_item.get_thumbnail) > 0:
+            pub_fn('ie.sts.import thumbnails', len(work_item.get_thumbnail))
+            get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
+        if len(work_item.get_exif) > 0:
+            pub_fn('ie.sts.import tags', len(work_item.get_exif))
+            get_ie_image_exifs(work_item.get_exif, pub_fn)
 
 class IECmd:
     ''' state of an import/export command '''
@@ -170,7 +223,8 @@ class IECmd:
         self.session = session
         self.ie_cfg = ie_cfg
         self.fs_source = fs_source
-        self.worklist = get_ie_worklist(session, fs_source, ie_cfg.import_mode, ie_cfg.paths)
+        self.worklist = get_ie_worklist(
+            session, fs_source, ie_cfg.import_mode, ie_cfg.paths)
         self.worklist_idx = 0
         self.cancelling = False
         self.do_pub('ie.sts.begun', self.worklist)
@@ -182,6 +236,12 @@ class IECmd:
         '''
         pass
 
+    def bg_spawn(self):
+        ''' start a background thread, executing self.bg_proc()
+            must be overridden
+        '''
+        raise NotImplementedError('bg_spawn')
+
     def start_item(self):
         ''' preprocess the work item, gathering image files in some cases,
             then spawn a background process if thumbnails or EXIFs need to be read
@@ -191,31 +251,27 @@ class IECmd:
             self.do_pub('ie.sts.done', self.cancelling)
         else:
             work_item = self.worklist[self.worklist_idx]
+
             fg_start_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
-            if len(work_item.get_exif) > 0 or len(work_item.get_thumbnail) > 0:
+
+            if (len(work_item.get_exif) > 0 or
+                len(work_item.get_thumbnail) > 0 or
+                self.fs_source.source_type == FsSourceType.WEB):
                 self.bg_spawn()
             else:
                 self.do_pub('ie.cmd.finish item')
 
-    def bg_spawn(self):
-        ''' start a background thread, executing self.bg_proc()
-            must be overridden
-        '''
-        raise NotImplementedError('bg_spawn')
-
     def bg_proc(self):
         ''' extract the exifs and/or thumbnails for a folder
+            or do all the extraction for a web page
             run in the background thread created by bg_spawn
         '''
         def pub_fn(msg, data):
             self.do_pub(msg, data)
         work_item = self.worklist[self.worklist_idx]
-        if len(work_item.get_thumbnail) > 0:
-            self.do_pub('ie.sts.import thumbnails', len(work_item.get_thumbnail))
-            get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
-        if len(work_item.get_exif) > 0:
-            self.do_pub('ie.sts.import tags', len(work_item.get_exif))
-            get_ie_image_exifs(work_item.get_exif, pub_fn)
+
+        bg_proc_ie_work_item(work_item, self.fs_source, pub_fn)
+
         self.do_pub('ie.cmd.finish item')
 
     def finish_item(self):
@@ -224,7 +280,10 @@ class IECmd:
            called by the main thread when it receives ie.cmd.start item
         '''
         work_item = self.worklist[self.worklist_idx]
-        fg_finish_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
+
+        fg_finish_ie_work_item(
+            self.session, self.ie_cfg, work_item, self.fs_source, self.worklist)
+
         self.do_pub('ie.sts.folder done', self.worklist[self.worklist_idx].ie_folder.db_name)
         self.worklist_idx += 1
         self.do_pub('ie.cmd.start item')

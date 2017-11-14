@@ -105,10 +105,13 @@ class IEFolder(object):
         self.tags = []          # list of tag strings
         self.image_insts = {}   # map: IEImageInst.fs_path => IEImageInst
 
-    def __repr__(self):
-        return '<IEFolder %s %s>' % (
+    def text(self):
+        return '%s %s' % (
             str(self.db_date) if self.db_date is not None else '-',
             self.db_name)
+
+    def __repr__(self):
+        return '<IEFolder %s>' % self.text()
 
 thumbnail_exts = [ '.jpg', '.jpg-hi' ] # TODO: silly PIL doesn't do TIFFs
 exif_exts = [ '.tif', '.psd', '.jpg', '.jpg-hi' ]
@@ -126,8 +129,11 @@ class IEImage(object):
         self.thumbnail = None                   # set when/if the thumbnail is extracted
         self.tags = None                        # set when/if the tags are extracted
 
+    def text(self):
+        return '%s|%s' % (self.ie_folder.text(), self.name)
+
     def __repr__(self):
-        return '<IEImage %s|%s>' % (self.ie_folder.fs_name, self.name)
+        return '<IEImage %s>' % self.text()
 
     def set_attrs_from_exiftool_json(self, item):
         if 'ImageSize' in item:
@@ -157,9 +163,11 @@ class IEImageInst(object):
                 mod_datetime > ie_image.newest_inst_with_thumbnail.mod_datetime):
             ie_image.newest_inst_with_thumbnail = self
 
+    def text(self):
+        return '%s|%s' % (self.ie_image.text(), self.ext)
+
     def __repr__(self):
-        return '<IEImageInst %s|%s|%s>' % (
-            self.ie_image.ie_folder.fs_name, self.ie_image.name, self.ext)
+        return '<IEImageInst %s>' % self.text()
 
     def get_thumbnail(self):
         try:
@@ -326,6 +334,36 @@ ignored_extensions = [ '.zip' ]
 ignored_subdirectories = [ 'del' ]
 # the filename 'New Text Document.txt'(!) is recognized as a source of folder tags
 
+def add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime):
+    base_name, ext = os.path.splitext(file_name)
+    base_name = base_name.lower()
+    ext = ext.lower()
+    if ext in img_extensions:
+        if high_res:
+            ext += '-hi'
+        if base_name.find('-') != -1:
+            seq = base_name.split('-')[1]
+        elif any(base_name.startswith(pfx) for pfx in raw_prefixes):
+            # FIXME: prefixes w/ length other than 4
+            seq = base_name[4:]
+        else:
+            # e.g. simple named files, as in 'my format/ayers/dks.psd
+            base = ''
+            seq = base_name
+        if seq in ie_folder.images:
+            ie_image = ie_folder.images[seq]
+        else:
+            ie_image = IEImage(ie_folder, seq)
+            ie_folder.images[seq] = ie_image
+        ie_image_inst = IEImageInst(ie_image, file_path, ext, mtime)
+        if ext not in ie_image.insts:
+            ie_image.insts[ext] = [ie_image_inst]
+        else:
+            ie_image.msgs.append(IEMsg(IEMsgType.EXTRA_INSTS, file_path))
+            ie_image.insts[ext].append(ie_image_inst)
+    else:
+        ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
+
 def scan_std_dir_files(ie_folder):
     def acquire_file(file_path, file_name, high_res):
         got_folder_tags = False
@@ -335,36 +373,9 @@ def scan_std_dir_files(ie_folder):
             for tag_line in tag_lines:
                 ie_folder.tags.extend([l.lstrip(' ') for l in tag_line.split(',')])
         elif os.path.isfile(file_path):
-            base_name, ext = os.path.splitext(file_name)
-            base_name = base_name.lower()
-            ext = ext.lower()
-            if ext in img_extensions:
-                if high_res:
-                    ext += '-hi'
-                if base_name.find('-') != -1:
-                    seq = base_name.split('-')[1]
-                elif any(base_name.startswith(pfx) for pfx in raw_prefixes):
-                    # FIXME: prefixes w/ length other than 4
-                    seq = base_name[4:]
-                else:
-                    # e.g. simple named files, as in 'my format/ayers/dks.psd
-                    base = ''
-                    seq = base_name
-                stat_mtime = os.path.getmtime(file_path)
-                mtime = datetime.datetime.fromtimestamp(stat_mtime)
-                if seq in ie_folder.images:
-                    ie_image = ie_folder.images[seq]
-                else:
-                    ie_image = IEImage(ie_folder, seq)
-                    ie_folder.images[seq] = ie_image
-                ie_image_inst = IEImageInst(ie_image, file_path, ext, mtime)
-                if ext not in ie_image.insts:
-                    ie_image.insts[ext] = [ie_image_inst]
-                else:
-                    ie_image.msgs.append(IEMsg(IEMsgType.EXTRA_INSTS, file_path))
-                    ie_image.insts[ext].append(ie_image_inst)
-            else:
-                ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
+            stat_mtime = os.path.getmtime(file_path)
+            mtime = datetime.datetime.fromtimestamp(stat_mtime)
+            add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime)
         else:
             # special file -- ignore
             pass

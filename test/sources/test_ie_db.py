@@ -44,6 +44,8 @@ def check_images(fs_folder, ie_image_iter, image_expected_list):
 
 def check_worklist_no_fs_folders(
         session, fs_source, import_mode, paths, expected_list):
+    def pub_fn(msg, data):
+        pass
     worklist = get_ie_worklist(session, fs_source, import_mode, paths)
     assert len(worklist) == len(expected_list)
     for work, expected in zip(worklist, expected_list):
@@ -51,8 +53,7 @@ def check_worklist_no_fs_folders(
         assert fs_source.rel_path(work.ie_folder.fs_path) == expected[0]
     for work in worklist:
         fg_start_ie_work_item(session, ie_cfg, work, fs_source)
-        bg_proc_ie_work_item(work)
-        pass
+        bg_proc_ie_work_item(work, fs_source, pub_fn)
     for work, expected in zip(worklist, expected_list):
         assert work.fs_folder is not None
         check_images(work.fs_folder, work.ie_folder.images.values(), expected[1])
@@ -167,8 +168,8 @@ class _TestIECmd(IECmd):
     def bg_spawn(self):
         self.bg_proc()
 
-    def pub(self, msg, data):
-        self.queue.append((msg, data))
+    #def pub(self, msg, data):
+    #    self.queue.append((msg, data))
 
 def test_cmd():
     session = open_mem_db()

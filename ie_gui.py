@@ -207,6 +207,8 @@ class ImportExportTab(wx.Panel):
             pub.subscribe(self.on_ie_imported_thumbnails, 'ie.sts.imported thumbnails')
             pub.subscribe(self.on_ie_import_tags, 'ie.sts.import tags')
             pub.subscribe(self.on_ie_imported_tags, 'ie.sts.imported tags')
+            pub.subscribe(self.on_ie_import_webpage, 'ie.sts.import webpage')
+            pub.subscribe(self.on_ie_imported_webpage, 'ie.sts.imported webpage')
             pub.subscribe(self.on_ie_folder_done, 'ie.sts.folder done')
             pub.subscribe(self.on_ie_done, 'ie.sts.done')
 
@@ -262,6 +264,15 @@ class ImportExportTab(wx.Panel):
         self.cur_tags += data
         self.progress_text = '%u/%u folders, %u/%u EXIFs' % (
             self.cur_folders, self.num_folders, self.cur_tags, self.num_tags)
+        self.on_progress()
+
+    def on_ie_import_webpage(self, data):
+        self.cur_webpages = 0
+
+    def on_ie_imported_webpage(self, data):
+        self.cur_webpages += data
+        self.progress_text = '%u/%u folders, %u webpages' % (
+            self.cur_folders, self.num_folders, self.cur_webpages)
         self.on_progress()
 
     def on_ie_folder_done(self, data):
