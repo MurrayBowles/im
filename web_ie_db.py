@@ -2,9 +2,15 @@
 
 import datetime
 from lxml import html
+import os
 import requests
 
 from ie_fs import add_ie_folder_image_inst, IETag, IETagType
+
+# page-contents directory to avoid web accesses while testing
+use_test_pages = True
+save_test_pages = True  # ignored if use_test_pages
+test_dir_path = 'c:\\\\Users\\User\\PycharmProjects\\im\\test\\import-export sources\\web pages'
 
 # tag map: ( [ <base> list ], { <line type str>: [ <template list> ] )
 # template: +<base digit> | -<base digit> | ? | N  (see IETagType)
@@ -131,8 +137,8 @@ def get_gallery_header_tags(header_list, base_gallery):
         get_line_tags(lines[x], lts[x], '?', [], tags)
     return tags
 
-def scan_pbase_gallery(
-    path, top_gallery, proc_gallery_link, proc_gallery_tag,  proc_image_link
+def scan_pbase_gallery_bytes(
+    path, bytes, top_gallery, proc_gallery_link, proc_gallery_tag,  proc_image_link
 ):
     ''' scrape date from the gallery page at <path>
         for each item in the gallery description area, call proc_gallery_tag(IETag)
@@ -140,11 +146,7 @@ def scan_pbase_gallery(
         for each gallery thumbnail, call proc_gallery_link(path)
     '''
 
-    url = 'http:' + path
-    if top_gallery is not None:
-        url += '&page=all'
-    page = requests.get(url)
-    tree = html.fromstring(page.content)
+    tree = html.fromstring(bytes)
 
     # get IETags from the gallery header
     gallery_header_list = tree.xpath('//div[@class="galleryheader"]')
@@ -195,6 +197,41 @@ def scan_pbase_gallery(
             pass
     pass
 
+def scan_pbase_gallery(
+    path, top_gallery, proc_gallery_link, proc_gallery_tag,  proc_image_link
+):
+    if use_test_pages or save_test_pages:
+        gallery_path_slash = path[2:].find('/')
+        gallery_path = path[2+gallery_path_slash+1:]
+        if gallery_path != 'murraybowles':
+            gallery_path = os.path.basename(gallery_path)
+        test_page_path = os.path.join(test_dir_path, gallery_path)
+    else:
+        test_page_path = '' # shut lint up
+
+    if use_test_pages:
+        try:
+            f = open(test_page_path, 'rb')
+        except:
+            # the test directory doesn't have images of all pages
+            # don't process the ones we don't have
+            return
+        bytes = f.read()
+        f.close()
+    else:
+        url = 'http:' + path
+        if top_gallery is not None:
+            url += '&page=all'
+        page = requests.get(url)
+        bytes = page.content
+        if save_test_pages:
+            f = open(test_page_path, 'wb')
+            f.write(bytes)
+            f.close()
+
+    scan_pbase_gallery_bytes(
+        path, bytes, top_gallery, proc_gallery_link, proc_gallery_tag, proc_image_link)
+
 def scan_web_page_children(ie_folder, top_gallery, child_paths):
     ''' collect IEImages, IETags, and child paths for the gallery of <ie-folder>
         see scan_pbase_gallery()
@@ -207,7 +244,7 @@ def scan_web_page_children(ie_folder, top_gallery, child_paths):
         add_ie_folder_image_inst(
             ie_folder, path, name,
             high_res=False,
-            mtime=datetime.datetime.now)
+            mtime=datetime.datetime.now())
     scan_pbase_gallery(ie_folder.fs_path, top_gallery,
         on_gallery_link, on_gallery_tag, on_image_link)
 
