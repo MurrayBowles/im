@@ -1,7 +1,7 @@
 ''' import/export folders/images from/to the file system '''
 
 import datetime
-from enum import Enum
+from enum import Enum, IntEnum
 import io
 import json
 import logging
@@ -90,6 +90,49 @@ class IEMsg(object):
             return None
 
 
+class IETagType(IntEnum):
+    AUTO    = 1 # if not found, auto-add <base>|<text>
+                # flag tag as auto-added
+    BASED   = 2 # if not found, put <base>|<text> in the imported tags
+                # flag item as tag-needs-edit
+    UNBASED = 3 # if not found, put <text> in the imported tags
+                # flag item as tag-needs-edit
+    WORD    = 4 # multiple words may need to be concatenated to get a tag
+                # flag item as tags-are-words
+    NOTE    = 5 # auto-add a 'Facebook Event' note to the item, with url = <url>
+
+    def __repr__(self):
+        return ['+' | '-' | '?' | 'W' | 'N' ][self.value]
+
+    @classmethod
+    def from_code(self, code):
+        if code == '+': return IETagType.AUTO
+        if code == '-': return IETagType.BASED
+        if code == '?': return IETagType.UNBASED
+        if code == 'W': return IETagType.WORD
+        if code == 'N': return IETagType.NOTE
+        raise ValueError
+
+
+class IETag:
+
+    def __init__(self, type, text=None, base=None, url=None):
+        self.type = type
+        self.text = text
+        self.base = base
+        self.url =  url
+
+    def _text(self):
+        return '%s|%s|%s|%s' % (
+            self.type.name,
+            self.base if self.base is not None else '(no base)',
+            self.text if self.text is not None else '(no text)',
+            '+url' if self.url is not None else '-no url')
+
+    def __repr__(self):
+        return '<IETag %s>' % self._text()
+
+
 class IEFolder(object):
 
     def __init__(self, fs_path, db_date, db_name, mod_datetime):
@@ -101,9 +144,12 @@ class IEFolder(object):
 
         self.mod_datetime = mod_datetime
         self.images = {}        # IEImage.name -> IEImage
-        self.msgs = []          # list of IENote
-        self.tags = []          # list of tag strings
+        self.msgs = []          # list of IEMsg
+        self.tags = []          # list of IETag
         self.image_insts = {}   # map: IEImageInst.fs_path => IEImageInst
+
+    def add_tag(self, ie_tag):
+        self.tags.append(ie_tag)
 
     def text(self):
         return '%s %s' % (
@@ -127,7 +173,10 @@ class IEImage(object):
 
         self.newest_inst_with_thumbnail = None  # read by proc_ie_work_item
         self.thumbnail = None                   # set when/if the thumbnail is extracted
-        self.tags = None                        # set when/if the tags are extracted
+        self.tags = []                          # list of IETag
+
+    def add_tag(self, ie_tag):
+        self.tags.append(ie_tag)
 
     def text(self):
         return '%s|%s' % (self.ie_folder.text(), self.name)
@@ -140,7 +189,8 @@ class IEImage(object):
             w, h = item['ImageSize'].split('x')
             self.image_size = (int(w), int(h))
         if 'Subject' in item:
-            self.tags = item['Subject']
+            for tag in item['Subject']:
+                self.add_tag(IETag(IETagType.UNBASED, text=tag))
         else:
             pass
         pass
@@ -364,6 +414,9 @@ def add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime):
     else:
         ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
 
+def add_ie_folder_tag(ie_folder, ie_tag):
+    ie_folder.tags.append(ie_tag)
+
 def scan_std_dir_files(ie_folder):
     def acquire_file(file_path, file_name, high_res):
         got_folder_tags = False
@@ -428,9 +481,9 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             day = int(day_str)
             db_date = datetime.date(year, month, day)
             db_name = base_name[0:match.start()].replace('_', ' ')
-        words = db_name.split(' ')
         ie_folder = IEFolder(file_pathname, db_date, db_name, mtime)
-        ie_folder.tags = words
+        for word in db_name.split(' '):
+            ie_folder.add_tag(IETag(IETagType.WORD, text=word))
         ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))
         ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, db_name))
         if db_date is None:

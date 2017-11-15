@@ -10,14 +10,20 @@ import web_ie_db
 
 class IEWorkItem(object):
 
-    def __init__(self, fs_folder, ie_folder):
+    def __init__(self, fs_folder, ie_folder, nest_lvl=0, parent=None, base_folder=None):
 
         self.fs_folder = fs_folder
         self.ie_folder = ie_folder
-        self.msgs = []  # list() # of IENote
+        self.msgs = []                  # list() # of IEMsg
 
-        # set by web_ie_db.scan_web_page (FsSourceType.WEB)
+        # used by web_ie_db.scan_web_page (FsSourceType.WEB)
         self.child_paths = []
+        self.nest_lvl = nest_lvl        # gallery-page nesting level
+        self.parent = parent            # nonnull when nest_lvl > 0
+        self.base_folder = base_folder  # nonnull when nest_lvl > 1
+            # None  when processing murraybowles
+            # None  when processing murraybowles/shows
+            # shows when processing murrayboelse/shows/xxx...
 
         # set by fs_start_work_item()
         self.deleted_images = []    # list of FsImages that have been deleted from the import source
@@ -31,7 +37,7 @@ class IEWorkItem(object):
             str(self.ie_folder) if self.ie_folder is not None else 'NoIE'
         )
 
-def get_web_ie_work_item(session, fs_source, path, top_level):
+def get_web_ie_work_item(session, fs_source, path, parent):
     child_paths = []
 
     page_name = util.last_url_component(path)
@@ -51,8 +57,15 @@ def get_web_ie_work_item(session, fs_source, path, top_level):
 
     fs_folder = FsFolder.find(
         session, fs_source, fs_source.rel_path(ie_folder.fs_path))
-    work_item = IEWorkItem(fs_folder, ie_folder)
-    work_item.top_level = top_level
+
+    nest_lvl = 0 if parent is None else parent.nest_lvl + 1
+    if nest_lvl < 2:
+        base_folder = None
+    elif nest_lvl == 2:
+        base_folder = parent.ie_folder.db_name
+    else:
+        base_folder = parent.base_folder
+    work_item = IEWorkItem(fs_folder, ie_folder, nest_lvl, parent, base_folder)
     return work_item
 
 def get_ie_worklist(session, fs_source, import_mode, paths):
@@ -70,7 +83,8 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
             ie_folders = scan_file_set(paths[0], lambda filename: True, proc_corbett_filename)
         else:
             assert fs_source.source_type == FsSourceType.WEB
-            return [get_web_ie_work_item(session, fs_source, paths[0], top_level=True)]
+            return [
+                get_web_ie_work_item(session, fs_source, paths[0], parent=None)]
 
     else: # ImportMode.SEL
         if fs_source.source_type == FsSourceType.DIR:
@@ -191,9 +205,8 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
 
     # for the WEB case, queue processing for child pages
     for child_path in work_item.child_paths:
-        # FIXME: this be inside fg_finish_workitem
         child_work_item = get_web_ie_work_item(
-            session, fs_source, child_path, top_level=False)
+            session, fs_source, child_path, work_item)
         worklist.append(child_work_item)
     pass
 
@@ -206,7 +219,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
         if work_item.ie_folder is not None:
             pub_fn('ie.sts.import webpage', 1)
             web_ie_db.scan_web_page_children(
-                work_item.ie_folder, work_item.child_paths, work_item.top_level)
+                work_item.ie_folder, work_item.base_folder, work_item.child_paths)
             pub_fn('ie.sts.imported webpage', 1)
     else:
         if len(work_item.get_thumbnail) > 0:
