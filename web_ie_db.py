@@ -260,9 +260,9 @@ def _test_pbase_scan(gallery, top_gallery):
         on_gallery_link, on_gallery_tag, on_image_link)
 
 if __name__=='__main__':
-    _test_pbase_scan('170923_diana', 'shows') # tags, no links
-    _test_pbase_scan('150717_rock_shop', 'shows') # tags w/ links
-    _test_pbase_scan('150803_rock_shop', 'shows') # tags -,-,L,L
-    _test_pbase_scan('150517_william', 'shows') # tags L,-,L,L
-    _test_pbase_scan('170619_tennessee_valley', 'nature') # no tags
+    _test_pbase_scan('170923_diana', 'shows')
+    _test_pbase_scan('171007_virginia', 'shows')
+    _test_pbase_scan('171007_blockers', 'shows')
+    _test_pbase_scan('160816_7th_st', 'shows')
+    _test_pbase_scan('160611_fern_and_gregs_birthday', 'people')
     pass

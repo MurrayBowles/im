@@ -308,38 +308,7 @@ class _DbNoteType_Tester(_Tester):
         return note_type
 
     def find(self, key):
-        return  session.query(DbNoteType).filter_by(id=key).first()
-
-
-class _DbNote_Tester(_Tester):
-
-    def __init__(self):
-        _Tester.__init__(self)
-        self.dep_classes = [_DbNoteType_Tester, _DbImage_Tester]
-
-    def mk_key(self):
-        return (self.dep_objs[1], 1)
-
-    def create(self, session, key, key2):
-        note = DbNote.add(
-            session,
-            item=key[0],
-            seq=key[1],
-            note_type=self.dep_objs[0],
-            text=_mk_name('text'))
-        return note
-
-    def get_key(self, obj):
-        return (obj.item, obj.seq)
-
-    def find(self, key):
-        return session.query(DbNote).filter(
-            DbNote.item_id == key[0].id, DbNote.seq == key[1]
-        ).first()
-
-    def test_deps(self, obj):
-        assert obj.item is self.dep_objs[1]
-        assert obj.item.notes[0] is obj
+        return DbNoteType.find_id(session, key)
 
 
 class _FsTagSource_Tester(_Tester):
@@ -528,3 +497,29 @@ def test_associations():
         [_DbImage_Tester, _DbCollection_Tester],
         ['collections', 'images']
     )
+
+def test_notes():
+    adds = [
+        ([-1], [0]),
+        ([-1, 0], [1, 0]),
+        ([-1, -1], [0, 1]),
+        ([-1, 0, 0], [2, 1, 0])
+    ]
+    type = DbNoteType.add(session, _mk_name('type'), DbTextType.TEXT)
+    assert type is not None
+    for add in adds:
+        # FIXME: this test doesn't work when the folder create i smoved out of the loop
+        # (but it DOES work when single-stepped in the debugger!)
+        folder = DbFolder.add(session, _mk_date(), _mk_name('folder'))
+        assert folder is not None
+
+        notes = []
+        for idx in add[0]:
+            notes.append(folder.add_note(session, idx, type))
+        session.commit()
+        for notes_idx, tbl_idx in zip(range(len(add[0])), add[1]):
+            assert folder.notes[tbl_idx] is notes[notes_idx]
+        while len(folder.notes) > 0:
+            folder.del_note(session, 0)
+        session.commit()
+    pass

@@ -6,6 +6,7 @@ from enum import IntEnum as PyIntEnum
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
+from sqlalchemy.ext.orderinglist import ordering_list
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Enum
 from sqlalchemy import Float, ForeignKey, Index, Integer
@@ -43,8 +44,36 @@ class Item(Base):
     # Item <<->> DbTag
     tags = relationship('DbTag', secondary=tagged_items, back_populates='items')
 
-    # Item <->> DbNote
-    notes = relationship('DbNote', foreign_keys='[DbNote.item_id]', back_populates='item')
+    # Item ->> DbNotes
+    notes = relationship(
+        'DbNote', order_by='DbNote.idx', collection_class=ordering_list('idx'))
+
+    @classmethod
+    def find_id(cls, session, id):
+        return session.query(Item).filter_by(id=id).first()
+
+    def add_note(self, session, idx, note_type):
+        ''' add a note at self.notes[idx] and return it '''
+        note = DbNote(item=self, type=note_type)
+        if idx == -1:
+            self.notes.append(note)
+        else:
+            self.notes.insert(idx, note)
+        session.add(note)
+        return note
+
+    def del_note(self, session, idx):
+        ''' delete the note at self.notes[idx] '''
+        if idx == -1:
+            note = self.notes.pop()
+        else:
+            note = self.notes.pop(idx)
+        session.delete(note)
+        pass
+
+    def move_note(self, session, old_idx, new_idx):
+        ''' move the note at old_idx to new_idx '''
+        self.notes[old_idx], self.notes[new_idx] = self.notes[new_idx], self.notes[old_idx]
 
     def __repr__(self):
         # this should always be overloaded
@@ -225,10 +254,6 @@ class DbTag(Item):
         if obj is not None: session.add(obj)
         return obj
 
-    @classmethod
-    def find_id(cls, session, id):
-        return session.query(DbTag).filter_by(id=id).first()
-
     def __repr__(self):
         def tag_str(tag):
             return tag.name if tag.parent is None else tag_str(tag.parent) + '|' + tag.name
@@ -256,35 +281,36 @@ class DbNoteType(Base):
         if obj is not None: session.add(obj)
         return obj
 
+    @classmethod
+    def find_id(cls, session, id):
+        return session.query(DbNoteType).filter_by(id=id).first()
+
     def __repr__(self):
         return '<NoteType %s: %s>' % (self.name, DbTextType(self.text_type).name)
 
 class DbNote(Base):
-    ''' a text note on a Item '''
+    ''' a text note on a Item
+        DbNotes are added/accessed/deleted by calling <Item>.add/get/del_note
+    '''
     __tablename__ = 'db-note'
+    id = Column(Integer, primary_key=True)
 
-    # DbNote <<-> Item (a Item contains a list of DbNotes)
-    item_id = Column(Integer, ForeignKey('item.id'), primary_key=True)
-    item = relationship('Item', foreign_keys=[item_id], back_populates='notes')
-    seq = Column(Float, primary_key=True)  # GUI ordering
-
+    idx = Column(Integer) # index in .item.notes
     text = Column(String(100))
 
     # DbNote -> DbNoteType
     type_id = Column(Integer, ForeignKey('db-note-type.id'))
     type = relationship("DbNoteType", backref=backref("db-note", uselist=False))
+    #type = relationship('DbNoteType', foreign_keys='[DbNote.tyoe_id]')
 
-    @classmethod
-    def add(cls, session, item, seq, note_type, text=''):
-        obj = cls(item=item, seq=seq, type=note_type, text=text)
-        if obj is not None: session.add(obj)
-        return obj
+    # DbNote -> Item
+    item_id = Column(Integer, ForeignKey('item.id'))
+    item = relationship("Item", backref=backref("db-note", uselist=False))
+    #item = relationship('Item', foreign_keys='[DbNote.item_id]')
 
     def __repr__(self):
-        return '<Note %s[%s%s]>' % (
-            str(self.item),
-            self.type.name,
-            str(self.seq) if self.seq != 1 else '')
+        return '<Note %s[%s:%s:%s]>' % (
+            str(self.item), self.type.name, str(self.idx), str(id(self)))
 
 
 ''' FsXxx: an inventory of what's been imported when, and from where in the filesystem '''
