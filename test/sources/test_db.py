@@ -392,6 +392,43 @@ class _FsFolder_Tester(_Tester):
         assert obj.db_folder.fs_folders[0] is obj
 
 
+class _FsFolderTag_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [
+            _FsFolder_Tester
+        ]
+
+    def mk_key2(self):
+        return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
+
+    def create(self, session, key, key2):
+        source = FsItemTag.add(
+            session,
+            item=key2[0],
+            idx=0,
+            type=key2[1],
+            text=key2[2]
+        )
+        return source
+
+    def get_key(self, obj):
+        return (obj.item, obj.idx)
+
+    def find(self, key):
+        obj = FsItemTag.find(session, item=key[0], idx=key[1])
+        return obj
+
+    def find2(self, key2):
+        l = FsItemTag.find_text(session, type=key2[1], text=key2[2])
+        return l[0] if len(l) == 1 else None
+
+    def test_deps(self, obj):
+        assert obj.item is self.dep_objs[0]
+        assert self.dep_objs[0].item_tags[0] is obj
+
+
 class _FsImage_Tester(_Tester):
 
     def __init__(self):
@@ -431,6 +468,15 @@ class _FsImage_Tester(_Tester):
         assert obj.folder.images[0] is obj
         assert obj.db_image is self.dep_objs[1]
         assert obj.db_image.fs_images[0] is obj
+
+
+class _FsImageTag_Tester(_FsFolderTag_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [
+            _FsImage_Tester
+        ]
 
 
 def test_classes():

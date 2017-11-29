@@ -200,8 +200,17 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
+def init_fs_item_tags(item, tags, fs_source):
+    if len(tags) > 0:
+        pass
+    pass
+
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     ''' do auto-tagging, move thumbnails to DbImage '''
+
+    init_fs_item_tags(work_item.fs_folder, work_item.ie_folder.tags, fs_source)
+    for image in work_item.existing_images:
+        init_fs_item_tags(image[0], image[1].tags, fs_source)
 
     # for the WEB case, queue processing for child pages
     for child_path in work_item.child_paths:

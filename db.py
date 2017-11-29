@@ -38,7 +38,7 @@ class Item(Base):
     __tablename__ = 'item'
     id = Column(Integer, primary_key=True)
 
-    type = Column(String(10)) # 'Collection' | 'Folder' | 'Image' | 'Tag'
+    type = Column(String(12)) # 'DbCollection' | 'DbFolder' | 'DbImage' | 'FsFolder'
     __mapper_args__ = {'polymorphic_identity': 'Item', 'polymorphic_on': type}
 
     name = Column(String(100))
@@ -213,7 +213,7 @@ class DbImage(Item):
 
 
 class DbTagType(PyIntEnum):
-    '''' the relation between a tag and its .base_tag '''
+    ''' the relation between a tag and its .base_tag '''
 
     BASE = 1        # this is a normal (base) tag; .base_tag is None
     IDENTITY_IS = 2 # this tag refers to the person/place/thing represented by .base_tag
@@ -445,15 +445,60 @@ class FsSource(Item):
         return '<FsSource %s>' % (self.text())
 
 
-class FsFolder(Item):
+class FsItem(Item):
+    ''' FsFolder | FsImage '''
+    __tablename__ = 'fs-item'
+
+    # isa Item
+    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': 'FsItem'}
+
+    # FsItem ->> FsItemTag
+    item_tags = relationship('FsItemTag', foreign_keys='[FsItemTag.item_id, FsItemTag.idx]')
+
+
+class FsTagType(PyIntEnum):
+    ''' tag word(s) vs tag '''
+    WORD    = 1
+    TAG     = 2
+
+
+class FsItemTag(Base):
+    ''' an external tag (or a possible word of a tag) for an FsFolder or FsImage '''
+    __tablename__ = 'fs-item-tag'
+
+    item_id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
+    item = relationship('FsItem', foreign_keys=[item_id], back_populates='item_tags')
+    idx = Column(Integer, primary_key=True)
+
+    type = Column(Enum(FsTagType))
+    text = Column(String)
+
+    Index('fs-item-tag', 'type', 'text', unique=False)
+
+    @classmethod
+    def add(cls, session, item, idx, type, text):
+        tag = FsItemTag(item=item, idx=idx, type=type, text=text)
+        if tag is not None: session.add(tag)
+        return tag
+
+    @classmethod
+    def find(cls, session, item, idx):
+        return session.query(FsItemTag).filter_by(item=item, idx=idx).first()
+
+    @classmethod
+    def find_text(cls, session, type, text):
+        return session.query(FsItemTag).filter_by(type=type, text=text).all()
+
+class FsFolder(FsItem):
     ''' a filesystem source from which DbFolder were imported
         if source.type is dir_set, this was a filesystem directory
         if source.type is file_set, this was a group of files with (say) a common prefix
     '''
     __tablename__ = 'fs-folder'
 
-    # isa Item (.name is relative path from FsSource.path to IEFolder.fs_path)
-    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    # isa FsItem (.name is relative path from FsSource.path to IEFolder.fs_path)
+    id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
 
     # DbFolder date and name suggested by import/export code (e.g scan_dir_set)
@@ -506,7 +551,7 @@ class FsFolder(Item):
         return '<FsFolder %s>' % self.text()
 
 
-class FsImage(Item):
+class FsImage(FsItem):
     ''' a (family of) filesystem file(s) from which a DbImage was imported
         the filesystem could contain a .tif, a .psd, and a .jpg, and one FsImage would be created,
         with .image_types indicating which were found
@@ -514,7 +559,7 @@ class FsImage(Item):
     __tablename__ = 'fs-image'
 
     # isa Item (name is <seq>[<suffix>], as with DbImage and FsImage)
-    id = Column(Integer, ForeignKey('item.id'), primary_key=True)
+    id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsImage'}
 
     # FsImage <<-> FsFolder
@@ -552,6 +597,8 @@ class FsImage(Item):
     def __repr__(self):
         return "<FsImage %s>" % (self.text())
 
+
+
 session = None
 
 def _open_db(url):
@@ -581,6 +628,10 @@ def open_preloaded_mem_db():
     s3 = FsSource.add(session, 'HD2', '\\corbett-psds', FsSourceType.FILE, False, ts2)
     s4 = FsSource.add(
         session, 'http:', '//www.pbase.com/murraybowles', FsSourceType.WEB, True, ts1)
+    venue = DbTag.add(session, 'venue')
+    gilman = DbTag.add(session, 'Gilman', parent=venue)
+    band = DbTag.add(session, 'band')
+    bikini_kill = DbTag.add(session, 'Bikini Kill', parent=band)
     session.commit()
     pass
 

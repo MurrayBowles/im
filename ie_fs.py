@@ -414,9 +414,6 @@ def add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime):
     else:
         ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
 
-def add_ie_folder_tag(ie_folder, ie_tag):
-    ie_folder.tags.append(ie_tag)
-
 def scan_std_dir_files(ie_folder):
     def acquire_file(file_path, file_name, high_res):
         got_folder_tags = False
@@ -424,7 +421,9 @@ def scan_std_dir_files(ie_folder):
             got_folder_tags = True
             tag_lines = open(file_path, 'r').readlines()
             for tag_line in tag_lines:
-                ie_folder.tags.extend([l.lstrip(' ') for l in tag_line.split(',')])
+                tags = [l.lstrip(' ') for l in tag_line.split(',')]
+                for tag in tags:
+                    ie_folder.add_tag(IETag(IETagType.BASED, text=tag, base='band'))
         elif os.path.isfile(file_path):
             stat_mtime = os.path.getmtime(file_path)
             mtime = datetime.datetime.fromtimestamp(stat_mtime)
