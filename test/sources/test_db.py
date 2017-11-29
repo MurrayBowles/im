@@ -322,6 +322,26 @@ class _FsTagSource_Tester(_Tester):
         return  FsTagSource.find_id(session, key)
 
 
+class _FsTagMapping_Tester(_Tester):
+
+    def __init__(self):
+        _Tester.__init__(self)
+        self.dep_classes = [_FsTagSource_Tester, _DbTag_Tester]
+
+    def mk_key(self):
+        return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
+
+    def get_key(self, obj):
+        return (obj.tag_source, obj.type, obj.text)
+
+    def create(self, session, key, key2):
+        return FsTagMapping.add(
+            session, tag_source=key[0], type=key[1], text=key[2], db_tag=self.dep_objs[1])
+
+    def find(self, key):
+        return FsTagMapping.find(session, key[0], key[1], key[2])
+
+
 class _FsSource_Tester(_Tester):
 
     def __init__(self):

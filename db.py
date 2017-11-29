@@ -473,12 +473,13 @@ class FsItemTag(Base):
 
     type = Column(Enum(FsTagType))
     text = Column(String)
+    base = Column(String)   # suggested tag base, e.g. 'band' or 'venue'
 
     Index('fs-item-tag', 'type', 'text', unique=False)
 
     @classmethod
-    def add(cls, session, item, idx, type, text):
-        tag = FsItemTag(item=item, idx=idx, type=type, text=text)
+    def add(cls, session, item, idx, type, text, base=None):
+        tag = FsItemTag(item=item, idx=idx, type=type, text=text, base=base)
         if tag is not None: session.add(tag)
         return tag
 
@@ -489,6 +490,42 @@ class FsItemTag(Base):
     @classmethod
     def find_text(cls, session, type, text):
         return session.query(FsItemTag).filter_by(type=type, text=text).all()
+
+
+class FsTagMapping(Base):
+    ''' text -> DbTag map in a FsTagSource, or globally '''
+    __tablename__ = 'fs-tag-mapping'
+
+    tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'), primary_key=True)
+    tag_source = relationship('FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
+
+    type = Column(Enum(FsTagType), primary_key=True)
+    text = Column(String, primary_key=True)
+
+    db_tag_id = Column(Integer, ForeignKey('db-tag.id'))
+    db_tag = relationship('DbTag', backref=backref('fs-tag-mapping', uselist=False))
+
+    @classmethod
+    def add(cls, session, tag_source, type, text, db_tag):
+        mapping = FsTagMapping(
+            tag_source_id=tag_source.id, type=type, text=text, db_tag=db_tag)
+        if mapping is not None: session.add(mapping)
+        return mapping
+
+    @classmethod
+    def find(cls, session, tag_source, type, text):
+        return session.query(FsTagMapping).filter_by(
+            tag_source_id=tag_source.id, type=type, text=text).first()
+
+    @classmethod
+    def set(cls, session, tag_source, type, text, db_tag):
+        mapping = cls.find(session, tag_source, type, text)
+        if mapping is None:
+            mapping = cls.add(session, tag_source, type, text, db_tag)
+        else:
+            mapping.db_tag = db_tag
+        return mapping
+
 
 class FsFolder(FsItem):
     ''' a filesystem source from which DbFolder were imported
