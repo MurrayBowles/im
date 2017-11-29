@@ -3,6 +3,8 @@
 from enum import Enum as PyEnum
 from enum import IntEnum as PyIntEnum
 
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
@@ -405,7 +407,10 @@ class FsSource(Item):
                 return ''
             prefix = self.path + '/'
         else:
+            drive, child_path = os.path.splitdrive(child_path)
             prefix = util.path_plus_separator(self.path)
+        if not child_path.startswith(prefix):
+            pass
         assert child_path.startswith(prefix)
         rel_path = child_path[len(prefix):]
         return rel_path
