@@ -82,11 +82,6 @@ class Item(Base):
         return "<%s %s>" % (self.type, self.name)
 
 
-def yymmdd(iso_date):
-    ''' convert YYYY-MM-DD => YYMMDD. '''
-    return str(iso_date)[2:].replace('-', '')
-
-
 class DbFolder(Item):
     ''' represents a single photo-shooting session '''
     __tablename__ = 'db-folder'
@@ -209,7 +204,7 @@ class DbImage(Item):
             return db_image, False
 
     def __repr__(self):
-        return '<Image %s-%s>' % (yymmdd(self.folder.date), self.name)
+        return '<Image %s-%s>' % (util.yymmdd_from_date(self.folder.date), self.name)
 
 
 class DbTagType(PyIntEnum):

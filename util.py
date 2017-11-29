@@ -5,12 +5,16 @@ import os
 import win32api
 
 def date_from_yymmdd(yymmdd):
-    ''' return a datetime.date from a 'yymmdd' string '''
+    ''' return a datetime.date from a YYMMDD string '''
     year = int(yymmdd[0:2])
     year += 1900 if year >= 70 else 2000
     month = int(yymmdd[2:4])
     day = int(yymmdd[4:6])
     return datetime.date(year, month, day)
+
+def yymmdd_from_date(iso_date):
+    ''' return a YYMMDD string from a daytime.date '''
+    return str(iso_date)[2:].replace('-', '')
 
 def drive(path):
     return os.path.splitdrive(path)[0]
