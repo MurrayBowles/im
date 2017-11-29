@@ -237,12 +237,21 @@ class _DbCollectionImage_Tester(_Tester):
 
 class _DbTag_Tester(_Tester):
 
+    def mk_key2(self):
+        return _mk_name('tag')
+
     def create(self, session, key, key2):
-        tag = DbTag.add(session, name=_mk_name('tag'))
+        tag = DbTag.add(session, name=key2)
         return tag
+
+    def get(selfself, session, key, key2):
+        return DbTag.get(session, key2)
 
     def find(self, key):
         return DbTag.find_id(session, key)
+
+    def find2(self, key2):
+        return DbTag.find(session, key2)
 
 
 class _DbTagTree_Tester(_Tester):
@@ -313,13 +322,20 @@ class _DbNoteType_Tester(_Tester):
 
 class _FsTagSource_Tester(_Tester):
 
+    def mk_key2(self):
+        return _mk_name('desc')
+
     def create(self, session, key, key2):
-        tag_source = FsTagSource.add(
-            session, description=_mk_name('desc'))
-        return tag_source
+        return FsTagSource.add(session, description=key2)
+
+    def get(self, session, key, key2):
+        return FsTagSource.get(session, description=key2)
 
     def find(self, key):
         return  FsTagSource.find_id(session, key)
+
+    def find2(self, key2):
+        return FsTagSource.find(session, key2)
 
 
 class _FsTagMapping_Tester(_Tester):

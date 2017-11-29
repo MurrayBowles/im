@@ -242,6 +242,8 @@ class DbTag(Item):
     base_tag_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     base_tag = relationship('DbTag', remote_side=[id], foreign_keys=[base_tag_id])
 
+    Index('db-tag', 'name', 'parent')
+
     def base(self):
         return {
             DbTagType.BASE: self,
@@ -255,6 +257,22 @@ class DbTag(Item):
         obj = cls(parent=parent, name=name, tag_type=tag_type.value, base_tag=base_tag)
         if obj is not None: session.add(obj)
         return obj
+
+    @classmethod
+    def find(cls, session, text, parent=None):
+        return session.query(DbTag).filter_by(name=text, parent=parent).first()
+
+    @classmethod
+    def get(cls, session, text, parent=None):
+        tag = cls.find(session, text, parent)
+        if tag is None:
+            return cls.add(session, text, parent), True
+        else:
+            return tag, False
+
+    @classmethod
+    def find_id(cls, session, id):
+        return session.query(DbTag).filter_by(id=id).first()
 
     def __repr__(self):
         def tag_str(tag):
@@ -330,6 +348,18 @@ class FsTagSource(Base):
         obj = cls(description=description)
         if obj is not None: session.add(obj)
         return obj
+
+    @classmethod
+    def find(cls, session, description):
+        return session.query(FsTagSource).filter_by(description=description).first()
+
+    @classmethod
+    def get(cls, session, description):
+        tag_source = cls.find(session, description)
+        if tag_source is None:
+            return cls.add(session, description), True
+        else:
+            return tag_source, False
 
     @classmethod
     def find_id(cls, session, id):
@@ -635,8 +665,19 @@ class FsImage(FsItem):
         return "<FsImage %s>" % (self.text())
 
 
-
 session = None
+
+# builtin database objects
+glob_tag_source = None
+band_tag = None
+venue_tag = None
+
+def _get_db_builtins(session):
+    ''' get builtin database objects '''
+    global glob_tag_source, band_tag, venue_tag
+    glob_tag_source = FsTagSource.get(session, '$global')
+    band_tag = DbTag.get(session, 'band')
+    venue_tag = DbTag.get(session, 'venue')
 
 def _open_db(url):
     ''' open a database and return a session '''
@@ -646,6 +687,7 @@ def _open_db(url):
     from sqlalchemy.orm import sessionmaker
     Session = sessionmaker(bind=engine)
     session = Session()
+    _get_db_builtins(session)
     return session
 
 def open_mem_db():
@@ -658,6 +700,7 @@ def close_db():
 
 def open_preloaded_mem_db():
     session = open_mem_db()
+
     ts1 = FsTagSource.add(session, 'standard')
     ts2 = FsTagSource.add(session, 'corbett')
     s1 = FsSource.add(session, 'main1234', '\\photos', FsSourceType.DIR, True, ts1)
