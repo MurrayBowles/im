@@ -200,17 +200,38 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
-def init_fs_item_tags(item, tags, fs_source):
-    if len(tags) > 0:
-        pass
+def add_word_fs_item_tag(item, idx, ie_tag, fs_tag_source):
+    ''' add a FsItemTag to <item>.tags[<idx>], of type TAG '''
     pass
+
+def add_tag_fs_item_tag(item, idx, ie_tag, fs_tag_source):
+    ''' add a FsItemTag to <item>.tags[<idx>], of type WORD '''
+    pass
+
+def add_fs_item_note(item, te_tag):
+    ''' add a Note to <item> '''
+    pass
+
+def init_fs_item_tags(item, ie_tags, fs_tag_source):
+    idx = 0
+    for ie_tag in ie_tags:
+        ie_tag = ie_tags[idx]
+        if ie_tag.type in {IETagType.AUTO, IETagType.BASED, IETagType.UNBASED}:
+            add_tag_fs_item_tag(item, idx, ie_tag, fs_tag_source)
+            idx += 1
+        elif ie_tag.type == IETagType.WORD:
+            add_word_fs_item_tag(item, idx, ie_tag, fs_tag_source)
+            idx += 1
+        else:
+            assert ie_tag.type == IETagType.NOTE
+            add_fs_item_note(item, ie_tag)
 
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     ''' do auto-tagging, move thumbnails to DbImage '''
 
-    init_fs_item_tags(work_item.fs_folder, work_item.ie_folder.tags, fs_source)
+    init_fs_item_tags(work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
     for image in work_item.existing_images:
-        init_fs_item_tags(image[0], image[1].tags, fs_source)
+        init_fs_item_tags(image[0], image[1].tags, fs_source.tag_source)
 
     # for the WEB case, queue processing for child pages
     for child_path in work_item.child_paths:
