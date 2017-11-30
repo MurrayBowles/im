@@ -200,12 +200,19 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
-def add_word_fs_item_tag(item, idx, ie_tag, fs_tag_source):
-    ''' add a FsItemTag to <item>.tags[<idx>], of type TAG '''
+def add_word_fs_item_tags(item, base_idx, words, fs_tag_source):
+    ''' add FsItemTags to <item>.tags[<base_idx>...], of type WORD '''
+    def partition_words(pfx, words, res):
+        res.append(pfx + [words])
+        if len(words) > 1:
+            for x in range(1, len(words)):
+                partition_words(pfx + [words[0:x]], words[x:], res)
+    res = []
+    partition_words([], words, res)
     pass
 
-def add_tag_fs_item_tag(item, idx, ie_tag, fs_tag_source):
-    ''' add a FsItemTag to <item>.tags[<idx>], of type WORD '''
+def add_tag_fs_item_tag(item, idx, tag, fs_tag_source):
+    ''' add a FsItemTag to <item>.tags[<idx>], of type TAG '''
     pass
 
 def add_fs_item_note(item, te_tag):
@@ -214,17 +221,37 @@ def add_fs_item_note(item, te_tag):
 
 def init_fs_item_tags(item, ie_tags, fs_tag_source):
     idx = 0
-    for ie_tag in ie_tags:
-        ie_tag = ie_tags[idx]
-        if ie_tag.type in {IETagType.AUTO, IETagType.BASED, IETagType.UNBASED}:
-            add_tag_fs_item_tag(item, idx, ie_tag, fs_tag_source)
-            idx += 1
-        elif ie_tag.type == IETagType.WORD:
-            add_word_fs_item_tag(item, idx, ie_tag, fs_tag_source)
-            idx += 1
-        else:
-            assert ie_tag.type == IETagType.NOTE
-            add_fs_item_note(item, ie_tag)
+    ie_tag_iter = iter(ie_tags)
+    try:
+        ie_tag = next(ie_tag_iter)
+        while True:
+            if ie_tag.type in {IETagType.AUTO, IETagType.BASED, IETagType.UNBASED}:
+                add_tag_fs_item_tag(item, idx, ie_tag, fs_tag_source)
+                idx += 1
+                ie_tag = next(ie_tag_iter)
+            elif ie_tag.type == IETagType.WORD:
+                words = [ie_tag]
+                base_idx = idx
+                done = False
+                while True:
+                    try:
+                        idx += 1
+                        ie_tag = next(ie_tag_iter)
+                        if ie_tag.type != IETagType.WORD:
+                            break
+                        words.append(ie_tag)
+                    except StopIteration:
+                        done = True
+                        break
+                add_word_fs_item_tags(item, base_idx, words, fs_tag_source)
+                if done:
+                    break
+            else:
+                assert ie_tag.type == IETagType.NOTE
+                add_fs_item_note(item, ie_tag)
+                ie_tag = next(ie_tag_iter)
+    except StopIteration:
+        pass
 
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     ''' do auto-tagging, move thumbnails to DbImage '''
