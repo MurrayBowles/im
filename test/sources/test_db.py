@@ -442,10 +442,8 @@ class _FsFolderTag_Tester(_Tester):
     def create(self, session, key, key2):
         source = FsItemTag.add(
             session,
-            item=key2[0],
-            idx=0,
-            type=key2[1],
-            text=key2[2]
+            item=key2[0], idx=0, base_idx=0,
+            type=key2[1], text=key2[2]
         )
         return source
 

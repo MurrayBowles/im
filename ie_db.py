@@ -1,7 +1,7 @@
 ''' import/export folders/images to/from the database '''
 
 from collections import deque
-from db import DbFolder, DbImage, FsFolder, FsImage, FsSourceType
+from db import DbFolder, DbImage, FsFolder, FsImage, FsItemTag, FsSourceType, FsTagType
 from ie_cfg import *
 from ie_fs import *
 from threading import Thread
@@ -200,33 +200,67 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
-def add_word_fs_item_tags(item, base_idx, words, fs_tag_source):
+def find_word_binding(text, item, fs_source):
+    return None, 0
+
+def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     ''' add FsItemTags to <item>.tags[<base_idx>...], of type WORD '''
-    def partition_words(pfx, words, res):
-        res.append(pfx + [words])
+    def partition_words(pfx, words, partitions):
+        partitions.append(pfx + [words])
         if len(words) > 1:
             for x in range(1, len(words)):
-                partition_words(pfx + [words[0:x]], words[x:], res)
-    res = []
-    partition_words([], words, res)
+                partition_words(pfx + [words[0:x]], words[x:], partitions)
+    partitions = []
+    partition_words([], words, partitions)
+    results = []
+    for partition in partitions:
+        bindings = []
+        total_score = 1
+        have_unbound_multiword = False
+        for ie_elt_list in partition:
+            text = ''
+            sep = ''
+            for ie_elt in ie_elt_list:
+                text += sep + ie_elt.text
+                sep = ' '
+            binding, score = find_word_binding(text, item, fs_tag_source)
+            if score == 0 and len(ie_elt_list) > 1:
+                have_unbound_multiword = True
+            bindings.append(binding)
+            total_score += score
+        if have_unbound_multiword:
+            # don't consider a partition that has unbound multi-word elements
+            total_score = 0
+        results.append((total_score / len(partition), partition, bindings))
+    results.sort(key = lambda x: x[0], reverse=True) # sort by the score
+    result = results[0]
+    idx = 0
+    item_tags = []
+    for ie_tag_list, binding in zip(result[1], result[2]):
+        elt_base_idx = idx
+        for ie_tag in ie_tag_list:
+            item_tags.append(FsItemTag.add(
+                session, item, base_idx + idx, base_idx + elt_base_idx,
+                ie_tag.type, ie_tag.text))
+            idx += 1
     pass
 
-def add_tag_fs_item_tag(item, idx, tag, fs_tag_source):
+def add_tag_fs_item_tag(session, item, idx, tag, fs_tag_source):
     ''' add a FsItemTag to <item>.tags[<idx>], of type TAG '''
     pass
 
-def add_fs_item_note(item, te_tag):
+def add_fs_item_note(session, item, te_tag):
     ''' add a Note to <item> '''
     pass
 
-def init_fs_item_tags(item, ie_tags, fs_tag_source):
+def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
     idx = 0
     ie_tag_iter = iter(ie_tags)
     try:
         ie_tag = next(ie_tag_iter)
         while True:
             if ie_tag.type in {IETagType.AUTO, IETagType.BASED, IETagType.UNBASED}:
-                add_tag_fs_item_tag(item, idx, ie_tag, fs_tag_source)
+                add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source)
                 idx += 1
                 ie_tag = next(ie_tag_iter)
             elif ie_tag.type == IETagType.WORD:
@@ -243,12 +277,12 @@ def init_fs_item_tags(item, ie_tags, fs_tag_source):
                     except StopIteration:
                         done = True
                         break
-                add_word_fs_item_tags(item, base_idx, words, fs_tag_source)
+                add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source)
                 if done:
                     break
             else:
                 assert ie_tag.type == IETagType.NOTE
-                add_fs_item_note(item, ie_tag)
+                add_fs_item_note(session, item, ie_tag)
                 ie_tag = next(ie_tag_iter)
     except StopIteration:
         pass
@@ -256,9 +290,10 @@ def init_fs_item_tags(item, ie_tags, fs_tag_source):
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     ''' do auto-tagging, move thumbnails to DbImage '''
 
-    init_fs_item_tags(work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
+    init_fs_item_tags(
+        session, work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
     for image in work_item.existing_images:
-        init_fs_item_tags(image[0], image[1].tags, fs_source.tag_source)
+        init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
 
     # for the WEB case, queue processing for child pages
     for child_path in work_item.child_paths:

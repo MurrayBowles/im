@@ -496,6 +496,7 @@ class FsItemTag(Base):
     item = relationship('FsItem', foreign_keys=[item_id], back_populates='item_tags')
     idx = Column(Integer, primary_key=True)
 
+    base_idx = Column(Integer)
     type = Column(Enum(FsTagType))
     text = Column(String)
     base = Column(String)   # suggested tag base, e.g. 'band' or 'venue'
@@ -503,8 +504,9 @@ class FsItemTag(Base):
     Index('fs-item-tag', 'type', 'text', unique=False)
 
     @classmethod
-    def add(cls, session, item, idx, type, text, base=None):
-        tag = FsItemTag(item=item, idx=idx, type=type, text=text, base=base)
+    def add(cls, session, item, idx, base_idx, type, text, base=None):
+        tag = FsItemTag(
+            item=item, idx=idx, base_idx = base_idx, type=type, text=text, base=base)
         if tag is not None: session.add(tag)
         return tag
 
