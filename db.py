@@ -13,6 +13,7 @@ from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy import Boolean, Column, Date, DateTime, Enum
 from sqlalchemy import Float, ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
+from sqlalchemy import text
 from sqlalchemy.orm import backref, relationship
 
 import util
@@ -237,7 +238,8 @@ class DbTag(Item):
     base_tag_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     base_tag = relationship('DbTag', remote_side=[id], foreign_keys=[base_tag_id])
 
-    Index('db-tag', 'name', 'parent')
+    Index('db-tag', text('lower(name)'), 'parent')
+    # TODO: text('lower(name)')
 
     def base(self):
         return {
@@ -255,11 +257,13 @@ class DbTag(Item):
 
     @classmethod
     def find(cls, session, text, parent=None):
-        return session.query(DbTag).filter_by(name=text, parent=parent).first()
+        return session.query(DbTag).filter_by(
+            name=text.lower(), parent=parent).first()
 
     @classmethod
     def find_flat(clscls, session, text):
-        return session.query(DbTag).filter_by(name=text).all()
+        return session.query(DbTag).filter_by(
+            name=text.loweer()).all()
     # TODO test
 
     @classmethod
@@ -696,7 +700,7 @@ def _get_db_builtins(session):
 def _open_db(url):
     ''' open a database and return a session '''
     global session
-    engine = create_engine(url)
+    engine = create_engine(url, echo=False)
     Base.metadata.create_all(engine)
     from sqlalchemy.orm import sessionmaker
     Session = sessionmaker(bind=engine)
