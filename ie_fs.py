@@ -102,7 +102,7 @@ class IETagType(IntEnum):
     NOTE    = 5 # auto-add a 'Facebook Event' note to the item, with url = <url>
 
     def __repr__(self):
-        return ['+' | '-' | '?' | 'W' | 'N' ][self.value]
+        return '+-?WN'[self.value]
 
     @classmethod
     def from_code(self, code):

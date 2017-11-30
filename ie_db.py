@@ -1,7 +1,7 @@
 ''' import/export folders/images to/from the database '''
 
 from collections import deque
-from db import DbFolder, DbImage, FsFolder, FsImage, FsItemTag, FsSourceType, FsTagType
+import db
 from ie_cfg import *
 from ie_fs import *
 from threading import Thread
@@ -16,7 +16,7 @@ class IEWorkItem(object):
         self.ie_folder = ie_folder
         self.msgs = []                  # list() # of IEMsg
 
-        # used by web_ie_db.scan_web_page (FsSourceType.WEB)
+        # used by web_ie_db.scan_web_page (db.FsSourceType.WEB)
         self.child_paths = []
         self.nest_lvl = nest_lvl        # gallery-page nesting level
         self.parent = parent            # nonnull when nest_lvl > 0
@@ -26,8 +26,8 @@ class IEWorkItem(object):
             # shows when processing murrayboelse/shows/xxx...
 
         # set by fs_start_work_item()
-        self.deleted_images = []    # list of FsImages that have been deleted from the import source
-        self.existing_images = []   # list of existing (FsImage, IEImage, is_new)
+        self.deleted_images = []    # list of db.FsImages that have been deleted from the import source
+        self.existing_images = []   # list of existing (db.FsImage, IEImage, is_new)
         self.get_exif = set()       # set of ie_images to get the exif data (e.g. tags) for
         self.get_thumbnail = set()  # set of IeImages to get/update the thumbnail for
 
@@ -55,7 +55,7 @@ def get_web_ie_work_item(session, fs_source, path, parent):
     if db_date == None:
         ie_folder.msgs.append(IEMsg(IEMsgType.NO_DATE, path))
 
-    fs_folder = FsFolder.find(
+    fs_folder = db.FsFolder.find(
         session, fs_source, fs_source.rel_path(ie_folder.fs_path))
 
     nest_lvl = 0 if parent is None else parent.nest_lvl + 1
@@ -71,42 +71,42 @@ def get_web_ie_work_item(session, fs_source, path, parent):
 def get_ie_worklist(session, fs_source, import_mode, paths):
     ''' return a list of IEWorkItems
         1) scan <paths> to obtain a list of IEFolders
-        2) for each, check whether there's already an FsFolder
+        2) for each, check whether there's already an db.FsFolder
         an IEWorkItem is a fs_folder/ie_folder pair, where one item may be None
     '''
 
     worklist = deque()
     if import_mode == ImportMode.SET:
-        if fs_source.source_type == FsSourceType.DIR:
+        if fs_source.source_type == db.FsSourceType.DIR:
             ie_folders = scan_dir_set(paths[0], is_std_dirname, proc_std_dirname)
-        elif fs_source.source_type == FsSourceType.FILE:
+        elif fs_source.source_type == db.FsSourceType.FILE:
             ie_folders = scan_file_set(paths[0], lambda filename: True, proc_corbett_filename)
         else:
-            assert fs_source.source_type == FsSourceType.WEB
+            assert fs_source.source_type == db.FsSourceType.WEB
             return [
                 get_web_ie_work_item(session, fs_source, paths[0], parent=None)]
 
     else: # ImportMode.SEL
-        if fs_source.source_type == FsSourceType.DIR:
+        if fs_source.source_type == db.FsSourceType.DIR:
             ie_folders = scan_dir_sel(paths, proc_std_dirname)
-        else: # FsSourceType.FILE
-            assert fs_source.source_type == FsSourceType.FILE
+        else: # db.FsSourceType.FILE
+            assert fs_source.source_type == db.FsSourceType.FILE
             ie_folders = scan_file_sel(paths, proc_corbett_filename)
 
 
     if import_mode == ImportMode.SEL:
-        # get all FsFolders that match folders
+        # get all db.FsFolders that match folders
         for ie_folder in ie_folders:
-            fs_folder = FsFolder.find(
+            fs_folder = db.FsFolder.find(
                 session, fs_source, fs_source.rel_path(ie_folder.fs_path))
             worklist.append(IEWorkItem(fs_folder, ie_folder))
     else:                           # DIR_SET or FILE_SET
-        # get all FsFolders in the FsSource
+        # get all db.FsFolders in the FsSource
         fs_folders = fs_source.folders
         # merge fs_folders with ie_folders
         while True:
             if len(fs_folders) != 0 and len(ie_folders) != 0:
-                # we're updating a known FsFolder
+                # we're updating a known db.FsFolder
                 fs_rel_path = fs_folders[0].name
                 ie_rel_path = fs_source.rel_path(ie_folders[0].fs_path)
                 if fs_rel_path == ie_rel_path:
@@ -116,10 +116,10 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
                 else:
                     worklist.append(IEWorkItem(None, ie_folders.pop(0)))
             elif len(fs_folders) != 0:
-                # an FsFolder in the database was not seen in this filesystem scan
+                # an db.FsFolder in the database was not seen in this filesystem scan
                 worklist.append(IEWorkItem(fs_folders.pop(0), None))
             elif len(ie_folders) != 0:
-                # a folder has been found in the filesystem which is not in the FsFolder database
+                # a folder has been found in the filesystem which is not in the db.FsFolder database
                 worklist.append(IEWorkItem(None, ie_folders.pop(0)))
             else:
                 break
@@ -131,7 +131,7 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     def import_ie_image(fs_image, ie_image, new_fs_image):
         work_item.existing_images.append((fs_image, ie_image, new_fs_image))
         if db_folder is not None:
-            db_image = DbImage.get(session, db_folder, ie_image.name)[0]
+            db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
             if fs_image.db_image is None:
                 fs_image.db_image = db_image
             if ie_cfg.import_thumbnails and ie_image.newest_inst_with_thumbnail is not None:
@@ -149,31 +149,31 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     fs_folder = work_item.fs_folder
     ie_folder = work_item.ie_folder
 
-    if fs_source.source_type == FsSourceType.DIR:
+    if fs_source.source_type == db.FsSourceType.DIR:
         # scan the folder's image files
-        # (this has already been done in the FsSourceType.FILE case by scan_file_set/sel)
+        # (this has already been done in the db.FsSourceType.FILE case by scan_file_set/sel)
         scan_std_dir_files(ie_folder)
-    elif fs_source.source_type == FsSourceType.WEB:
+    elif fs_source.source_type == db.FsSourceType.WEB:
         # all the work is done inn the background thread
         return
 
     if fs_folder is None:
-        # create an FsFolder
-        fs_folder = FsFolder.get(session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
+        # create an db.FsFolder
+        fs_folder = db.FsFolder.get(session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
         work_item.fs_folder = fs_folder
-        # also auto-create a DbFolder if ie_folder has a good name and date
+        # also auto-create a db.DbFolder if ie_folder has a good name and date
         if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
                     IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
-            db_folder = DbFolder.get(session, ie_folder.db_date, ie_folder.db_name)[0]
+            db_folder = db.DbFolder.get(session, ie_folder.db_date, ie_folder.db_name)[0]
             fs_folder.db_folder = db_folder
     db_folder = fs_folder.db_folder # this may be None
-    if import_mode == ImportMode.SEL and fs_source.source_type == FsSourceType.FILE:
-        # find/create FsImages corresponding to each IeImage
+    if import_mode == ImportMode.SEL and fs_source.source_type == db.FsSourceType.FILE:
+        # find/create db.FsImages corresponding to each IeImage
         for ie_image in work_item.ie_folder.images.values():
-            fs_image, new_fs_image = FsImage.get(session, fs_folder, ie_image.name)
+            fs_image, new_fs_image = db.FsImage.get(session, fs_folder, ie_image.name)
             import_ie_image(fs_image, ie_image, new_fs_image)
     else:
-        # get sorted lists of all FsImages and IEImages currently known for the folder
+        # get sorted lists of all db.FsImages and IEImages currently known for the folder
         fs_images = list(fs_folder.images)
         ie_images = list(work_item.ie_folder.images.values())
         fs_images.sort(key=lambda x: x.name)
@@ -188,23 +188,40 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
                 elif fs_image.name < ie_image.name:
                     work_item.deleted_images.append(fs_image)
                 else: # ie_image.name < fs_image.name
-                    fs_image = FsImage.add(session, fs_folder, ie_image.name)
+                    fs_image = db.FsImage.add(session, fs_folder, ie_image.name)
                     import_ie_image(fs_image, ie_image, True)
             elif len(fs_images) != 0:
                 work_item.deleted_images.extend(fs_images)
                 break
             elif len(ie_images) != 0:
                 ie_image = ie_images.pop(0)
-                fs_image = FsImage.add(session, fs_folder, ie_image.name)
+                fs_image = db.FsImage.add(session, fs_folder, ie_image.name)
                 import_ie_image(fs_image, ie_image, True)
             else:
                 break
 
-def find_word_binding(text, item, fs_source):
-    return None, 0
+def find_word_binding(session, text, item, fs_tag_source):
+    ''' return score, binding '''
+    db_item = item.db_item()
+    if db_item is not None: # TODO: fs_finish_ie_work_item will check this
+        for fs_item_tag in db_item.item_tags:
+            if (fs_item_tag.type == db.FsTagType.WORD and
+                fs_item_tag.text == text and
+                fs_item_tag.bound):
+                return 4, fs_item_tag.db_tag
+    mapping = db.FsTagMapping.find(session, fs_tag_source, db.FsTagType.WORD, text)
+    if mapping is not None:
+        return 3, mapping.db_tag
+    mapping = db.FsTagMapping.find(session, db.global_tag_source, db.FsTagType.WORD, text)
+    if mapping is not None:
+        return 2, mapping.db_tag
+    db_tags = db.DbTag.find_flat(session, text)
+    if len(db_tags) == 1:
+        return 1, db_tags[0]
+    return 0, None
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
-    ''' add FsItemTags to <item>.tags[<base_idx>...], of type WORD '''
+    ''' add db.FsItemTags to <item>.tags[<base_idx>...], of type WORD '''
     def partition_words(pfx, words, partitions):
         partitions.append(pfx + [words])
         if len(words) > 1:
@@ -223,10 +240,10 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
             for ie_elt in ie_elt_list:
                 text += sep + ie_elt.text
                 sep = ' '
-            binding, score = find_word_binding(text, item, fs_tag_source)
+            score, binding = find_word_binding(session, text, item, fs_tag_source)
             if score == 0 and len(ie_elt_list) > 1:
                 have_unbound_multiword = True
-            bindings.append(binding)
+            bindings.append((score, binding))
             total_score += score
         if have_unbound_multiword:
             # don't consider a partition that has unbound multi-word elements
@@ -239,14 +256,17 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     for ie_tag_list, binding in zip(result[1], result[2]):
         elt_base_idx = idx
         for ie_tag in ie_tag_list:
-            item_tags.append(FsItemTag.add(
-                session, item, base_idx + idx, base_idx + elt_base_idx,
-                ie_tag.type, ie_tag.text))
+            item_tag = db.FsItemTag.add(
+                session, item, base_idx + idx, base_idx + elt_base_idx, db.FsTagType.WORD, ie_tag.text)
+            item_tag.bound = binding[0] != 0 # nonzero score => there's a binding
+            if item_tag.bound:
+                item_tag.db_tag = binding[1]
+            item_tags.append(item_tag)
             idx += 1
     pass
 
 def add_tag_fs_item_tag(session, item, idx, tag, fs_tag_source):
-    ''' add a FsItemTag to <item>.tags[<idx>], of type TAG '''
+    ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
     pass
 
 def add_fs_item_note(session, item, te_tag):
@@ -256,6 +276,7 @@ def add_fs_item_note(session, item, te_tag):
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
     idx = 0
     ie_tag_iter = iter(ie_tags)
+    # FIXME: what a mess! this would be easier to code in C
     try:
         ie_tag = next(ie_tag_iter)
         while True:
@@ -288,18 +309,21 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
         pass
 
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
-    ''' do auto-tagging, move thumbnails to DbImage '''
+    ''' do auto-tagging, move thumbnails to db.DbImage '''
 
-    init_fs_item_tags(
-        session, work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
-    for image in work_item.existing_images:
-        init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
+    if True: # TODO work_item.fs_folder.db_folder is not None:
+        init_fs_item_tags(session,
+            work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
+        for image in work_item.existing_images:
+            init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
 
     # for the WEB case, queue processing for child pages
     for child_path in work_item.child_paths:
         child_work_item = get_web_ie_work_item(
             session, fs_source, child_path, work_item)
         worklist.append(child_work_item)
+
+    session.commit()
     pass
 
 def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
@@ -307,7 +331,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
         do all the processing for a web page
         run in a background thread
     '''
-    if fs_source.source_type == FsSourceType.WEB:
+    if fs_source.source_type == db.FsSourceType.WEB:
         if work_item.ie_folder is not None:
             pub_fn('ie.sts.import webpage', 1)
             web_ie_db.scan_web_page_children(
@@ -361,7 +385,7 @@ class IECmd:
 
             if (len(work_item.get_exif) > 0 or
                 len(work_item.get_thumbnail) > 0 or
-                self.fs_source.source_type == FsSourceType.WEB):
+                self.fs_source.source_type == db.FsSourceType.WEB):
                 self.bg_spawn()
             else:
                 self.do_pub('ie.cmd.finish item')

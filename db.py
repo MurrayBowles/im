@@ -258,6 +258,11 @@ class DbTag(Item):
         return session.query(DbTag).filter_by(name=text, parent=parent).first()
 
     @classmethod
+    def find_flat(clscls, session, text):
+        return session.query(DbTag).filter_by(name=text).all()
+    # TODO test
+
+    @classmethod
     def get(cls, session, text, parent=None):
         tag = cls.find(session, text, parent)
         if tag is None:
@@ -481,6 +486,8 @@ class FsItem(Item):
     # FsItem ->> FsItemTag
     item_tags = relationship('FsItemTag', foreign_keys='[FsItemTag.item_id, FsItemTag.idx]')
 
+    def db_item(self):
+        raise NotImplementedError
 
 class FsTagType(PyIntEnum):
     ''' tag word(s) vs tag '''
@@ -498,8 +505,12 @@ class FsItemTag(Base):
 
     base_idx = Column(Integer)
     type = Column(Enum(FsTagType))
-    text = Column(String)
+    text = Column(String(collation='NOCASE'))
     base = Column(String)   # suggested tag base, e.g. 'band' or 'venue'
+
+    bound = Column(Boolean)
+    db_tag_id = Column(Integer,ForeignKey('db-tag.id'))
+    db_tag = relationship('DbTag', foreign_keys=[db_tag_id], uselist=False)
 
     Index('fs-item-tag', 'type', 'text', unique=False)
 
@@ -527,7 +538,7 @@ class FsTagMapping(Base):
     tag_source = relationship('FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
 
     type = Column(Enum(FsTagType), primary_key=True)
-    text = Column(String, primary_key=True)
+    text = Column(String(collation='NOCASE'), primary_key=True)
 
     db_tag_id = Column(Integer, ForeignKey('db-tag.id'))
     db_tag = relationship('DbTag', backref=backref('fs-tag-mapping', uselist=False))
@@ -535,7 +546,7 @@ class FsTagMapping(Base):
     @classmethod
     def add(cls, session, tag_source, type, text, db_tag):
         mapping = FsTagMapping(
-            tag_source_id=tag_source.id, type=type, text=text, db_tag=db_tag)
+            tag_source=tag_source, type=type, text=text, db_tag=db_tag)
         if mapping is not None: session.add(mapping)
         return mapping
 
@@ -608,6 +619,9 @@ class FsFolder(FsItem):
         else:
             return fs_folder, False
 
+    def db_item(self):
+        return self.db_folder
+
     def text(self):
         return '%s|%s' % (self.source.text(), self.name)
 
@@ -655,6 +669,9 @@ class FsImage(FsItem):
         else:
             return fs_image, False
 
+    def db_item(self):
+        return self.db_image
+
     def text(self):
         return '%s|%s' % (self.folder.text(), self.name)
 
@@ -665,14 +682,14 @@ class FsImage(FsItem):
 session = None
 
 # builtin database objects
-glob_tag_source = None
+global_tag_source = None
 band_tag = None
 venue_tag = None
 
 def _get_db_builtins(session):
     ''' get builtin database objects '''
-    global glob_tag_source, band_tag, venue_tag
-    glob_tag_source = FsTagSource.get(session, '$global')
+    global global_tag_source, band_tag, venue_tag
+    global_tag_source, is_new = FsTagSource.get(session, '$global')
     band_tag = DbTag.get(session, 'band')
     venue_tag = DbTag.get(session, 'venue')
 
@@ -698,17 +715,23 @@ def close_db():
 def open_preloaded_mem_db():
     session = open_mem_db()
 
-    ts1 = FsTagSource.add(session, 'standard')
-    ts2 = FsTagSource.add(session, 'corbett')
-    s1 = FsSource.add(session, 'main1234', '\\photos', FsSourceType.DIR, True, ts1)
-    s2 = FsSource.add(session, 'C:', '\\photos', FsSourceType.DIR, False, ts1)
-    s3 = FsSource.add(session, 'HD2', '\\corbett-psds', FsSourceType.FILE, False, ts2)
+    std_ts = FsTagSource.add(session, 'standard')
+    corbett_ts = FsTagSource.add(session, 'corbett')
+    s1 = FsSource.add(session, 'main1234', '\\photos', FsSourceType.DIR, True, std_ts)
+    s2 = FsSource.add(session, 'C:', '\\photos', FsSourceType.DIR, False, std_ts)
+    s3 = FsSource.add(
+        session, 'HD2', '\\corbett-psds', FsSourceType.FILE, False, corbett_ts)
     s4 = FsSource.add(
-        session, 'http:', '//www.pbase.com/murraybowles', FsSourceType.WEB, True, ts1)
+        session, 'http:', '//www.pbase.com/murraybowles', FsSourceType.WEB, True, std_ts)
+
     venue = DbTag.add(session, 'venue')
     gilman = DbTag.add(session, 'Gilman', parent=venue)
     band = DbTag.add(session, 'band')
     bikini_kill = DbTag.add(session, 'Bikini Kill', parent=band)
+
+    bk_mapping = FsTagMapping.add(
+        session, corbett_ts, FsTagType.WORD, 'Bikini Kill', bikini_kill)
+
     session.commit()
     pass
 
