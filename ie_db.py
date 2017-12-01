@@ -125,6 +125,18 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
                 break
     return worklist
 
+def create_fs_folder(session, ie_folder, fs_source):
+    ''' create an FsFolder, and maybe a DbFolder, for <ie_folder> '''
+    # create an FsFolder
+    fs_folder = db.FsFolder.get(
+        session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
+    # also auto-create a DbFolder if ie_folder has a good name and date
+    if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
+                IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
+        db_folder = db.DbFolder.get(session, ie_folder.db_date, ie_folder.db_name)[0]
+        fs_folder.db_folder = db_folder
+    return fs_folder
+
 def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     import_mode = ie_cfg.import_mode
 
@@ -158,18 +170,13 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
         return
 
     if fs_folder is None:
-        # create an db.FsFolder
-        fs_folder = db.FsFolder.get(session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
+        # create an FsFolder and maybe its DbFolder
+        fs_folder = create_fs_folder(session, ie_folder, fs_source)
         work_item.fs_folder = fs_folder
-        # also auto-create a db.DbFolder if ie_folder has a good name and date
-        if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
-                    IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
-            db_folder = db.DbFolder.get(session, ie_folder.db_date, ie_folder.db_name)[0]
-            fs_folder.db_folder = db_folder
     db_folder = fs_folder.db_folder # this may be None
     if import_mode == ImportMode.SEL and fs_source.source_type == db.FsSourceType.FILE:
-        # find/create db.FsImages corresponding to each IeImage
-        for ie_image in work_item.ie_folder.images.values():
+        # find/create FsImages corresponding to each IeImage
+        for ie_image in ie_folder.images.values():
             fs_image, new_fs_image = db.FsImage.get(session, fs_folder, ie_image.name)
             import_ie_image(fs_image, ie_image, new_fs_image)
     else:
@@ -208,15 +215,19 @@ def find_word_binding(session, text, item, fs_tag_source):
             if (fs_item_tag.type == db.FsTagType.WORD and
                 fs_item_tag.text == text and
                 fs_item_tag.bound):
+                # <text> has already been mapped on <item>
                 return 4, fs_item_tag.db_tag
     mapping = db.FsTagMapping.find(session, fs_tag_source, db.FsTagType.WORD, text)
     if mapping is not None:
+        # <text> is mapped in <fs_tag_source>
         return 3, mapping.db_tag
     mapping = db.FsTagMapping.find(session, db.global_tag_source, db.FsTagType.WORD, text)
     if mapping is not None:
+        # <text> is mapped in <global_tag_source>
         return 2, mapping.db_tag
     db_tags = db.DbTag.find_flat(session, text)
     if len(db_tags) == 1:
+        # <text> occurs exactly once in the DbTag database
         return 1, db_tags[0]
     return 0, None
 
@@ -252,7 +263,6 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     results.sort(key = lambda x: x[0], reverse=True) # sort by the score
     result = results[0]
     idx = 0
-    item_tags = []
     for ie_tag_list, binding in zip(result[1], result[2]):
         elt_base_idx = idx
         for ie_tag in ie_tag_list:
@@ -261,15 +271,59 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
             item_tag.bound = binding[0] != 0 # nonzero score => there's a binding
             if item_tag.bound:
                 item_tag.db_tag = binding[1]
-            item_tags.append(item_tag)
             idx += 1
     pass
 
-def add_tag_fs_item_tag(session, item, idx, tag, fs_tag_source):
+def find_tag_binding(session, text, item, fs_tag_source):
+    ''' return score, binding '''
+    if item is None:
+        pass
+    db_item = item.db_item()
+    if db_item is not None: # TODO: fs_finish_ie_work_item will check this
+        for fs_item_tag in db_item.tags:
+            if (fs_item_tag.type == db.FsTagType.TAG and
+                fs_item_tag.text == text and
+                fs_item_tag.bound):
+                # <text> has already been mapped on <item>
+                return 4, fs_item_tag.db_tag
+    mapping = db.FsTagMapping.find(session, fs_tag_source, db.FsTagType.TAG, text)
+    if mapping is not None:
+        # <text> is mapped in <fs_tag_source>
+        return 3, mapping.db_tag
+    mapping = db.FsTagMapping.find(session, db.global_tag_source, db.FsTagType.TAG, text)
+    if mapping is not None:
+        # <text> is mapped in <global_tag_source>
+        return 2, mapping.db_tag
+    db_tag = db.DbTag.find_expr(session, text)
+    if db_tag is not None:
+        # <text> occurs in the DbTag database
+        return 1, db_tag
+    return 0, None
+
+def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
+    text = ie_tag.text
+    if ie_tag.text.find('|') == -1 and ie_tag.base is not None:
+        # try both <text> and <base>.<text>
+        result_with_base = find_tag_binding(
+            session, ie_tag.base + '|' + ie_tag.text, item, fs_tag_source)
+        result_without_base = find_tag_binding(
+            session, ie_tag.text, item, fs_tag_source)
+        if result_with_base[0] > result_without_base[0]:
+            text = ie_tag.base + '|' + text
+            result = result_with_base
+        else:
+            result = result_without_base
+    else:
+        result = find_tag_binding(session, ie_tag.text, item, fs_tag_source)
+    item_tag = db.FsItemTag.add(session, item, idx, idx, db.FsTagType.TAG, text)
+    if result[0] != 0:
+        item_tag.bound = True
+        item_tag.db_tag = result[1]
+
     pass
 
-def add_fs_item_note(session, item, te_tag):
+def add_fs_item_note(session, item, ie_tag):
     ''' add a Note to <item> '''
     pass
 
@@ -311,7 +365,24 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     ''' do auto-tagging, move thumbnails to db.DbImage '''
 
+    if fs_source.source_type == db.FsSourceType.WEB:
+        # create FsFolders and FsImages for the IEFolders/Images scanned
+        # (for the file-system case, this is done BEFORE scanning)
+        assert work_item.fs_folder is None
+        ie_folder = work_item.ie_folder
+        fs_folder = create_fs_folder(session, ie_folder, fs_source)
+        work_item.fs_folder = fs_folder
+        db_folder = fs_folder.db_folder
+        for ie_image in ie_folder.images.values():
+            fs_image, new_fs_image = db.FsImage.get(session, fs_folder, ie_image.name)
+            work_item.existing_images.append((fs_image, ie_image))
+            if db_folder is not None:
+                db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
+                if fs_image.db_image is None:
+                    fs_image.db_image = db_image
+
     if True: # TODO work_item.fs_folder.db_folder is not None:
+        # create FsItemTags from any imported tags
         init_fs_item_tags(session,
             work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
         for image in work_item.existing_images:

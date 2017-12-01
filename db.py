@@ -239,7 +239,6 @@ class DbTag(Item):
     base_tag = relationship('DbTag', remote_side=[id], foreign_keys=[base_tag_id])
 
     Index('db-tag', text('lower(name)'), 'parent')
-    # TODO: text('lower(name)')
 
     def base(self):
         return {
@@ -261,9 +260,21 @@ class DbTag(Item):
             name=text.lower(), parent=parent).first()
 
     @classmethod
-    def find_flat(clscls, session, text):
+    def find_flat(cls, session, text):
         return session.query(DbTag).filter_by(
-            name=text.loweer()).all()
+            name=text.lower()).all()
+    # TODO test
+
+    @classmethod
+    def find_expr(cls, session, expr):
+        # <expr> is a|b|c
+        list = expr.split('|')
+        tag = None
+        for elt in list:
+            tag = cls.find(session, elt, parent=tag)
+            if tag is None:
+                break
+        return tag
     # TODO test
 
     @classmethod
@@ -557,7 +568,7 @@ class FsTagMapping(Base):
     @classmethod
     def find(cls, session, tag_source, type, text):
         return session.query(FsTagMapping).filter_by(
-            tag_source_id=tag_source.id, type=type, text=text).first()
+            tag_source=tag_source, type=type, text=text).first()
 
     @classmethod
     def set(cls, session, tag_source, type, text, db_tag):
