@@ -612,7 +612,7 @@ class FsFolder(FsItem):
     # FsFolder <->> FsImage
     images = relationship('FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
 
-    Index('fs-folder-index', 'source_id', 'name', unique=True)
+    Index('fs-folder-index', 'source', 'name', unique=True)
 
     @classmethod
     def add(cls, session, source, name, db_date=None, db_name=None, db_folder=None):
@@ -624,7 +624,7 @@ class FsFolder(FsItem):
 
     @classmethod
     def find(cls, session, source, name):
-        return session.query(FsFolder).filter_by(source_id=source.id, name=name).first()
+        return session.query(FsFolder).filter_by(source=source, name=name).first()
 
     @classmethod
     def get(cls, session, source, name, db_date=None, db_name='', db_folder=None):
@@ -672,7 +672,7 @@ class FsImage(FsItem):
     @classmethod
     def find(cls, session, folder, name):
         return  session.query(FsImage).filter(
-            FsImage.folder_id == folder.id, FsImage.name == name
+            FsImage.folder == folder, FsImage.name == name
         ).first()
 
     @classmethod
