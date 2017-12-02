@@ -10,6 +10,17 @@ import db
 from ie_gui import ImportExportTab
 from tags_gui import TagsTab
 
+from wx_task import WxTask
+
+class MyWxTask(WxTask):
+
+    def __init__(self):
+        super().__init__()
+        self.queue(self.rrr, '123')
+
+    def rrr(self, data):
+        print('hello')
+
 class GuiApp(wx.App):
 
     def OnInit(self):
@@ -28,6 +39,9 @@ class GuiApp(wx.App):
         handler.setFormatter(formatter)
         logging.getLogger().addHandler(handler)
         logging.info('log file started')
+
+        MyWxTask()
+
         return True
 
 class GuiTop(wx.Frame):

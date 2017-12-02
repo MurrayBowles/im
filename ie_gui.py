@@ -282,7 +282,7 @@ class ImportExportTab(wx.Panel):
 
     def on_ie_done(self, data):
         cancelled = data
-        logging.info('import/export %s', 'cancelled' if cancelled else 'done')
+        logging.info('import/export %s', 'cancel_seen' if cancelled else 'done')
         self.progress_text = ''
         self.on_progress()
         self.ie_state = IEState.IE_IDLE

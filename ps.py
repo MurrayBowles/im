@@ -15,7 +15,7 @@ def set_status(text):
 # ie.sts.import webpage
 # ie.sts.imported webpage
 # ie.sts.folder done, folder-name
-# ie.sts.done, cancelled
+# ie.sts.done, cancel_seen
 #
 # ie.cmd.start item
 # ie.cmd.finish item
