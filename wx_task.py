@@ -1,14 +1,12 @@
-''' wxPython version of Task '''
+''' wxPython implementation of Task '''
 
-from task import Task
 from threading import Thread
 import wx
 from wx.lib.pubsub import pub
 
-class WxTask(Task):
+class WxTask:
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def init_impl(self, **kwargs):
         for msg, method in self.subs.items():
             ps.subscribe(msg, method)
         pub.subscribe(self._call, 'Task.call')

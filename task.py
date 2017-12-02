@@ -10,6 +10,11 @@ class Task:
         self.max_step_ms = kwargs['max_step_ms'] if 'max_step_ms' in kwargs else '200'
         self.cancel_requested = False
         self.cancel_seen = False
+        self.init_impl(**kwargs)
+
+    def init_impl(self):
+        ''' perform initialization for the slice/thread implementation mixin '''
+        raise NotImplementedError
 
     def pub(self, msg, data=None):
         ''' publish msg, data '''
