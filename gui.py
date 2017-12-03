@@ -11,15 +11,39 @@ from ie_gui import ImportExportTab
 from tags_gui import TagsTab
 
 from task import Task
+import time
 from wx_task import WxTask
 
 class MyTask(Task):
     def __init__(self):
         super().__init__()
-        self.queue(self.rrr, '123')
+        self.queue(self.first, '1')
 
-    def rrr(self, data):
-        print('hello')
+    def first(self, data):
+        print('first ' + data)
+        while not self.overtime():
+            print('time')
+            time.sleep(.05)
+        print('overtime!')
+        self.queue(self.second, '2')
+
+    def second(self, data):
+        print('second ' + data)
+        while not self.cancelled():
+            print('uncancelled')
+            self.cancel()
+        print('cancelled')
+        self.spawn(self.third, '3')
+
+    def third(self, data):
+        print('third ' + data)
+        print("i'm in another thread")
+        if self.cancelled():
+            print("i've been cancelled")
+        self.queue(self.fourth, '4')
+
+    def fourth(self, data):
+        print('fourth ' + data)
 
 class WxMyTask(WxTask, MyTask):
     pass

@@ -10,7 +10,6 @@ class WxTask:
         for msg, method in self.subs.items():
             ps.subscribe(msg, method)
         pub.subscribe(self._call, 'Task.call')
-        pass
 
     def pub(self, msg, data=None):
         ''' publish msg, data '''
@@ -18,29 +17,27 @@ class WxTask:
             pub.sendMessage(msg, data=data)
         wx.CallAfter(do_pub, msg, data=data)
 
-    def _call(self, data):
-        method, data = data
-        method(data)
+    def _call(self, step):
+        self._step(step)
 
-    def queue(self, method, data=None):
+    def _queue(self, step):
         ''' queue <method> to be called with <data> '''
         def do_pub(msg, data):
-            pub.sendMessage(msg, data=data)
-        wx.CallAfter(do_pub, 'Task.call', (method, data))
+            pub.sendMessage(msg, step=step)
+        wx.CallAfter(do_pub, 'Task.call', step)
 
-    def spawn(self, method, data=None):
+    def _spawn(self, step):
         ''' start a thread calling <method> with <data> '''
-        _WxThread(self, method, data)
+        _WxThread(self, step)
 
 
 class _WxThread(Thread):
 
-    def __init__(self, ctx, method, data=None):
+    def __init__(self, itself, step):
         super().__init__()
-        self.ctx = ctx
-        self.method = method
-        self.data = data
+        self.itself = itself
+        self.step = step
         self.start()
 
     def run(self):
-        self.method(self.ctx, self.data)
+        self.itself._step(self.step)
