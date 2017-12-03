@@ -210,7 +210,7 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
                 break
 
 def find_word_binding(session, text, item, fs_tag_source):
-    ''' return score, binding '''
+    ''' return FsTagSource, DbTag id '''
     db_item = item.db_item()
     if db_item is not None: # TODO: fs_finish_ie_work_item will check this
         for fs_item_tag in db_item.item_tags:
@@ -218,20 +218,20 @@ def find_word_binding(session, text, item, fs_tag_source):
                 fs_item_tag.text == text and
                 fs_item_tag.bound):
                 # <text> has already been mapped on <item>
-                return 4, fs_item_tag.db_tag
+                return db.FsItemTagSource.DBITEM, fs_item_tag.db_tag
     mapping = db.FsTagMapping.find(session, fs_tag_source, db.FsTagType.WORD, text)
     if mapping is not None:
         # <text> is mapped in <fs_tag_source>
-        return 3, mapping.db_tag
+        return db.FsItemTagSource.FSTS, mapping.db_tag
     mapping = db.FsTagMapping.find(session, db.global_tag_source, db.FsTagType.WORD, text)
     if mapping is not None:
         # <text> is mapped in <global_tag_source>
-        return 2, mapping.db_tag
+        return db.FsItemTagSource.GLOBTS, mapping.db_tag
     db_tags = db.DbTag.find_flat(session, text)
     if len(db_tags) == 1:
         # <text> occurs exactly once in the DbTag database
-        return 1, db_tags[0]
-    return 0, None
+        return db.FsItemTagSource.DBTAG, db_tags[0]
+    return db.FsItemTagSource.UNBOUND, None
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     ''' add db.FsItemTags to <item>.tags[<base_idx>...], of type WORD '''
@@ -269,15 +269,16 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
         elt_base_idx = idx
         for ie_tag in ie_tag_list:
             item_tag = db.FsItemTag.add(
-                session, item, base_idx + idx, base_idx + elt_base_idx, db.FsTagType.WORD, ie_tag.text)
-            item_tag.bound = binding[0] != 0 # nonzero score => there's a binding
-            if item_tag.bound:
+                session, item, base_idx + idx, base_idx + elt_base_idx,
+                db.FsTagType.WORD, ie_tag.text)
+            item_tag.source = binding[0]
+            if item_tag.source.has_db_tag():
                 item_tag.db_tag = binding[1]
             idx += 1
     pass
 
 def find_tag_binding(session, text, item, fs_tag_source):
-    ''' return score, binding '''
+    ''' return FsTagSource, DbTag id '''
     if item is None:
         pass
     db_item = item.db_item()
@@ -287,20 +288,20 @@ def find_tag_binding(session, text, item, fs_tag_source):
                 fs_item_tag.text == text and
                 fs_item_tag.bound):
                 # <text> has already been mapped on <item>
-                return 4, fs_item_tag.db_tag
+                return db.FsItemTagSource.DBITEM, fs_item_tag.db_tag
     mapping = db.FsTagMapping.find(session, fs_tag_source, db.FsTagType.TAG, text)
     if mapping is not None:
         # <text> is mapped in <fs_tag_source>
-        return 3, mapping.db_tag
+        return db.FsItemTagSource.GLOBTS, mapping.db_tag
     mapping = db.FsTagMapping.find(session, db.global_tag_source, db.FsTagType.TAG, text)
     if mapping is not None:
         # <text> is mapped in <global_tag_source>
-        return 2, mapping.db_tag
+        return db.FsItemTagSource.FSTS, mapping.db_tag
     db_tag = db.DbTag.find_expr(session, text)
     if db_tag is not None:
         # <text> occurs in the DbTag database
-        return 1, db_tag
-    return 0, None
+        return db.FsItemTagSource.DBTAG, db_tag
+    return db.FsItemTagSource.UNBOUND, None
 
 def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
@@ -319,10 +320,9 @@ def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     else:
         result = find_tag_binding(session, ie_tag.text, item, fs_tag_source)
     item_tag = db.FsItemTag.add(session, item, idx, idx, db.FsTagType.TAG, text)
-    if result[0] != 0:
-        item_tag.bound = True
+    item_tag.source = result[0]
+    if item_tag.source.has_db_tag():
         item_tag.db_tag = result[1]
-
     pass
 
 def add_fs_item_note(session, item, ie_tag):

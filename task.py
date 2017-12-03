@@ -4,7 +4,11 @@ import datetime
 from enum import Enum
 import sys
 
+debug_exc = True
+
+
 class TaskStepState(Enum):
+
     QUEUED = 1
     SPAWNED = 2
     BEGUN = 3
@@ -53,13 +57,18 @@ class Task:
 
     def _step(self, step):
         ''' call the method for a slice or thread '''
-        try:
+        if debug_exc:
             self.step_begun = datetime.datetime.now()
             step['state'] = TaskStepState.BEGUN
             step['method'](step['data'])
-        except:
-            step['exc_info'] = sys.exc_info()
-            pass
+        else:
+            try:
+                self.step_begun = datetime.datetime.now()
+                step['state'] = TaskStepState.BEGUN
+                step['method'](step['data'])
+            except:
+                step['exc_info'] = sys.exc_info()
+                pass
         step['state'] = TaskStepState.DONE
         self.num_done_steps += 1
         if self.num_done_steps == len(self.steps):

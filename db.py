@@ -504,10 +504,27 @@ class FsItem(Item):
     def db_item(self):
         raise NotImplementedError
 
+
 class FsTagType(PyIntEnum):
     ''' tag word(s) vs tag '''
     WORD    = 1
     TAG     = 2
+
+
+class FsItemTagSource(PyIntEnum):
+
+    UNBOUND     = 1 # not bound
+    DBTAG       = 2 # not bound; suggested tag found in DbTags
+    GLOBTS      = 3 # bound: found in global_tag_source
+    FSTS        = 4 # bound: found in FsSource.tag_source
+    DBITEM      = 5 # bound: matched tag already on DbFolder/Image
+    DIRECT      = 6 # bound: directly tagged by user
+
+    def is_bound(self):
+        return self >= FsItemTagSource.GLOBTS
+
+    def has_db_tag(self):
+        return self >= FsItemTagSource.DBTAG
 
 
 class FsItemTag(Base):
@@ -523,7 +540,7 @@ class FsItemTag(Base):
     text = Column(String(collation='NOCASE'))
     base = Column(String)   # suggested tag base, e.g. 'band' or 'venue'
 
-    bound = Column(Boolean)
+    source = Column(Enum(FsItemTagSource))
     db_tag_id = Column(Integer,ForeignKey('db-tag.id'))
     db_tag = relationship('DbTag', foreign_keys=[db_tag_id], uselist=False)
 
@@ -543,6 +560,13 @@ class FsItemTag(Base):
     @classmethod
     def find_text(cls, session, type, text):
         return session.query(FsItemTag).filter_by(type=type, text=text).all()
+
+    def __repr__(self):
+        return '<FsItemTag %s[%s/%s]: %s%s>' % (
+            self.item.text(), self.idx, self.base_idx,
+            str(self.source),
+            ' ' + self.db_tag.base if self.db_tag is not None else ''
+        )
 
 
 class FsTagMapping(Base):
