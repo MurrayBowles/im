@@ -82,7 +82,6 @@ class Task:
 
     def _done(self):
         ''' note the end of a Task '''
-        print('done')
         pass
 
     def __repr__(self):

@@ -13,6 +13,7 @@ from tags_gui import TagsTab
 from task import Task
 import time
 from wx_task import WxTask
+from test_task import TestTask
 
 class MyTask(Task):
     def __init__(self):
@@ -46,6 +47,9 @@ class MyTask(Task):
         print('fourth ' + data)
 
 class WxMyTask(WxTask, MyTask):
+    pass
+
+class TestMyTask(TestTask, MyTask):
     pass
 
 class GuiApp(wx.App):
@@ -120,6 +124,7 @@ class GuiTop(wx.Frame):
         self.Close()
 
 def gui_test():
+    TestMyTask()
     app = GuiApp(False)
     app.MainLoop()
     cfg.save()

@@ -1,4 +1,4 @@
-''' wxPython implementation of Task '''
+''' wxPython implementation of Task, using threading and pubsub '''
 
 from threading import Thread
 import wx
