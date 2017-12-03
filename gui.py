@@ -15,6 +15,8 @@ import time
 from wx_task import WxTask
 from test_task import TestTask
 
+# TODO: move to test_task
+
 class MyTask(Task):
     def __init__(self):
         super().__init__()
@@ -71,7 +73,7 @@ class GuiApp(wx.App):
         logging.getLogger().addHandler(handler)
         logging.info('log file started')
 
-        WxMyTask()
+        # WxMyTask() # TODO: move to test_task
 
         return True
 
@@ -124,7 +126,7 @@ class GuiTop(wx.Frame):
         self.Close()
 
 def gui_test():
-    TestMyTask()
+    # TestMyTask() # TODO: move to test_task
     app = GuiApp(False)
     app.MainLoop()
     cfg.save()

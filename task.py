@@ -59,6 +59,7 @@ class Task:
             step['method'](step['data'])
         except:
             step['exc_info'] = sys.exc_info()
+            pass
         step['state'] = TaskStepState.DONE
         self.num_done_steps += 1
         if self.num_done_steps == len(self.steps):

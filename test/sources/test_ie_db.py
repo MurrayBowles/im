@@ -18,6 +18,7 @@ from test_ie_fs import test_scan_dir_sel_selected_list, test_scan_dir_sel_expect
 from test_ie_fs import test_scan_file_set_corbett_psds_expected_list
 from test_ie_fs import test_scan_file_sel_corbett_psds_selected_list
 from test_ie_fs import test_scan_file_sel_corbett_psds_expected_list
+from test_task import TestTask
 
 base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
@@ -145,39 +146,16 @@ def test_get_worklist_file_sel_corbett_psds():
     )
     session.commit()
 
-class _TestIECmd(IECmd):
 
-    def __init__(self, session, ie_cfg, fs_source):
-        self.queue = deque()
-        IECmd.__init__(self, session, ie_cfg, fs_source)
-        while len(self.queue) > 0:
-            item = self.queue.popleft()
-            if item[0] == 'ie.cmd.start item':
-                self.start_item()
-            elif item[0] == 'ie.cmd.finish item':
-                self.finish_item()
-            else:
-                if not item[0].startswith('ie.sts'):
-                    pass
-                assert item[0].startswith('ie.sts')
-        pass
+class _TestIETask(TestTask, IETask):
+    pass
 
-    def do_pub(self, msg, data=None):
-        self.queue.append((msg, data))
-
-    def bg_spawn(self):
-        self.bg_proc()
-
-    #def pub(self, msg, data):
-    #    self.queue.append((msg, data))
 
 def test_cmd():
     session = open_mem_db()
     path = os.path.join(base_path, 'my format')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
-    ie_cfg.import_mode = ImportMode.SET
-    ie_cfg.paths = [path]
-    cmd = _TestIECmd(session, ie_cfg, fs_source)
+    cmd = _TestIETask(session, ie_cfg, fs_source, ImportMode.SET, [path])
     pass
 

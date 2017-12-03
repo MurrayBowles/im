@@ -1,13 +1,7 @@
 ''' import/export GUI '''
 
-import copy
 import logging
 import os
-import ps
-from wx.lib.pubsub import pub
-from threading import Thread
-import time
-import urllib
 import wx
 from wx.lib.pubsub import pub
 
@@ -15,8 +9,9 @@ import db
 import gui_wrap
 from cfg import cfg
 from ie_cfg import *
-from ie_db import IECmd
+from ie_db import IETask
 import util
+from wx_task import WxTask
 
 class IEState(Enum):
 
@@ -197,10 +192,6 @@ class ImportExportTab(wx.Panel):
             self.ie_state = IEState.IE_GOING
             self.gc_button.SetLabel('Stop')
 
-            # control messages
-            pub.subscribe(self.ie_start_item, 'ie.cmd.start item')
-            pub.subscribe(self.ie_finish_item, 'ie.cmd.finish item')
-
             # status messages
             pub.subscribe(self.on_ie_begun, 'ie.sts.begun')
             pub.subscribe(self.on_ie_import_thumbnails, 'ie.sts.import thumbnails')
@@ -212,7 +203,8 @@ class ImportExportTab(wx.Panel):
             pub.subscribe(self.on_ie_folder_done, 'ie.sts.folder done')
             pub.subscribe(self.on_ie_done, 'ie.sts.done')
 
-            self.ie_cmd = GuiIECmd(self.import_mode, self.source, self.paths)
+            self.ie_cmd = WxIETask(
+                db.session, cfg.ie, self.source, self.import_mode, self.paths)
         elif self.ie_state == IEState.IE_GOING:
             logging.info('import/export stopping')
             self.ie_state = IEState.IE_CANCELLING
@@ -292,39 +284,8 @@ class ImportExportTab(wx.Panel):
         pass
 
 
-class GuiIECmd(IECmd):
-
-    def __init__(self, import_mode, fs_source, paths):
-
-        self.ie_cfg = copy.deepcopy(cfg.ie)
-        self.ie_cfg.import_mode = import_mode
-        self.ie_cfg.paths = paths
-        self.fs_source = fs_source
-
-        super().__init__(db.session, self.ie_cfg, self.fs_source)
-
-    def do_pub(self, msg, data=None):
-
-        def do_do_pub(msg, data):
-            pub.sendMessage(msg, data=data)
-
-        wx.CallAfter(do_do_pub, msg, data=data)
-        pass
-
-    def bg_spawn(self):
-        GuiIECmdThread(self)
-
-
-class GuiIECmdThread(Thread):
-
-    def __init__(self, cmd):
-        self.cmd = cmd
-        Thread.__init__(self)
-        self.start()  # start the thread
-
-    def run(self):
-        self.cmd.bg_proc()
-
+class WxIETask(WxTask, IETask):
+    pass
 
 class FsSourceCtrl:
     def __init__(

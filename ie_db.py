@@ -1,10 +1,12 @@
 ''' import/export folders/images to/from the database '''
 
 from collections import deque
+import copy
+
 import db
 from ie_cfg import *
 from ie_fs import *
-from threading import Thread
+from task import Task
 import web_ie_db
 
 
@@ -386,7 +388,12 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
         init_fs_item_tags(session,
             work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
         for image in work_item.existing_images:
-            init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
+            print(str(image))
+            try:
+                init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
+                session.flush()
+            except:
+                pass
 
     # for the WEB case, queue processing for child pages
     for child_path in work_item.child_paths:
@@ -416,39 +423,30 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
             pub_fn('ie.sts.import tags', len(work_item.get_exif))
             get_ie_image_exifs(work_item.get_exif, pub_fn)
 
-class IECmd:
-    ''' state of an import/export command '''
+class IETask(Task):
+    ''' an import/export command '''
 
-    def __init__(self, session, ie_cfg, fs_source):
+    def __init__(self, session, ie_cfg, fs_source, import_mode, paths):
+        super().__init__()
+
         self.session = session
-        self.ie_cfg = ie_cfg
+        self.ie_cfg = copy.deepcopy(ie_cfg)
+        self.ie_cfg.source = fs_source
+        self.ie_cfg.import_mode = import_mode
+        self.ie_cfg.paths = paths # copy?
         self.fs_source = fs_source
-        self.worklist = get_ie_worklist(
-            session, fs_source, ie_cfg.import_mode, ie_cfg.paths)
+        self.worklist = get_ie_worklist(session, fs_source, import_mode, paths)
         self.worklist_idx = 0
-        self.cancelling = False
-        self.do_pub('ie.sts.begun', self.worklist)
-        self.do_pub('ie.cmd.start item')
+        self.pub('ie.sts.begun', self.worklist)
+        self.queue(self.start_item)
 
-    def do_pub(self, msg, data=None):
-        ''' do a pubsub.pub in the main thread
-            must be overridden
-        '''
-        pass
-
-    def bg_spawn(self):
-        ''' start a background thread, executing self.bg_proc()
-            must be overridden
-        '''
-        raise NotImplementedError('bg_spawn')
-
-    def start_item(self):
+    def start_item(self, data):
         ''' preprocess the work item, gathering image files in some cases,
             then spawn a background process if thumbnails or EXIFs need to be read
             called by the main thread when it receives ie.cmd.start item
         '''
-        if self.cancelling or self.worklist_idx >= len(self.worklist):
-            self.do_pub('ie.sts.done', self.cancelling)
+        if self.cancelled() or self.worklist_idx >= len(self.worklist):
+            self.pub('ie.sts.done', True)
         else:
             work_item = self.worklist[self.worklist_idx]
 
@@ -457,40 +455,35 @@ class IECmd:
             if (len(work_item.get_exif) > 0 or
                 len(work_item.get_thumbnail) > 0 or
                 self.fs_source.source_type == db.FsSourceType.WEB):
-                self.bg_spawn()
+                self.spawn(self.bg_proc)
             else:
-                self.do_pub('ie.cmd.finish item')
+                self.queue(self.finish_item)
 
-    def bg_proc(self):
+    def bg_proc(self, data):
         ''' extract the exifs and/or thumbnails for a folder
             or do all the extraction for a web page
             run in the background thread created by bg_spawn
         '''
-        def pub_fn(msg, data):
-            self.do_pub(msg, data)
         work_item = self.worklist[self.worklist_idx]
+        bg_proc_ie_work_item(work_item, self.fs_source, self.pub)
+        self.queue(self.finish_item)
 
-        bg_proc_ie_work_item(work_item, self.fs_source, pub_fn)
-
-        self.do_pub('ie.cmd.finish item')
-
-    def finish_item(self):
+    def finish_item(self, data):
         ''' post-process the work item, autotagging the folder and its images
             where possible, then report completion of the folder to the GUI
            called by the main thread when it receives ie.cmd.start item
         '''
-        work_item = self.worklist[self.worklist_idx]
+        if self.worklist_idx >= len(self.worklist):
+            self.pub('ie.sts.done', True)
+            return
 
+        work_item = self.worklist[self.worklist_idx]
         fg_finish_ie_work_item(
             self.session, self.ie_cfg, work_item, self.fs_source, self.worklist)
 
-        self.do_pub('ie.sts.folder done', self.worklist[self.worklist_idx].ie_folder.db_name)
+        self.pub('ie.sts.folder done', self.worklist[self.worklist_idx].ie_folder.db_name)
         self.worklist_idx += 1
-        self.do_pub('ie.cmd.start item')
-
-    def cancel(self):
-        ''' mark the wowklist for cancellation '''
-        self.cancelling = True
+        self.queue(self.start_item)
 
 
 
