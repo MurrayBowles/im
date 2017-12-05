@@ -43,13 +43,16 @@ def get_web_ie_work_item(session, fs_source, path, parent):
     child_paths = []
 
     page_name = util.last_url_component(path)
-    match = leading_date_space.match(page_name)
+    match = leading_date_underscore.match(page_name)
     if match is None:
         db_date = None
         db_name = page_name
     else:
-        yymmdd = match.group()
-        db_date = util.date_from_yymmdd(yymmdd)
+        yymmdd = match.group()[0:-1]
+        try:
+            db_date = util.date_from_yymmdd(yymmdd)
+        except:
+            pass
         db_name = page_name[match.end():].lstrip('_')
     db_name = db_name.replace('_', ' ')
     mtime =  datetime.datetime.now() # updated by scan_web_page
@@ -176,6 +179,7 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
         fs_folder = create_fs_folder(session, ie_folder, fs_source)
         work_item.fs_folder = fs_folder
     db_folder = fs_folder.db_folder # this may be None
+
     if import_mode == ImportMode.SEL and fs_source.source_type == db.FsSourceType.FILE:
         # find/create FsImages corresponding to each IeImage
         for ie_image in ie_folder.images.values():
@@ -209,29 +213,45 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
-def find_word_binding(session, text, item, fs_tag_source):
-    ''' return FsTagSource, DbTag id '''
-    db_item = item.db_item()
-    if db_item is not None: # TODO: fs_finish_ie_work_item will check this
-        for fs_item_tag in db_item.item_tags:
-            if (fs_item_tag.type == db.FsTagType.WORD and
-                fs_item_tag.text == text and
-                fs_item_tag.bound):
-                # <text> has already been mapped on <item>
-                return db.FsItemTagSource.DBITEM, fs_item_tag.db_tag
-    mapping = db.FsTagMapping.find(session, fs_tag_source, db.FsTagType.WORD, text)
+def find_text_binding(session, type, text, fs_tag_source):
+    ''' return [text, FsTagBinding, FsItemTagSource, DbTag id] '''
+    mapping = db.FsTagMapping.find(session, fs_tag_source, type, text)
     if mapping is not None:
         # <text> is mapped in <fs_tag_source>
-        return db.FsItemTagSource.FSTS, mapping.db_tag
-    mapping = db.FsTagMapping.find(session, db.global_tag_source, db.FsTagType.WORD, text)
+        return [text, mapping.binding, db.FsItemTagSource.GLOBTS, mapping.db_tag]
+    mapping = db.FsTagMapping.find(session, db.global_tag_source, type, text)
     if mapping is not None:
         # <text> is mapped in <global_tag_source>
-        return db.FsItemTagSource.GLOBTS, mapping.db_tag
-    db_tags = db.DbTag.find_flat(session, text)
-    if len(db_tags) == 1:
-        # <text> occurs exactly once in the DbTag database
-        return db.FsItemTagSource.DBTAG, db_tags[0]
-    return db.FsItemTagSource.UNBOUND, None
+        return [text, mapping.binding, db.FsItemTagSource.FSTS, mapping.db_tag]
+    db_tag = db.DbTag.find_expr(session, text)
+    if db_tag is not None:
+        # <text> occurs in the DbTag database
+        return [text, db.FsTagBinding.BOUND, db.FsItemTagSource.DBTAG, db_tag]
+    return [text, db.FsTagBinding.UNBOUND, db.FsItemTagSource.NONE, None]
+
+def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
+    ''' return [FsTagBinding, FsItemTagSource, DbTag id, text] '''
+    type = db.FsTagType.WORD if ie_tag.type == IETagType.WORD else db.FsTagType.TAG
+    if text.find('|') == -1 and ie_tag.bases is not None:
+        # try both <text> and <base>.<text> for each base in ie_tag.bases
+        bases = ie_tag.bases.split(',')
+        results = []
+        for base in bases:
+            base = base.strip()
+            t = base + '|' + text
+            results.append(find_text_binding(session, type, t, fs_tag_source))
+        flat_result = find_text_binding(session, type, text, fs_tag_source)
+        if flat_result[1].has_db_tag() and flat_result[3].parent is not None:
+            # DbTag parent is not one of the proposed bases:
+            # demote from BOUND to SUGGESTED
+            if flat_result[1] == db.FsTagBinding.BOUND:
+                flat_result[1] = db.FsTagBinding.SUGGESTED
+        results.append(flat_result)
+        results.sort(key = lambda x: x[1], reverse=True)
+        result = results[0]
+    else:
+        result = find_text_binding(session, type, text, fs_tag_source)
+    return result
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     ''' add db.FsItemTags to <item>.tags[<base_idx>...], of type WORD '''
@@ -253,76 +273,56 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
             for ie_elt in ie_elt_list:
                 text += sep + ie_elt.text
                 sep = ' '
-            score, binding = find_word_binding(session, text, item, fs_tag_source)
-            if score == 0 and len(ie_elt_list) > 1:
+            binding = find_ie_tag_binding(
+                session, ie_elt_list[0], text, fs_tag_source)
+            if binding[1] == db.FsTagBinding.UNBOUND and len(ie_elt_list) > 1:
                 have_unbound_multiword = True
-            bindings.append((score, binding))
-            total_score += score
+            bindings.append(binding)
+            total_score += binding[1].value # UNBOUND | SUGGESTED | BOUND
         if have_unbound_multiword:
             # don't consider a partition that has unbound multi-word elements
             total_score = 0
         results.append((total_score / len(partition), partition, bindings))
-    results.sort(key = lambda x: x[0], reverse=True) # sort by the score
+    results.sort(key = lambda x: x[1], reverse=True) # sort by the score
     result = results[0]
     idx = 0
     for ie_tag_list, binding in zip(result[1], result[2]):
         elt_base_idx = idx
         for ie_tag in ie_tag_list:
-            item_tag = db.FsItemTag.add(
-                session, item, base_idx + idx, base_idx + elt_base_idx,
-                db.FsTagType.WORD, ie_tag.text)
-            item_tag.source = binding[0]
-            if item_tag.source.has_db_tag():
-                item_tag.db_tag = binding[1]
+            item_tag = db.FsItemTag.add(session,
+                item, base_idx + idx, base_idx + elt_base_idx,
+                db.FsTagType.WORD, ie_tag.text, words[0].bases,
+                binding[1], binding[2], binding[3])
             idx += 1
     pass
 
-def find_tag_binding(session, text, item, fs_tag_source):
-    ''' return FsTagSource, DbTag id '''
-    if item is None:
-        pass
-    db_item = item.db_item()
-    if db_item is not None: # TODO: fs_finish_ie_work_item will check this
-        for fs_item_tag in db_item.tags:
-            if (fs_item_tag.type == db.FsTagType.TAG and
-                fs_item_tag.text == text and
-                fs_item_tag.bound):
-                # <text> has already been mapped on <item>
-                return db.FsItemTagSource.DBITEM, fs_item_tag.db_tag
-    mapping = db.FsTagMapping.find(session, fs_tag_source, db.FsTagType.TAG, text)
-    if mapping is not None:
-        # <text> is mapped in <fs_tag_source>
-        return db.FsItemTagSource.GLOBTS, mapping.db_tag
-    mapping = db.FsTagMapping.find(session, db.global_tag_source, db.FsTagType.TAG, text)
-    if mapping is not None:
-        # <text> is mapped in <global_tag_source>
-        return db.FsItemTagSource.FSTS, mapping.db_tag
-    db_tag = db.DbTag.find_expr(session, text)
-    if db_tag is not None:
-        # <text> occurs in the DbTag database
-        return db.FsItemTagSource.DBTAG, db_tag
-    return db.FsItemTagSource.UNBOUND, None
-
 def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
+    # TODO: auto-add DbTag if IETagType is AUTO
     text = ie_tag.text
-    if ie_tag.text.find('|') == -1 and ie_tag.base is not None:
-        # try both <text> and <base>.<text>
-        result_with_base = find_tag_binding(
-            session, ie_tag.base + '|' + ie_tag.text, item, fs_tag_source)
-        result_without_base = find_tag_binding(
-            session, ie_tag.text, item, fs_tag_source)
-        if result_with_base[0] > result_without_base[0]:
-            text = ie_tag.base + '|' + text
-            result = result_with_base
-        else:
-            result = result_without_base
+    if ie_tag.text.find('|') == -1 and ie_tag.bases is not None:
+        # try both <text> and <base>.<text> for each base in ie_tag.bases
+        bases = ie_tag.bases.split(',')
+        results = []
+        for base in bases:
+            base = base.strip()
+            text = base + '|' + ie_tag.text
+            results.append(find_ie_tag_binding(
+                session, ie_tag, text, fs_tag_source))
+        flat_result = find_ie_tag_binding(
+            session, ie_tag, ie_tag.text, fs_tag_source)
+        if flat_result[1].has_db_tag() and flat_result[2].parent is not None:
+            if flat_result[1] == db.FsTagBinding.BOUND:
+                flat_result[1] = db.FsTagBinding.SUGGESTED
+        results.append(flat_result)
+        results.sort(key = lambda x: x[1], reverse=True)
+        result = results[0]
     else:
-        result = find_tag_binding(session, ie_tag.text, item, fs_tag_source)
-    item_tag = db.FsItemTag.add(session, item, idx, idx, db.FsTagType.TAG, text)
-    item_tag.source = result[0]
-    if item_tag.source.has_db_tag():
-        item_tag.db_tag = result[1]
+        result = find_ie_tag_binding(session, ie_tag, ie_tag.text, fs_tag_source)
+    item_tag = db.FsItemTag.add(session,
+        item, idx, idx,
+        db.FsTagType.TAG, result[0], ie_tag.bases,
+        result[1], result[2], result[3])
     pass
 
 def add_fs_item_note(session, item, ie_tag):
@@ -388,12 +388,8 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
         init_fs_item_tags(session,
             work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
         for image in work_item.existing_images:
-            print(str(image))
-            try:
-                init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
-                session.flush()
-            except:
-                pass
+            init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
+            pass
 
     # for the WEB case, queue processing for child pages
     for child_path in work_item.child_paths:
@@ -445,6 +441,7 @@ class IETask(Task):
             then spawn a background process if thumbnails or EXIFs need to be read
             called by the main thread when it receives ie.cmd.start item
         '''
+
         if self.cancelled() or self.worklist_idx >= len(self.worklist):
             self.pub('ie.sts.done', True)
         else:

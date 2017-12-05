@@ -352,7 +352,8 @@ class _FsTagMapping_Tester(_Tester):
 
     def create(self, session, key, key2):
         return FsTagMapping.add(
-            session, tag_source=key[0], type=key[1], text=key[2], db_tag=self.dep_objs[1])
+            session, tag_source=key[0], type=key[1], text=key[2],
+            binding=FsTagBinding.BOUND, db_tag=self.dep_objs[1])
 
     def find(self, key):
         return FsTagMapping.find(session, key[0], key[1], key[2])
@@ -432,26 +433,26 @@ class _FsFolderTag_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [
-            _FsFolder_Tester
-        ]
+        self.dep_classes = [_FsFolder_Tester, _DbTag_Tester]
 
     def mk_key2(self):
         return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
 
     def create(self, session, key, key2):
-        source = FsItemTag.add(
+        item_tag = FsItemTag.add(
             session,
             item=key2[0], idx=0, base_idx=0,
-            type=key2[1], text=key2[2]
+            type=key2[1], text=key2[2], bases=None,
+            binding=FsTagBinding.BOUND, source=FsItemTagSource.DIRECT,
+            db_tag = self.dep_objs[1]
         )
-        return source
+        return item_tag
 
     def get_key(self, obj):
         return (obj.item, obj.idx)
 
     def find(self, key):
-        obj = FsItemTag.find(session, item=key[0], idx=key[1])
+        obj = FsItemTag.find_idx(session, item=key[0], idx=key[1])
         return obj
 
     def find2(self, key2):
@@ -461,6 +462,7 @@ class _FsFolderTag_Tester(_Tester):
     def test_deps(self, obj):
         assert obj.item is self.dep_objs[0]
         assert self.dep_objs[0].item_tags[0] is obj
+        assert obj.db_tag is self.dep_objs[1]
 
 
 class _FsImage_Tester(_Tester):

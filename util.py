@@ -9,7 +9,10 @@ def date_from_yymmdd(yymmdd):
     year = int(yymmdd[0:2])
     year += 1900 if year >= 70 else 2000
     month = int(yymmdd[2:4])
+    if month == 0: month = 1
     day = int(yymmdd[4:6])
+    if day == 0: day = 1
+    # yymmdd used 00 to indicate 'don't know'
     return datetime.date(year, month, day)
 
 def yymmdd_from_date(iso_date):

@@ -289,12 +289,16 @@ class DbTag(Item):
     def find_id(cls, session, id):
         return session.query(DbTag).filter_by(id=id).first()
 
+    def text(self):
+        tag = self
+        str = tag.name
+        while tag.parent is not None:
+            tag = tag.parent
+            str = tag.name + '|' + str
+        return str
+
     def __repr__(self):
-        def tag_str(tag):
-            return tag.name if tag.parent is None else tag_str(tag.parent) + '|' + tag.name
-
-        return "<Tag %s>" % tag_str(self)
-
+        return "<DbTag %s>" % self.text()
 
 class DbTextType(PyIntEnum):
     ''' the syntax of a DbNote's text '''
@@ -507,54 +511,81 @@ class FsItem(Item):
 
 class FsTagType(PyIntEnum):
     ''' tag word(s) vs tag '''
-    WORD    = 1
-    TAG     = 2
+    WORD        = 1
+    TAG         = 2
+
+
+class FsTagBinding(PyIntEnum):
+    UNBOUND     = 0 # not bound
+    SUGGESTED   = 1 # .db_tag is a suggested tag
+    BOUND       = 2 # .db_tag will be bound to the external tag or word(s)
+
+    def is_bound(self):
+        return self == FsTagBinding.BOUND
+
+    def has_db_tag(self):
+        return self >= FsTagBinding.SUGGESTED
 
 
 class FsItemTagSource(PyIntEnum):
 
-    UNBOUND     = 1 # not bound
-    DBTAG       = 2 # not bound; suggested tag found in DbTags
-    GLOBTS      = 3 # bound: found in global_tag_source
-    FSTS        = 4 # bound: found in FsSource.tag_source
-    DBITEM      = 5 # bound: matched tag already on DbFolder/Image
-    DIRECT      = 6 # bound: directly tagged by user
-
-    def is_bound(self):
-        return self >= FsItemTagSource.GLOBTS
-
-    def has_db_tag(self):
-        return self >= FsItemTagSource.DBTAG
+    NONE        = 0 # no tag
+    DBTAG       = 1 # tag/word(s) found in DbTags
+    GLOBTS      = 2 # tag/word(s) found in global_tag_source
+    FSTS        = 3 # tag/word(s) found in FsSource.tag_source
+    DIRECT      = 4 # directly tagged by the user on this FsFolder/Image
 
 
 class FsItemTag(Base):
     ''' an external tag (or a possible word of a tag) for an FsFolder or FsImage '''
     __tablename__ = 'fs-item-tag'
 
+    # primary key
+
     item_id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
     item = relationship('FsItem', foreign_keys=[item_id], back_populates='item_tags')
     idx = Column(Integer, primary_key=True)
 
-    base_idx = Column(Integer)
+    # secondary key
+
     type = Column(Enum(FsTagType))
     text = Column(String(collation='NOCASE'))
-    base = Column(String)   # suggested tag base, e.g. 'band' or 'venue'
 
+    # value
+
+    base_idx = Column(Integer)
+        # for the multi-word case, this is the index of the first word in the partition
+        # (see add_word_fs_item_tags)
+
+    bases = Column(String)
+        # ,-separated list of suggested tag bases, e.g. 'band' or 'venue' or 'band, venue'
+
+    binding = Column(Enum(FsTagBinding))
     source = Column(Enum(FsItemTagSource))
+
+    # if .binding.has_db_tag()
     db_tag_id = Column(Integer,ForeignKey('db-tag.id'))
     db_tag = relationship('DbTag', foreign_keys=[db_tag_id], uselist=False)
 
     Index('fs-item-tag', 'type', 'text', unique=False)
 
     @classmethod
-    def add(cls, session, item, idx, base_idx, type, text, base=None):
+    def add(cls, session, item, idx, base_idx, type, text, bases,
+        binding, source, db_tag
+    ):
+        if source is None:
+            pass
+        if bases == '0':
+            pass
         tag = FsItemTag(
-            item=item, idx=idx, base_idx = base_idx, type=type, text=text, base=base)
+            item=item, idx=idx, base_idx = base_idx,
+            type=type, text=text, bases=bases,
+            binding=binding, source=source, db_tag=db_tag)
         if tag is not None: session.add(tag)
         return tag
 
     @classmethod
-    def find(cls, session, item, idx):
+    def find_idx(cls, session, item, idx):
         return session.query(FsItemTag).filter_by(item=item, idx=idx).first()
 
     @classmethod
@@ -562,16 +593,20 @@ class FsItemTag(Base):
         return session.query(FsItemTag).filter_by(type=type, text=text).all()
 
     def __repr__(self):
-        return '<FsItemTag %s[%s/%s]: %s%s>' % (
-            self.item.text(), self.idx, self.base_idx,
-            str(self.source),
-            ' ' + self.db_tag.base if self.db_tag is not None else ''
-        )
+        if self.type == FsTagType.WORD:
+            idx = 'w%s@%s' % (self.idx, self.base_idx)
+        else:
+            idx = 't%s' % self.idx
+        tgt = ' => ' + self.db_tag.text() if self.db_tag is not None else ''
+        return '<FsItemTag [%s] %s: %s/%s%s>' % (
+            idx, self.text, self.binding.name, self.source.name, tgt)
 
 
 class FsTagMapping(Base):
     ''' text -> DbTag map in a FsTagSource, or globally '''
     __tablename__ = 'fs-tag-mapping'
+
+    # key
 
     tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'), primary_key=True)
     tag_source = relationship('FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
@@ -579,13 +614,17 @@ class FsTagMapping(Base):
     type = Column(Enum(FsTagType), primary_key=True)
     text = Column(String(collation='NOCASE'), primary_key=True)
 
+    # value
+
+    binding = Column(Enum(FsTagBinding)) # SUGGESTED | BOUND, not UNBOUND
+
     db_tag_id = Column(Integer, ForeignKey('db-tag.id'))
     db_tag = relationship('DbTag', backref=backref('fs-tag-mapping', uselist=False))
 
     @classmethod
-    def add(cls, session, tag_source, type, text, db_tag):
+    def add(cls, session, tag_source, type, text, binding, db_tag):
         mapping = FsTagMapping(
-            tag_source=tag_source, type=type, text=text, db_tag=db_tag)
+            tag_source=tag_source, type=type, text=text, binding=binding, db_tag=db_tag)
         if mapping is not None: session.add(mapping)
         return mapping
 
@@ -595,11 +634,12 @@ class FsTagMapping(Base):
             tag_source=tag_source, type=type, text=text).first()
 
     @classmethod
-    def set(cls, session, tag_source, type, text, db_tag):
+    def set(cls, session, tag_source, type, text, binding, db_tag):
         mapping = cls.find(session, tag_source, type, text)
         if mapping is None:
-            mapping = cls.add(session, tag_source, type, text, db_tag)
+            mapping = cls.add(session, tag_source, type, text, binding, db_tag)
         else:
+            mapping.binding = binding
             mapping.db_tag = db_tag
         return mapping
 
@@ -769,7 +809,8 @@ def open_preloaded_mem_db():
     bikini_kill = DbTag.add(session, 'Bikini Kill', parent=band)
 
     bk_mapping = FsTagMapping.add(
-        session, corbett_ts, FsTagType.WORD, 'Bikini Kill', bikini_kill)
+        session, corbett_ts, FsTagType.WORD, 'Bikini Kill',
+        FsTagBinding.BOUND, bikini_kill)
 
     session.commit()
     pass

@@ -116,16 +116,16 @@ class IETagType(IntEnum):
 
 class IETag:
 
-    def __init__(self, type, text=None, base=None, url=None):
+    def __init__(self, type, text=None, bases=None, url=None):
         self.type = type
         self.text = text
-        self.base = base
+        self.bases = bases
         self.url =  url
 
     def _text(self):
         return '%s|%s|%s|%s' % (
             self.type.name,
-            self.base if self.base is not None else '(no base)',
+            self.bases if self.bases is not None else '(no base)',
             self.text if self.text is not None else '(no text)',
             '+url' if self.url is not None else '-no url')
 
@@ -323,6 +323,7 @@ def get_ie_image_thumbnails(ie_image_set, pub):
 
 # a std_dirname has the form 'yymmdd name'
 leading_date_space = re.compile(r'^\d{6,6} ')
+leading_date_underscore = re.compile(r'^\d{6,6}_')
 leading_date = re.compile(r'^\d{6,6}')
 
 def is_std_dirname(dirname):
@@ -414,16 +415,27 @@ def add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime):
     else:
         ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
 
+def add_ie_folder_name_word_tags(ie_folder, bases):
+    ''' add tags based on th ewords of the folder's name '''
+    for word in ie_folder.db_name.split(' '):
+        ie_folder.add_tag(
+            IETag(IETagType.WORD, text=word, bases=bases))
+
+def add_ie_folder_name_tag(ie_folder, bases):
+    ''' add a tag based on the folder's name '''
+    ie_folder.add_tag(IETag(IETagType.BASED, text=ie_folder.db_name, bases=bases))
+
 def scan_std_dir_files(ie_folder):
+
     def acquire_file(file_path, file_name, high_res):
         got_folder_tags = False
         if file_name == 'New Text Document.txt':
             got_folder_tags = True
             tag_lines = open(file_path, 'r').readlines()
             for tag_line in tag_lines:
-                tags = [l.lstrip(' ') for l in tag_line.split(',')]
+                tags = [l.strip(' \n\r') for l in tag_line.split(',')]
                 for tag in tags:
-                    ie_folder.add_tag(IETag(IETagType.BASED, text=tag, base='band'))
+                    ie_folder.add_tag(IETag(IETagType.BASED, text=tag, bases='band'))
         elif os.path.isfile(file_path):
             stat_mtime = os.path.getmtime(file_path)
             mtime = datetime.datetime.fromtimestamp(stat_mtime)
@@ -449,7 +461,13 @@ def scan_std_dir_files(ie_folder):
 
     assert ie_folder is not None
     got_folder_tags = acquire_dir(ie_folder.fs_path, high_res=False)
-    if not got_folder_tags:
+    if got_folder_tags:
+        # the standard case, where there's a text file with band names
+        # and the folder name is the venue
+        add_ie_folder_name_tag(ie_folder, 'venue')
+    else:
+        # who knows?
+        add_ie_folder_name_word_tags(ie_folder, 'band, venue, place, event')
         ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
     # TODO: adjust seq numbers for Nikon 9999 rollover
 
@@ -464,7 +482,9 @@ def proc_corbett_filename(file_pathname, file_name, folders):
     stat_mtime = os.path.getmtime(file_pathname)
     mtime = datetime.datetime.fromtimestamp(stat_mtime)
 
-    if len(folders) == 0 or base != os.path.basename(folders[-1].fs_path).split('-')[0].lower():
+    if (len(folders) == 0 or
+        base != os.path.basename(folders[-1].fs_path).split('-')[0].lower()
+    ):
         # start a new IEFolder
         match = trailing_date.search(base)
         if match is None:
@@ -481,8 +501,7 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             db_date = datetime.date(year, month, day)
             db_name = base_name[0:match.start()].replace('_', ' ')
         ie_folder = IEFolder(file_pathname, db_date, db_name, mtime)
-        for word in db_name.split(' '):
-            ie_folder.add_tag(IETag(IETagType.WORD, text=word))
+        add_ie_folder_name_word_tags(ie_folder, 'venue, band')
         ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))
         ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, db_name))
         if db_date is None:

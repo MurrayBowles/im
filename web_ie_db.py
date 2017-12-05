@@ -5,7 +5,8 @@ from lxml import html
 import os
 import requests
 
-from ie_fs import add_ie_folder_image_inst, IETag, IETagType
+from ie_fs import add_ie_folder_image_inst, add_ie_folder_name_tag, add_ie_folder_name_word_tags
+from ie_fs import IEMsg, IEMsgType, IETag, IETagType
 
 # page-contents directory to avoid web accesses while testing
 use_test_pages = True
@@ -52,9 +53,14 @@ def get_gallery_header_tags(header_list, base_gallery):
 
     def line_type_str(lines):
         def is_fb_event(line):
-            return (line[0][0] == '[' and
-                    line[1][0].replace(' ', '').lower() == 'fbevent' and
-                    line[2][0] == ']')
+            def is_fb_word(word):
+                word = word.replace(' ', '').lower()
+                return word in ['fbevent', 'fblink']
+            return (
+                line[0][0] == '[' and
+                is_fb_word(line[1][0]) and
+                line[2][0] == ']'
+            )
         s = ''
         for l in lines:
             if len(l) == 1:
@@ -151,7 +157,6 @@ def scan_pbase_gallery_bytes(
     # get IETags from the gallery header
     gallery_header_list = tree.xpath('//div[@class="galleryheader"]')
     tags = get_gallery_header_tags(gallery_header_list, top_gallery)
-    pass
     for tag in tags:
         proc_gallery_tag(tag)
 
@@ -236,9 +241,11 @@ def scan_web_page_children(ie_folder, top_gallery, child_paths):
     ''' collect IEImages, IETags, and child paths for the gallery of <ie-folder>
         see scan_pbase_gallery()
     '''
+    got_gallery_tags = [False]
     def on_gallery_link(path):
         child_paths.append(path)
     def on_gallery_tag(tag):
+        got_gallery_tags[0] = True
         ie_folder.add_tag(tag)
     def on_image_link(path, name):
         add_ie_folder_image_inst(
@@ -247,6 +254,14 @@ def scan_web_page_children(ie_folder, top_gallery, child_paths):
             mtime=datetime.datetime.now())
     scan_pbase_gallery(ie_folder.fs_path, top_gallery,
         on_gallery_link, on_gallery_tag, on_image_link)
+    if got_gallery_tags[0]:
+        # the standard case: there's a header with band tags,
+        # and the folder name is a venue
+        add_ie_folder_name_tag(ie_folder, 'venue')
+    else:
+        # who knows?
+        add_ie_folder_name_word_tags(ie_folder, 'band, venue, place, event')
+        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
 
 def _test_pbase_scan(gallery, top_gallery):
     def on_gallery_link(path):

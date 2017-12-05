@@ -215,14 +215,6 @@ class ImportExportTab(wx.Panel):
         self.progress.set_text('  ' + self.progress_text)
         pass
 
-    # control message handlers
-
-    def ie_start_item(self, data):
-        self.ie_cmd.start_item()
-
-    def ie_finish_item(self, data):
-        self.ie_cmd.finish_item()
-
     # status message handlers
 
     def on_ie_begun(self, data):
