@@ -498,7 +498,12 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             year += 1900 if year >= 70 else 2000
             month = int(month_str)
             day = int(day_str)
-            db_date = datetime.date(year, month, day)
+            try:
+                db_date = datetime.date(year, month, day)
+            except:
+                # FIXME: base = '01_03_92_15_gilman', match = '03_92_15'
+                db_date = datetime.date(1941, 12, 7)
+                pass
             db_name = base_name[0:match.start()].replace('_', ' ')
         ie_folder = IEFolder(file_pathname, db_date, db_name, mtime)
         add_ie_folder_name_word_tags(ie_folder, 'venue, band')

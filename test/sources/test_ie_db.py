@@ -151,11 +151,31 @@ class _TestIETask(TestTask, IETask):
     pass
 
 
-def test_cmd():
+def _test_cmd(volume, dir_name, source_type, tag_source, paths=None):
     session = open_mem_db()
-    path = os.path.join(base_path, 'my format')
+    path = os.path.join(base_path, dir_name)
+    if paths is None:
+        import_mode = ImportMode.SET
+        paths = [path]
+    else:
+        import_mode = ImportMode.SEL
     fs_source = FsSource.add(
-        session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
-    cmd = _TestIETask(session, ie_cfg, fs_source, ImportMode.SET, [path])
+        session, volume, path, source_type, readonly=True, tag_source=tag_source)
+    cmd = _TestIETask(session, ie_cfg, fs_source, import_mode, paths)
     pass
 
+def test_my_cmd():
+    _test_cmd('c:', 'my format',
+        FsSourceType.DIR, None)
+
+def test_main_cmd():
+    _test_cmd('main1415', 'main1415 corbett psds',
+        FsSourceType.FILE, None)
+
+def test_corbett_cmd():
+    _test_cmd('j:', 'corbett drive',
+        FsSourceType.FILE, None)
+
+def test_web_cmd():
+    _test_cmd('http:', 'web pages',
+        FsSourceType.DIR, None)
