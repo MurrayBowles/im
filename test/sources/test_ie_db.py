@@ -151,31 +151,134 @@ class _TestIETask(TestTask, IETask):
     pass
 
 
-def _test_cmd(volume, dir_name, source_type, tag_source, paths=None):
+class _TestCmd:
+
+    def __init__(self):
+        self.session = open_mem_db()
+
+
+def _test_cmd(volume, dir_name, source_type, cfg):
     session = open_mem_db()
+
+    # create the tags in cfg['tags'], a list of
+    # ('tag-var-name', 'tag string')
+    tags = {}
+    if 'tags' in cfg:
+        for var, tag_str in cfg['tags']:
+            parent = None
+            elts = tag_str.split('|')
+            assert len(elts) > 0
+            for elt in elts:
+                tag = DbTag.add(session, elt, parent)
+                parent = tag
+            tags[var] = tag
+
     path = os.path.join(base_path, dir_name)
-    if paths is None:
+    if 'sel' in cfg:
+        import_mode = ImportMode.SEL
+        paths = [util.path_plus_separator(path) + dir for dir in cfg['sel']]
+    else:
         import_mode = ImportMode.SET
         paths = [path]
-    else:
-        import_mode = ImportMode.SEL
+    tag_source = FsTagSource.add(session, 'test')
+
+    # create the FsTagMappings in cfg['mappings'], a list of
+    # ('{g|s}{t|w}{b|s}', text, tag-var), where the flags are
+    #   Glob TS vs Source TS, Tag vs Words, Bound vs Suggested
+    if 'mappings' in cfg:
+        for m in cfg['mappings']:
+            FsTagMapping.add(session,
+                db.global_tag_source if m[0][0] == 'g' else tag_source,
+                FsTagType.WORD if m[0][1] == 'w' else FsTagType.TAG,
+                m[1],
+                FsTagBinding.SUGGESTION if m[0][2] == 's' else FsTagBinding.BOUND,
+                tags[m[2]]
+            )
+
     fs_source = FsSource.add(
         session, volume, path, source_type, readonly=True, tag_source=tag_source)
     cmd = _TestIETask(session, ie_cfg, fs_source, import_mode, paths)
-    pass
+    worklist = cmd.worklist
+    session.commit()
+
+    # check the FsItemTags in cfg['checks'], a list of
+    # ('folder name', [item-tags]), where item-tag is one of
+    #   ('t{usb}{ntgsd}', 'tag-text', 'tag-var')
+    #   ('w{usb}{ntgsd}', ['word',...], 'tag-var')
+    # usb is Unbound | Suggested | Bound
+    # ntgfd is None | dbTag | Globts | Fsts | Direct
+    if 'checks' in cfg:
+        for check in cfg['checks']:
+            # find the folder in the results
+            for wi in worklist:
+                if wi.fs_folder.name == check[0]:
+                    fs_folder = wi.fs_folder
+                    break
+            else:
+                assert False
+            for c in check[1]:
+                def find_item_tag(text):
+                    for item_tag in fs_folder.item_tags:
+                        if item_tag.text == text:
+                            return item_tag
+                    else:
+                        assert False
+                def check_item_tag(item_tag):
+                    type = FsTagType.WORD if c[0][0] == 'w' else FsTagType.TAG
+                    binding = {
+                        'u': FsTagBinding.UNBOUND,
+                        's': FsTagBinding.SUGGESTED,
+                        'b': FsTagBinding.BOUND
+                    }[c[0][1]]
+                    source = {
+                        'n': FsItemTagSource.NONE,
+                        't': FsItemTagSource.DBTAG,
+                        'g': FsItemTagSource.GLOBTS,
+                        'f': FsItemTagSource.FSTS,
+                        'd': FsItemTagSource.DIRECT
+                    }[c[0][2]]
+                    assert item_tag.type == type
+                    assert item_tag.binding == binding
+                    assert item_tag.source == source
+                    if binding != FsTagBinding.UNBOUND:
+                        assert item_tag.db_tag is tags[c[2]]
+                if c[0][0] == 't':
+                    item_tag = find_item_tag(c[1])
+                    check_item_tag(item_tag)
+                else: # w
+                    item_tag0 = find_item_tag(c[1][0])
+                    check_item_tag(item_tag0)
+                    for x in range(1, len(c[1])):
+                        item_tag = find_item_tag(c[1][x])
+                        assert item_tag.idx == item_tag0.idx + x
+                        assert item_tag.base_idx == item_tag0.idx
+                        check_item_tag(item_tag)
+
 
 def test_my_cmd():
-    _test_cmd('c:', 'my format',
-        FsSourceType.DIR, None)
+    cfg = {
+        'tags': [
+            ('scythe', 'band|Scythe'),
+            ('repunk', 'venue|Repunknante')
+        ],
+        'checks': [
+            ('171007 virginia', [
+                ('tun', 'band|Cult Mind'),
+                ('tbt', 'band|Scythe', 'scythe'),
+                ('tst', 'band|Repunknante', 'repunk')
+            ])
+        ]
+    }
+    _test_cmd('c:', 'my format', FsSourceType.DIR, cfg)
 
 def test_main_cmd():
-    _test_cmd('main1415', 'main1415 corbett psds',
-        FsSourceType.FILE, None)
+    cfg = {}
+    _test_cmd('main1415', 'main1415 corbett psds', FsSourceType.FILE, cfg)
 
 def test_corbett_cmd():
-    _test_cmd('j:', 'corbett drive',
-        FsSourceType.FILE, None)
+    cfg = {}
+    _test_cmd('j:', 'corbett drive', FsSourceType.FILE, cfg)
 
 def test_web_cmd():
-    _test_cmd('http:', 'web pages',
-        FsSourceType.DIR, None)
+    cfg = {}
+    _test_cmd('http:', 'web pages', FsSourceType.DIR, cfg)

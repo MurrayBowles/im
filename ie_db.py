@@ -233,7 +233,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
     ''' return [FsTagBinding, FsItemTagSource, DbTag id, text] '''
     type = db.FsTagType.WORD if ie_tag.type == IETagType.WORD else db.FsTagType.TAG
     if text.find('|') == -1 and ie_tag.bases is not None:
-        # try both <text> and <base>.<text> for each base in ie_tag.bases
+        # try both <text> and <base>|<text> for each base in ie_tag.bases
         bases = ie_tag.bases.split(',')
         results = []
         for base in bases:

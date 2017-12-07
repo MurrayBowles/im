@@ -254,18 +254,48 @@ class _DbTag_Tester(_Tester):
         return DbTag.find(session, key2)
 
 
-class _DbTagTree_Tester(_Tester):
+class _DbTagLowered_Tester(_DbTag_Tester):
+
+    def mk_key2(self):
+        return _mk_name('TAG')
+
+    def get(selfself, session, key, key2):
+        return DbTag.get(session, key2.lower())
+
+    def find2(self, key2):
+        return DbTag.find(session, key2.lower())
+
+
+class _DbTagRaised_Tester(_DbTag_Tester):
+
+    def mk_key2(self):
+        return _mk_name('tag')
+
+    def get(selfself, session, key, key2):
+        return DbTag.get(session, key2.upper())
+
+    def find2(self, key2):
+        return DbTag.find(session, key2.upper())
+
+
+class _DbTagParent_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
         self.dep_classes = [_DbTag_Tester]
 
+    def mk_key2(self):
+        return _mk_name('child'), self.dep_objs[0]
+
     def create(self, session, key, key2):
-        tag = DbTag.add(session, parent=self.dep_objs[0], name=_mk_name('tag'))
+        tag = DbTag.add(session, parent=key2[1], name=key2[0])
         return tag
 
     def find(self, key):
-        return session.query(DbTag).filter_by(id=key).first()
+        return DbTag.find_id(session, key)
+
+    def find2(self, key2):
+        return DbTag.find(session, key2[0], parent=key2[1])
 
     def test_deps(self, obj):
         assert obj.parent is self.dep_objs[0]

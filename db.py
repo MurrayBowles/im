@@ -238,7 +238,9 @@ class DbTag(Item):
     base_tag_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     base_tag = relationship('DbTag', remote_side=[id], foreign_keys=[base_tag_id])
 
-    Index('db-tag', text('lower(name)'), 'parent')
+    #Index('db-tag', text('lower(name)'), 'parent') TODO: this is supposed to work
+    lower_name = Column(String) # TODO this extra column shouldn't be necessary
+    Index('db-tag', lower_name, 'parent')
 
     def base(self):
         return {
@@ -250,19 +252,21 @@ class DbTag(Item):
 
     @classmethod
     def add(cls, session, name, parent=None, tag_type=DbTagType.BASE, base_tag=None):
-        obj = cls(parent=parent, name=name, tag_type=tag_type.value, base_tag=base_tag)
+        obj = cls(
+            parent=parent, name=name, lower_name=name.lower(),
+            tag_type=tag_type.value, base_tag=base_tag)
         if obj is not None: session.add(obj)
         return obj
 
     @classmethod
     def find(cls, session, text, parent=None):
         return session.query(DbTag).filter_by(
-            name=text.lower(), parent=parent).first()
+            lower_name=text.lower(), parent=parent).first()
 
     @classmethod
     def find_flat(cls, session, text):
         return session.query(DbTag).filter_by(
-            name=text.lower()).all()
+            lower_name=text.lower()).all()
     # TODO test
 
     @classmethod
@@ -616,7 +620,7 @@ class FsTagMapping(Base):
 
     # value
 
-    binding = Column(Enum(FsTagBinding)) # SUGGESTED | BOUND, not UNBOUND
+    binding = Column(Enum(FsTagBinding)) # SUGGESTED | BOUND, never UNBOUND
 
     db_tag_id = Column(Integer, ForeignKey('db-tag.id'))
     db_tag = relationship('DbTag', backref=backref('fs-tag-mapping', uselist=False))
