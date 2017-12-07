@@ -164,14 +164,9 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     # ('tag-var-name', 'tag string')
     tags = {}
     if 'tags' in cfg:
-        for var, tag_str in cfg['tags']:
-            parent = None
-            elts = tag_str.split('|')
-            assert len(elts) > 0
-            for elt in elts:
-                tag = DbTag.add(session, elt, parent)
-                parent = tag
-            tags[var] = tag
+        for var, tag_expr in cfg['tags']:
+            tags[var] = DbTag.get_expr(session, tag_expr)
+    all_tags = session.query(DbTag).all()
 
     path = os.path.join(base_path, dir_name)
     if 'sel' in cfg:
@@ -183,23 +178,25 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     tag_source = FsTagSource.add(session, 'test')
 
     # create the FsTagMappings in cfg['mappings'], a list of
-    # ('{g|s}{t|w}{b|s}', text, tag-var), where the flags are
-    #   Glob TS vs Source TS, Tag vs Words, Bound vs Suggested
+    # ('{t|w}{b|s}{g|f}', text, tag-var), where the flags are
+    #   Tag vs Words, Bound vs Suggested, Glob TS vs FsSource TS
     if 'mappings' in cfg:
         for m in cfg['mappings']:
             FsTagMapping.add(session,
-                db.global_tag_source if m[0][0] == 'g' else tag_source,
-                FsTagType.WORD if m[0][1] == 'w' else FsTagType.TAG,
+                db.global_tag_source if m[0][2] == 'g' else tag_source,
+                FsTagType.WORD if m[0][0] == 'w' else FsTagType.TAG,
                 m[1],
-                FsTagBinding.SUGGESTION if m[0][2] == 's' else FsTagBinding.BOUND,
+                FsTagBinding.SUGGESTION if m[0][1] == 's' else FsTagBinding.BOUND,
                 tags[m[2]]
             )
+    all_mappings = session.query(FsTagMapping).all()
 
     fs_source = FsSource.add(
         session, volume, path, source_type, readonly=True, tag_source=tag_source)
     cmd = _TestIETask(session, ie_cfg, fs_source, import_mode, paths)
     worklist = cmd.worklist
     session.commit()
+
 
     # check the FsItemTags in cfg['checks'], a list of
     # ('folder name', [item-tags]), where item-tag is one of
@@ -216,13 +213,16 @@ def _test_cmd(volume, dir_name, source_type, cfg):
                     break
             else:
                 assert False
+
             for c in check[1]:
+
                 def find_item_tag(text):
                     for item_tag in fs_folder.item_tags:
                         if item_tag.text == text:
                             return item_tag
                     else:
                         assert False
+
                 def check_item_tag(item_tag):
                     type = FsTagType.WORD if c[0][0] == 'w' else FsTagType.TAG
                     binding = {
@@ -239,9 +239,12 @@ def _test_cmd(volume, dir_name, source_type, cfg):
                     }[c[0][2]]
                     assert item_tag.type == type
                     assert item_tag.binding == binding
+                    if item_tag.source != source:
+                        pass
                     assert item_tag.source == source
                     if binding != FsTagBinding.UNBOUND:
                         assert item_tag.db_tag is tags[c[2]]
+
                 if c[0][0] == 't':
                     item_tag = find_item_tag(c[1])
                     check_item_tag(item_tag)
@@ -258,14 +261,22 @@ def _test_cmd(volume, dir_name, source_type, cfg):
 def test_my_cmd():
     cfg = {
         'tags': [
-            ('scythe', 'band|Scythe'),
-            ('repunk', 'venue|Repunknante')
+            ('scythe',  'band|Scythe'),
+            ('repunk',  'venue|Repunknante'),
+            ('nt',      'band|Neglected Truth'),
+            ('dys',     'band|Dysphoric')
+        ],
+        'mappings': [
+            ('tbg',     'band|Neglected Truth', 'nt'),
+            ('tbf',     'band|Dysphoric',       'dys')
         ],
         'checks': [
             ('171007 virginia', [
-                ('tun', 'band|Cult Mind'),
-                ('tbt', 'band|Scythe', 'scythe'),
-                ('tst', 'band|Repunknante', 'repunk')
+                ('tun', 'Cult Mind'),
+                ('tbt', 'Scythe', 'scythe'),
+                ('tst', 'Repunknante', 'repunk'),
+                ('tbg', 'Neglected Truth', 'nt'),
+                ('tbf', 'Dysphoric', 'dys')
             ])
         ]
     }

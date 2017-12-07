@@ -259,19 +259,39 @@ class DbTag(Item):
         return obj
 
     @classmethod
-    def find(cls, session, text, parent=None):
+    def find(cls, session, name, parent=None):
         return session.query(DbTag).filter_by(
-            lower_name=text.lower(), parent=parent).first()
+            lower_name=name.lower(), parent=parent).first()
 
     @classmethod
-    def find_flat(cls, session, text):
+    def find_flat(cls, session, name):
         return session.query(DbTag).filter_by(
-            lower_name=text.lower()).all()
-    # TODO test
+            lower_name=name.lower()).all()
+
+    @classmethod
+    def get(cls, session, name, parent=None, tag_type=DbTagType.BASE, base_tag=None):
+        tag = cls.find(session, name, parent)
+        if tag is None:
+            return cls.add(session, name, parent, tag_type, base_tag), True
+        else:
+            return tag, False
+
+    @classmethod
+    def get_expr(cls, session, expr, tag_type=DbTagType.BASE, base_tag=None):
+        # <expr> is parent|child
+        # NOTE: unlike most get_xxx functions, does NOT return an (xxx, is-new) tuple
+        list = expr.split('|')
+        assert len(list) > 0
+        parent = None
+        tag = None # make lint shut up
+        for elt in list:
+            tag = cls.get(session, elt, parent, tag_type, base_tag)[0]
+            parent = tag
+        return tag
 
     @classmethod
     def find_expr(cls, session, expr):
-        # <expr> is a|b|c
+        # <expr> is parent|child
         list = expr.split('|')
         tag = None
         for elt in list:
@@ -280,14 +300,6 @@ class DbTag(Item):
                 break
         return tag
     # TODO test
-
-    @classmethod
-    def get(cls, session, text, parent=None):
-        tag = cls.find(session, text, parent)
-        if tag is None:
-            return cls.add(session, text, parent), True
-        else:
-            return tag, False
 
     @classmethod
     def find_id(cls, session, id):
@@ -574,7 +586,8 @@ class FsItemTag(Base):
     Index('fs-item-tag', 'type', 'text', unique=False)
 
     @classmethod
-    def add(cls, session, item, idx, base_idx, type, text, bases,
+    def add(cls, session, item, idx, base_idx,
+        type, text, bases,
         binding, source, db_tag
     ):
         if source is None:

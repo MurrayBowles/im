@@ -244,7 +244,7 @@ class _DbTag_Tester(_Tester):
         tag = DbTag.add(session, name=key2)
         return tag
 
-    def get(selfself, session, key, key2):
+    def get(self, session, key, key2):
         return DbTag.get(session, key2)
 
     def find(self, key):
@@ -259,7 +259,7 @@ class _DbTagLowered_Tester(_DbTag_Tester):
     def mk_key2(self):
         return _mk_name('TAG')
 
-    def get(selfself, session, key, key2):
+    def get(self, session, key, key2):
         return DbTag.get(session, key2.lower())
 
     def find2(self, key2):
@@ -271,7 +271,7 @@ class _DbTagRaised_Tester(_DbTag_Tester):
     def mk_key2(self):
         return _mk_name('tag')
 
-    def get(selfself, session, key, key2):
+    def get(self, session, key, key2):
         return DbTag.get(session, key2.upper())
 
     def find2(self, key2):
@@ -300,6 +300,33 @@ class _DbTagParent_Tester(_Tester):
     def test_deps(self, obj):
         assert obj.parent is self.dep_objs[0]
         assert self.dep_objs[0].children[0] is obj
+        l = DbTag.find_flat(session, obj.parent.name)
+        assert len(l) == 1
+        assert l[0] is obj.parent
+        l = DbTag.find_flat(session, obj.name)
+        assert len(l) == 1
+        assert l[0] is obj
+
+
+class _DbTagExpr_Tester(_Tester):
+
+    def mk_key2(self):
+        return 'child', 'parent'
+
+    def create(self, session, key, key2):
+        tag = DbTag.get_expr(session, key2[1] + '|' + key2[0])
+        return tag
+
+    def find(self, key):
+        return DbTag.find_id(session, key)
+
+    def find2(self, key2):
+        return DbTag.find_expr(session, key2[1] + '|' + key2[0])
+
+    def test_deps(self, obj):
+        assert obj.parent is not None
+        assert obj.parent.name == 'parent'
+        assert obj.name == 'child'
 
 
 class _DbTagReplacement_Tester(_Tester):

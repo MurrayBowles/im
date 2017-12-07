@@ -218,11 +218,11 @@ def find_text_binding(session, type, text, fs_tag_source):
     mapping = db.FsTagMapping.find(session, fs_tag_source, type, text)
     if mapping is not None:
         # <text> is mapped in <fs_tag_source>
-        return [text, mapping.binding, db.FsItemTagSource.GLOBTS, mapping.db_tag]
+        return [text, mapping.binding, db.FsItemTagSource.FSTS, mapping.db_tag]
     mapping = db.FsTagMapping.find(session, db.global_tag_source, type, text)
     if mapping is not None:
         # <text> is mapped in <global_tag_source>
-        return [text, mapping.binding, db.FsItemTagSource.FSTS, mapping.db_tag]
+        return [text, mapping.binding, db.FsItemTagSource.GLOBTS, mapping.db_tag]
     db_tag = db.DbTag.find_expr(session, text)
     if db_tag is not None:
         # <text> occurs in the DbTag database
@@ -230,7 +230,7 @@ def find_text_binding(session, type, text, fs_tag_source):
     return [text, db.FsTagBinding.UNBOUND, db.FsItemTagSource.NONE, None]
 
 def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
-    ''' return [FsTagBinding, FsItemTagSource, DbTag id, text] '''
+    ''' return [text, FsTagBinding, FsItemTagSource, DbTag id] '''
     type = db.FsTagType.WORD if ie_tag.type == IETagType.WORD else db.FsTagType.TAG
     if text.find('|') == -1 and ie_tag.bases is not None:
         # try both <text> and <base>|<text> for each base in ie_tag.bases
@@ -240,6 +240,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
             base = base.strip()
             t = base + '|' + text
             results.append(find_text_binding(session, type, t, fs_tag_source))
+
         flat_result = find_text_binding(session, type, text, fs_tag_source)
         if flat_result[1].has_db_tag() and flat_result[3].parent is not None:
             # DbTag parent is not one of the proposed bases:
@@ -247,6 +248,13 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
             if flat_result[1] == db.FsTagBinding.BOUND:
                 flat_result[1] = db.FsTagBinding.SUGGESTED
         results.append(flat_result)
+
+        flat_tag_matches = db.DbTag.find_flat(session, text)
+        for flat_tag_match in flat_tag_matches:
+            binding = [
+                text, db.FsTagBinding.SUGGESTED, db.FsItemTagSource.DBTAG, flat_tag_match]
+            results.append(binding)
+
         results.sort(key = lambda x: x[1], reverse=True)
         result = results[0]
     else:
@@ -291,38 +299,18 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
         for ie_tag in ie_tag_list:
             item_tag = db.FsItemTag.add(session,
                 item, base_idx + idx, base_idx + elt_base_idx,
-                db.FsTagType.WORD, ie_tag.text, words[0].bases,
-                binding[1], binding[2], binding[3])
+                type=db.FsTagType.WORD, text=ie_tag.text, bases=words[0].bases,
+                binding=binding[1], source=binding[2], db_tag=binding[3])
             idx += 1
     pass
 
 def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
-    # TODO: auto-add DbTag if IETagType is AUTO
-    text = ie_tag.text
-    if ie_tag.text.find('|') == -1 and ie_tag.bases is not None:
-        # try both <text> and <base>.<text> for each base in ie_tag.bases
-        bases = ie_tag.bases.split(',')
-        results = []
-        for base in bases:
-            base = base.strip()
-            text = base + '|' + ie_tag.text
-            results.append(find_ie_tag_binding(
-                session, ie_tag, text, fs_tag_source))
-        flat_result = find_ie_tag_binding(
-            session, ie_tag, ie_tag.text, fs_tag_source)
-        if flat_result[1].has_db_tag() and flat_result[2].parent is not None:
-            if flat_result[1] == db.FsTagBinding.BOUND:
-                flat_result[1] = db.FsTagBinding.SUGGESTED
-        results.append(flat_result)
-        results.sort(key = lambda x: x[1], reverse=True)
-        result = results[0]
-    else:
-        result = find_ie_tag_binding(session, ie_tag, ie_tag.text, fs_tag_source)
+    binding = find_ie_tag_binding(session, ie_tag, ie_tag.text, fs_tag_source)
     item_tag = db.FsItemTag.add(session,
         item, idx, idx,
-        db.FsTagType.TAG, result[0], ie_tag.bases,
-        result[1], result[2], result[3])
+        type=db.FsTagType.TAG, text=ie_tag.text, bases=ie_tag.bases,
+        binding=binding[1], source=binding[2], db_tag=binding[3])
     pass
 
 def add_fs_item_note(session, item, ie_tag):
