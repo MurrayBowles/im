@@ -291,7 +291,7 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
             # don't consider a partition that has unbound multi-word elements
             total_score = 0
         results.append((total_score / len(partition), partition, bindings))
-    results.sort(key = lambda x: x[1], reverse=True) # sort by the score
+    results.sort(key = lambda x: x[0], reverse=True) # sort by the score
     result = results[0]
     idx = 0
     for ie_tag_list, binding in zip(result[1], result[2]):

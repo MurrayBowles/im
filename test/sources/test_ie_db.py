@@ -238,11 +238,15 @@ def _test_cmd(volume, dir_name, source_type, cfg):
                         'd': FsItemTagSource.DIRECT
                     }[c[0][2]]
                     assert item_tag.type == type
+                    if item_tag.binding != binding:
+                        pass
                     assert item_tag.binding == binding
                     if item_tag.source != source:
                         pass
                     assert item_tag.source == source
                     if binding != FsTagBinding.UNBOUND:
+                        if len(c) < 3:
+                            pass
                         assert item_tag.db_tag is tags[c[2]]
 
                 if c[0][0] == 't':
@@ -283,7 +287,34 @@ def test_my_cmd():
     _test_cmd('c:', 'my format', FsSourceType.DIR, cfg)
 
 def test_main_cmd():
-    cfg = {}
+    cfg = {
+        'tags': [
+            ('bk',      'band|Bikini Kill'),
+            ('15',      'band|Fifteen'),
+            ('t8',      'band|Tribe 8'),
+            ('jb',      'band|Jawbreaker'),
+            ('gilman',  'venue|Gilman')
+        ],
+        'mappings': [
+            ('wbf',     'band|Bikini Kill', 'bk'),
+            ('wbf',     'band|Fifteen', '15'),
+            ('wbf',     'band|Tribe 8', 't8'),
+            ('wbf',     'band|Jawbreaker', 'jb'),
+            ('wbg',     'venue|Gilman', 'gilman')
+        ],
+        'checks': [
+            ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', [
+                ('wbf', ['bikini', 'kill'], 'bk'),
+                ('wbg', ['gilman'], 'gilman')
+            ]),
+            ('FIFTEEN_TRIBE_8_JAWBREAKER_GILMAN_11_15&16_91-5605.psd', [
+                ('wbf', ['fifteen'], '15'),
+                ('wbf', ['tribe', '8'], 't8'),
+                ('wbf', ['jawbreaker'], 'jb'),
+                ('wbg', ['gilman'], 'gilman')
+            ])
+        ]
+    }
     _test_cmd('main1415', 'main1415 corbett psds', FsSourceType.FILE, cfg)
 
 def test_corbett_cmd():
