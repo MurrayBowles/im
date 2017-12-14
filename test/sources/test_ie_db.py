@@ -182,6 +182,11 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     #   Tag vs Words, Bound vs Suggested, Glob TS vs FsSource TS
     if 'mappings' in cfg:
         for m in cfg['mappings']:
+            assert len(m) == 3
+            try:
+                db_tag = tags[m[2]]
+            except:
+                pass
             FsTagMapping.add(session,
                 db.global_tag_source if m[0][2] == 'g' else tag_source,
                 FsTagType.WORD if m[0][0] == 'w' else FsTagType.TAG,
@@ -258,7 +263,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
                     for x in range(1, len(c[1])):
                         item_tag = find_item_tag(c[1][x])
                         assert item_tag.idx == item_tag0.idx + x
-                        assert item_tag.base_idx == item_tag0.idx
+                        assert item_tag.first_idx == item_tag0.idx
                         check_item_tag(item_tag)
 
 
@@ -318,7 +323,38 @@ def test_main_cmd():
     _test_cmd('main1415', 'main1415 corbett psds', FsSourceType.FILE, cfg)
 
 def test_corbett_cmd():
-    cfg = {}
+    cfg = {
+        'tags': [
+            ('nuisance', 'band|Nuisance'),
+            ('mtx', 'band|the Mr T Experience'),
+            ('sg', 'band|Soundgarden'),
+            ('mh', 'band|Mudhoney'),
+            ('phoenix', 'venue|Phoenix Ironworks'),
+            ('gilman', 'venue|Gilman'),
+            ('ib', 'venue|I-Beam')
+        ],
+        'mappings': [
+            ('wbg', 'venue|Gilman', 'gilman'),
+            ('wbf', 'venue|Phoenix', 'phoenix'),
+            ('wbf', 'venue|ibeam', 'ib'),
+            ('wbf', 'band|nuisance', 'nuisance'),
+            ('wbf', 'band|mtx', 'mtx'),
+            ('wbf', 'band|soundgarden', 'sg')
+        ],
+        'checks': [
+            ('01_03_92_15_GILMAN-001.tif', [
+                ('wbg', ['gilman'], 'gilman')
+            ]),
+            ('01_11_92_NUISANCE_MTX_PHOENIX-014.tif', [
+                ('wbf', ['phoenix'], 'phoenix'),
+                ('wbf', ['nuisance'], 'nuisance'),
+                ('wbf', ['mtx'], 'mtx')
+            ]),
+            ('02_13&16_89_SOUNDGARDEN_MUDHONEY_IBEAM&BSQ-001.tif', [
+                ('wbf', ['soundgarden'], 'sg')
+            ])
+        ]
+    }
     _test_cmd('j:', 'corbett drive', FsSourceType.FILE, cfg)
 
 def test_web_cmd():

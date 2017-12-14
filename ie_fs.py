@@ -469,9 +469,11 @@ def scan_std_dir_files(ie_folder):
         # who knows?
         add_ie_folder_name_word_tags(ie_folder, 'band, venue, place, event')
         ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
-    # TODO: adjust seq numbers for Nikon 9999 rollover
+    # TODO: adjust seq numbers for Nikon 9999 rollover:
+    # 0001, 9999 => 10001, 09999
 
-trailing_date = re.compile(r'_[0-9]+_[0-9]+(&[0-9]+)?_[0-9]+')
+corbett_date = re.compile(r'[0-9]{2,2}_[0-9]{2,2}(&[0-9]{2,2})?_[0-9]{2,2}')
+corbett_trailing_date = re.compile(r'[0-9]{2,2}_[0-9]{2,2}(&[0-9]{2,2})?_[0-9]{2,2}$')
 amper_date = re.compile(r'&[0-9]+')
 
 def proc_corbett_filename(file_pathname, file_name, folders):
@@ -486,12 +488,21 @@ def proc_corbett_filename(file_pathname, file_name, folders):
         base != os.path.basename(folders[-1].fs_path).split('-')[0].lower()
     ):
         # start a new IEFolder
-        match = trailing_date.search(base)
-        if match is None:
+        match = corbett_date.search(base)
+        tmatch = corbett_trailing_date.search(base)
+        if match is None and tmatch is None:
             db_date = None
             db_name = base.replace('_', ' ')
         else:
-            date_str = match.group()[1:] # drop the leading underscore
+            if tmatch is not None:
+                date_str = tmatch.group()
+                name_str = base[0:tmatch.start()]
+            else:
+                date_str = match.group()
+                s, e = match.start(), match.end()
+                if s != 0:
+                    pass # does this case happen?
+                name_str = base[0:s] + base[e:]
             date_str = amper_date.sub('', date_str)
             month_str, day_str, year_str = date_str.split('_')
             year = int(year_str)
@@ -501,10 +512,10 @@ def proc_corbett_filename(file_pathname, file_name, folders):
             try:
                 db_date = datetime.date(year, month, day)
             except:
-                # FIXME: base = '01_03_92_15_gilman', match = '03_92_15'
                 db_date = datetime.date(1941, 12, 7)
                 pass
-            db_name = base_name[0:match.start()].replace('_', ' ')
+            db_name_words = name_str.split('_')
+            db_name = ' '.join(db_name_words).strip(' ')
         ie_folder = IEFolder(file_pathname, db_date, db_name, mtime)
         add_ie_folder_name_word_tags(ie_folder, 'venue, band')
         ie_folder.msgs.append(IEMsg(IEMsgType.TAGS_ARE_WORDS, file_pathname))

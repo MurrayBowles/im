@@ -296,9 +296,11 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     idx = 0
     for ie_tag_list, binding in zip(result[1], result[2]):
         elt_base_idx = idx
+        first_idx = base_idx + elt_base_idx
+        last_idx = first_idx + len(ie_tag_list) - 1
         for ie_tag in ie_tag_list:
             item_tag = db.FsItemTag.add(session,
-                item, base_idx + idx, base_idx + elt_base_idx,
+                item, base_idx + idx, (first_idx, last_idx),
                 type=db.FsTagType.WORD, text=ie_tag.text, bases=words[0].bases,
                 binding=binding[1], source=binding[2], db_tag=binding[3])
             idx += 1
@@ -308,7 +310,7 @@ def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
     binding = find_ie_tag_binding(session, ie_tag, ie_tag.text, fs_tag_source)
     item_tag = db.FsItemTag.add(session,
-        item, idx, idx,
+        item, idx, (idx, idx),
         type=db.FsTagType.TAG, text=ie_tag.text, bases=ie_tag.bases,
         binding=binding[1], source=binding[2], db_tag=binding[3])
     pass

@@ -568,13 +568,15 @@ class FsItemTag(Base):
     text = Column(String(collation='NOCASE'))
 
     # value
-
     base_idx = Column(Integer)
-        # for the multi-word case, this is the index of the first word in the partition
-        # (see add_word_fs_item_tags)
+    first_idx = Column(Integer) # index of the first FsItemTag in the binding
+    last_idx =  Column(Integer)  # index of the last FsItemTag in the binding
+        # when type == TAG, first_idx == last_idx
 
     bases = Column(String)
         # ,-separated list of suggested tag bases, e.g. 'band' or 'venue' or 'band, venue'
+        # FIXME this should just be an integer enum: the possible lists
+        # are fixed by the code
 
     binding = Column(Enum(FsTagBinding))
     source = Column(Enum(FsItemTagSource))
@@ -586,7 +588,7 @@ class FsItemTag(Base):
     Index('fs-item-tag', 'type', 'text', unique=False)
 
     @classmethod
-    def add(cls, session, item, idx, base_idx,
+    def add(cls, session, item, idx, idx_range,
         type, text, bases,
         binding, source, db_tag
     ):
@@ -595,7 +597,7 @@ class FsItemTag(Base):
         if bases == '0':
             pass
         tag = FsItemTag(
-            item=item, idx=idx, base_idx = base_idx,
+            item=item, idx=idx, first_idx = idx_range[0], last_idx = idx_range[1],
             type=type, text=text, bases=bases,
             binding=binding, source=source, db_tag=db_tag)
         if tag is not None: session.add(tag)
@@ -611,7 +613,7 @@ class FsItemTag(Base):
 
     def __repr__(self):
         if self.type == FsTagType.WORD:
-            idx = 'w%s@%s' % (self.idx, self.base_idx)
+            idx = 'w%s/%s..%s' % (self.idx, self.first_idx, self.last_idx)
         else:
             idx = 't%s' % self.idx
         tgt = ' => ' + self.db_tag.text() if self.db_tag is not None else ''
