@@ -205,6 +205,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
 
     fs_source = FsSource.add(
         session, volume, path, source_type, readonly=True, tag_source=tag_source)
+
     cmd = _TestIETask(session, ie_cfg, fs_source, import_mode, paths)
     worklist = cmd.worklist
     session.commit()
@@ -212,7 +213,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
 
     # check the FsItemTags in cfg['checks'], a list of
     # ('folder name', [item-tags]), where item-tag is one of
-    #   ('t{usb}{ntgsd}', 'tag-text', 'tag-var')
+    #   ('t{usb}{ntgsd}', 'tag-text', 'tag-var')(
     #   ('w{usb}{ntgsd}', ['word',...], 'tag-var')
     # usb is Unbound | Suggested | Bound
     # ntgfd is None | dbTag | Globts | Fsts | Direct
@@ -230,7 +231,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
 
                 def find_item_tag(text):
                     for item_tag in fs_folder.item_tags:
-                        if item_tag.text == text:
+                        if item_tag.text.lower() == text.lower():
                             return item_tag
                     else:
                         assert False
@@ -374,16 +375,16 @@ def test_web_cmd():
             ('cc', 'band|Capitalist Casualties')
         ],
         'mappings': [
-            ('wbg', 'venue|Empire Seven', 'e7'),
+            ('tbg', 'venue|Empire Seven', 'e7'),
             ('tbg', 'band|Dysphoric', 'dys'),
             ('tbf', 'band|Empty People', 'ep'),
             ('tbg', 'band|Deadpressure', 'dp')
         ],
         'checks': [
             ('170924_empire_seven', [
-                ('wbg', ['empire seven'], 'e7'),
-                ('tbg', ['dysphoric'], 'dys'),
-                ('tbf', ['Empty People'], 'ep')
+                ('tbg', 'empire seven', 'e7'),
+                ('tbg', 'dysphoric', 'dys'),
+                ('tbf', 'Empty People', 'ep')
             ])
         ]
     }

@@ -424,7 +424,7 @@ class IETask(Task):
         self.worklist = get_ie_worklist(session, fs_source, import_mode, paths)
         self.worklist_idx = 0
         self.pub('ie.sts.begun', self.worklist)
-        self.queue(self.start_item)
+        self.start(self.start_item)
 
     def start_item(self, data):
         ''' preprocess the work item, gathering image files in some cases,

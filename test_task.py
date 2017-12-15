@@ -8,12 +8,10 @@ class TestTask:
     def init_impl(self, **kwargs):
         self.deque = deque()
         self.pubs = {}
-        sys.setrecursionlimit(3000)
         for msg, method in self.subs.items():
             self.pubs[msg] = 0
 
-    def _enqueue(self, msg, data):
-        self.deque.append((msg, data))
+    def run_impl(self):
         while len(self.deque) > 0:
             msg, data = self.deque.popleft()
             if msg == 'Task.call':
@@ -21,6 +19,9 @@ class TestTask:
             elif msg in self.pubs:
                 self.pubs[msg] += 1
         pass
+
+    def _enqueue(self, msg, data):
+        self.deque.append((msg, data))
 
     def pub(self, msg, data=None):
         ''' publish msg, data '''

@@ -29,9 +29,18 @@ class Task:
         self.steps = []             # appended to by self._step
         self.num_done_steps = 0
 
+    def start(self, method, data=None):
+        ''' called by the subclass, e.g. IETask, at the end of its initialization '''
+        self.queue(method, data)
+        self.run_impl()
+
     def init_impl(self):
         ''' perform initialization for the slice/thread implementation mixin '''
         raise NotImplementedError
+
+    def run_impl(self):
+        ''' in a test case, simulate the message loop '''
+        pass
 
     def pub(self, msg, data=None):
         ''' publish msg, data (supplied by implementation mixin) '''
