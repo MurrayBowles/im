@@ -1,23 +1,25 @@
 ''' test implementation of Task, without threading or pubsub '''
 
 from collections import deque
+import sys
 
 class TestTask:
 
     def init_impl(self, **kwargs):
         self.deque = deque()
         self.pubs = {}
+        sys.setrecursionlimit(3000)
         for msg, method in self.subs.items():
             self.pubs[msg] = 0
 
     def _enqueue(self, msg, data):
         self.deque.append((msg, data))
         while len(self.deque) > 0:
-            item = self.deque.popleft()
-            if item[0] == 'Task.call':
-                self._step(item[1])
-            elif item[0] in self.pubs:
-                self.pubs[item[0]] += 1
+            msg, data = self.deque.popleft()
+            if msg == 'Task.call':
+                self._step(data)
+            elif msg in self.pubs:
+                self.pubs[msg] += 1
         pass
 
     def pub(self, msg, data=None):

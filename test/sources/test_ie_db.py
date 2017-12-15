@@ -168,13 +168,20 @@ def _test_cmd(volume, dir_name, source_type, cfg):
             tags[var] = DbTag.get_expr(session, tag_expr)
     all_tags = session.query(DbTag).all()
 
-    path = os.path.join(base_path, dir_name)
-    if 'sel' in cfg:
-        import_mode = ImportMode.SEL
-        paths = [util.path_plus_separator(path) + dir for dir in cfg['sel']]
-    else:
+    if source_type == FsSourceType.WEB:
+        path = '//www.pbase.com/' + dir_name
+        assert 'sel' not in cfg
         import_mode = ImportMode.SET
-        paths = [path]
+        paths = [path.replace('\\', '/')]
+    else:
+        path = os.path.join(base_path, dir_name)
+        if 'sel' in cfg:
+            import_mode = ImportMode.SEL
+            paths = [util.path_plus_separator(path) + dir for dir in cfg['sel']]
+        else:
+            import_mode = ImportMode.SET
+            paths = [path]
+
     tag_source = FsTagSource.add(session, 'test')
 
     # create the FsTagMappings in cfg['mappings'], a list of
@@ -358,5 +365,26 @@ def test_corbett_cmd():
     _test_cmd('j:', 'corbett drive', FsSourceType.FILE, cfg)
 
 def test_web_cmd():
-    cfg = {}
-    _test_cmd('http:', 'web pages', FsSourceType.DIR, cfg)
+    cfg = {
+        'tags': [
+            ('e7', 'venue|Empire Seven'),
+            ('dys', 'band|Dysphoric'),
+            ('ep', 'band|Empty People'),
+            ('dp', 'band|Deadpressure'),
+            ('cc', 'band|Capitalist Casualties')
+        ],
+        'mappings': [
+            ('wbg', 'venue|Empire Seven', 'e7'),
+            ('tbg', 'band|Dysphoric', 'dys'),
+            ('tbf', 'band|Empty People', 'ep'),
+            ('tbg', 'band|Deadpressure', 'dp')
+        ],
+        'checks': [
+            ('170924_empire_seven', [
+                ('wbg', ['empire seven'], 'e7'),
+                ('tbg', ['dysphoric'], 'dys'),
+                ('tbf', ['Empty People'], 'ep')
+            ])
+        ]
+    }
+    _test_cmd('http:', 'murraybowles', FsSourceType.WEB, cfg)
