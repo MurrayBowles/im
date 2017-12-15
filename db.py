@@ -630,8 +630,8 @@ class FsTagMapping(Base):
     tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'), primary_key=True)
     tag_source = relationship('FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
 
-    type = Column(Enum(FsTagType), primary_key=True)
     text = Column(String(collation='NOCASE'), primary_key=True)
+        # e.g. 'band|Tribe 8'
 
     # value
 
@@ -641,26 +641,35 @@ class FsTagMapping(Base):
     db_tag = relationship('DbTag', backref=backref('fs-tag-mapping', uselist=False))
 
     @classmethod
-    def add(cls, session, tag_source, type, text, binding, db_tag):
+    def add(cls, session, tag_source, text, binding, db_tag):
         mapping = FsTagMapping(
-            tag_source=tag_source, type=type, text=text, binding=binding, db_tag=db_tag)
+            tag_source=tag_source, text=text, binding=binding, db_tag=db_tag)
         if mapping is not None: session.add(mapping)
         return mapping
 
     @classmethod
-    def find(cls, session, tag_source, type, text):
+    def find(cls, session, tag_source, text):
         return session.query(FsTagMapping).filter_by(
-            tag_source=tag_source, type=type, text=text).first()
+            tag_source=tag_source, text=text).first()
 
     @classmethod
-    def set(cls, session, tag_source, type, text, binding, db_tag):
-        mapping = cls.find(session, tag_source, type, text)
+    def set(cls, session, tag_source, text, binding, db_tag):
+        mapping = cls.find(session, tag_source, text)
         if mapping is None:
-            mapping = cls.add(session, tag_source, type, text, binding, db_tag)
+            mapping = cls.add(session, tag_source, text, binding, db_tag)
         else:
             mapping.binding = binding
             mapping.db_tag = db_tag
         return mapping
+
+    def pname(self):
+        return '%s => %s' % (
+            self.text,
+            self.db_tag.text() if self.db_tag is not None else 'None'
+        )
+
+    def __repr__(self):
+        return '<FsTagMapping %s>' %  self.pname()
 
 
 class FsFolder(FsItem):

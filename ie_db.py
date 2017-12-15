@@ -213,13 +213,13 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
-def find_text_binding(session, type, text, fs_tag_source):
+def find_text_binding(session, text, fs_tag_source):
     ''' return [text, FsTagBinding, FsItemTagSource, DbTag id] '''
-    mapping = db.FsTagMapping.find(session, fs_tag_source, type, text)
+    mapping = db.FsTagMapping.find(session, fs_tag_source, text)
     if mapping is not None:
         # <text> is mapped in <fs_tag_source>
         return [text, mapping.binding, db.FsItemTagSource.FSTS, mapping.db_tag]
-    mapping = db.FsTagMapping.find(session, db.global_tag_source, type, text)
+    mapping = db.FsTagMapping.find(session, db.global_tag_source, text)
     if mapping is not None:
         # <text> is mapped in <global_tag_source>
         return [text, mapping.binding, db.FsItemTagSource.GLOBTS, mapping.db_tag]
@@ -239,9 +239,9 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
         for base in bases:
             base = base.strip()
             t = base + '|' + text
-            results.append(find_text_binding(session, type, t, fs_tag_source))
+            results.append(find_text_binding(session, t, fs_tag_source))
 
-        flat_result = find_text_binding(session, type, text, fs_tag_source)
+        flat_result = find_text_binding(session, text, fs_tag_source)
         if flat_result[1].has_db_tag() and flat_result[3].parent is not None:
             # DbTag parent is not one of the proposed bases:
             # demote from BOUND to SUGGESTED
@@ -258,7 +258,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
         results.sort(key = lambda x: x[1], reverse=True)
         result = results[0]
     else:
-        result = find_text_binding(session, type, text, fs_tag_source)
+        result = find_text_binding(session, text, fs_tag_source)
     return result
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):

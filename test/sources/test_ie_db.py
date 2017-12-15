@@ -185,8 +185,8 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     tag_source = FsTagSource.add(session, 'test')
 
     # create the FsTagMappings in cfg['mappings'], a list of
-    # ('{t|w}{b|s}{g|f}', text, tag-var), where the flags are
-    #   Tag vs Words, Bound vs Suggested, Glob TS vs FsSource TS
+    # ('{b|s}{g|f}', text, tag-var), where the flags are
+    #   Bound vs Suggested, Glob TS vs FsSource TS
     if 'mappings' in cfg:
         for m in cfg['mappings']:
             assert len(m) == 3
@@ -195,10 +195,9 @@ def _test_cmd(volume, dir_name, source_type, cfg):
             except:
                 pass
             FsTagMapping.add(session,
-                db.global_tag_source if m[0][2] == 'g' else tag_source,
-                FsTagType.WORD if m[0][0] == 'w' else FsTagType.TAG,
+                db.global_tag_source if m[0][1] == 'g' else tag_source,
                 m[1],
-                FsTagBinding.SUGGESTION if m[0][1] == 's' else FsTagBinding.BOUND,
+                FsTagBinding.SUGGESTION if m[0][0] == 's' else FsTagBinding.BOUND,
                 tags[m[2]]
             )
     all_mappings = session.query(FsTagMapping).all()
@@ -284,8 +283,8 @@ def test_my_cmd():
             ('dys',     'band|Dysphoric')
         ],
         'mappings': [
-            ('tbg',     'band|Neglected Truth', 'nt'),
-            ('tbf',     'band|Dysphoric',       'dys')
+            ('bg',     'band|Neglected Truth', 'nt'),
+            ('bf',     'band|Dysphoric',       'dys')
         ],
         'checks': [
             ('171007 virginia', [
@@ -309,11 +308,11 @@ def test_main_cmd():
             ('gilman',  'venue|Gilman')
         ],
         'mappings': [
-            ('wbf',     'band|Bikini Kill', 'bk'),
-            ('wbf',     'band|Fifteen', '15'),
-            ('wbf',     'band|Tribe 8', 't8'),
-            ('wbf',     'band|Jawbreaker', 'jb'),
-            ('wbg',     'venue|Gilman', 'gilman')
+            ('bf',     'band|Bikini Kill', 'bk'),
+            ('bf',     'band|Fifteen', '15'),
+            ('bf',     'band|Tribe 8', 't8'),
+            ('bf',     'band|Jawbreaker', 'jb'),
+            ('bg',     'venue|Gilman', 'gilman')
         ],
         'checks': [
             ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', [
@@ -342,12 +341,12 @@ def test_corbett_cmd():
             ('ib', 'venue|I-Beam')
         ],
         'mappings': [
-            ('wbg', 'venue|Gilman', 'gilman'),
-            ('wbf', 'venue|Phoenix', 'phoenix'),
-            ('wbf', 'venue|ibeam', 'ib'),
-            ('wbf', 'band|nuisance', 'nuisance'),
-            ('wbf', 'band|mtx', 'mtx'),
-            ('wbf', 'band|soundgarden', 'sg')
+            ('bg', 'venue|Gilman', 'gilman'),
+            ('bf', 'venue|Phoenix', 'phoenix'),
+            ('bf', 'venue|ibeam', 'ib'),
+            ('bf', 'band|nuisance', 'nuisance'),
+            ('bf', 'band|mtx', 'mtx'),
+            ('bf', 'band|soundgarden', 'sg')
         ],
         'checks': [
             ('01_03_92_15_GILMAN-001.tif', [
@@ -375,10 +374,10 @@ def test_web_cmd():
             ('cc', 'band|Capitalist Casualties')
         ],
         'mappings': [
-            ('tbg', 'venue|Empire Seven', 'e7'),
-            ('tbg', 'band|Dysphoric', 'dys'),
-            ('tbf', 'band|Empty People', 'ep'),
-            ('tbg', 'band|Deadpressure', 'dp')
+            ('bg', 'venue|Empire Seven', 'e7'),
+            ('bg', 'band|Dysphoric', 'dys'),
+            ('bf', 'band|Empty People', 'ep'),
+            ('bg', 'band|Deadpressure', 'dp')
         ],
         'checks': [
             ('170924_empire_seven', [

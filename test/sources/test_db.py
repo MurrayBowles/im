@@ -402,18 +402,18 @@ class _FsTagMapping_Tester(_Tester):
         self.dep_classes = [_FsTagSource_Tester, _DbTag_Tester]
 
     def mk_key(self):
-        return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
+        return (self.dep_objs[0], _mk_name('text'))
 
     def get_key(self, obj):
-        return (obj.tag_source, obj.type, obj.text)
+        return (obj.tag_source, obj.text)
 
     def create(self, session, key, key2):
         return FsTagMapping.add(
-            session, tag_source=key[0], type=key[1], text=key[2],
+            session, tag_source=key[0], text=key[1],
             binding=FsTagBinding.BOUND, db_tag=self.dep_objs[1])
 
     def find(self, key):
-        return FsTagMapping.find(session, key[0], key[1], key[2])
+        return FsTagMapping.find(session, key[0], key[1])
 
 
 class _FsSource_Tester(_Tester):
