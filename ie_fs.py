@@ -122,15 +122,18 @@ class IETag:
         self.bases = bases
         self.url =  url
 
-    def _text(self):
-        return '%s|%s|%s|%s' % (
-            self.type.name,
-            self.bases if self.bases is not None else '(no base)',
-            self.text if self.text is not None else '(no text)',
-            '+url' if self.url is not None else '-no url')
+    def pname(self):
+        s = self.type.name
+        if self.bases is not None:
+            s += '(' + self.bases + ')'
+        if self.text is not None:
+            s += " '" + self.text + "'"
+        if self.url is not None:
+            s += ' @' + self.url
+        return s
 
     def __repr__(self):
-        return '<IETag %s>' % self._text()
+        return '<IETag %s>' % self.pname()
 
 
 class IEFolder(object):
@@ -277,6 +280,7 @@ def get_ie_image_exifs(ie_image_set, pub):
             if ext in ie_image.insts:
                 for ie_image_inst in ie_image.insts[ext]:
                     inst_path = os.path.abspath(ie_image_inst.fs_path).replace('\\', '/')
+                    inst_path = os.path.splitdrive(inst_path)[1]
                     ext_paths[inst_path] = ie_image_inst
                     dir_path = os.path.dirname(inst_path)
                     if dir_path in dir_insts:

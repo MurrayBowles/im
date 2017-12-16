@@ -18,8 +18,10 @@ from test_ie_fs import test_scan_dir_sel_selected_list, test_scan_dir_sel_expect
 from test_ie_fs import test_scan_file_set_corbett_psds_expected_list
 from test_ie_fs import test_scan_file_sel_corbett_psds_selected_list
 from test_ie_fs import test_scan_file_sel_corbett_psds_expected_list
+from test_ie_fs import test_scan_file_set_corbett_tiffs_expected_list
+from test_ie_fs import test_scan_file_sel_corbett_tiffs_selected_list
+from test_ie_fs import test_scan_file_sel_corbett_tiffs_expected_list
 from test_task import TestTask
-
 base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
@@ -38,7 +40,10 @@ def check_images(fs_folder, ie_image_iter, image_expected_list):
             if ie_image.tags is None:
                 pass
             else:
-                pass
+                if len(ie_image.tags) > 0:
+                    pass
+                else:
+                    pass
             # FIXME: Heisenbug!
             # assert ie_image.tags is not None
     pass
@@ -143,6 +148,42 @@ def test_get_worklist_file_sel_corbett_psds():
         session, fs_source, ie_cfg.import_mode,
         test_scan_file_sel_corbett_psds_selected_list,
         test_scan_file_sel_corbett_psds_expected_list
+    )
+    session.commit()
+
+def test_get_worklist_file_set_corbett_tiffs():
+    session = open_mem_db()
+    ie_cfg.import_mode = ImportMode.SET
+
+    path = os.path.join(base_path, 'corbett drive')
+    fs_source = FsSource.add(
+        session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
+    check_worklist_no_fs_folders(
+        session, fs_source, ie_cfg.import_mode, [path],
+        test_scan_file_set_corbett_tiffs_expected_list
+    )
+    check_worklist_with_fs_folders(
+        session, fs_source, ie_cfg.import_mode, [path],
+        test_scan_file_set_corbett_tiffs_expected_list
+    )
+    session.commit()
+
+def test_get_worklist_file_sel_corbett_tiffs():
+    session = open_mem_db()
+    ie_cfg.import_mode = ImportMode.SEL
+
+    path = os.path.join(base_path, 'corbett drive')
+    fs_source = FsSource.add(
+        session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
+    check_worklist_no_fs_folders(
+        session, fs_source, ie_cfg.import_mode,
+        test_scan_file_sel_corbett_tiffs_selected_list,
+        test_scan_file_sel_corbett_tiffs_expected_list
+    )
+    check_worklist_with_fs_folders(
+        session, fs_source, ie_cfg.import_mode,
+        test_scan_file_sel_corbett_tiffs_selected_list,
+        test_scan_file_sel_corbett_tiffs_expected_list
     )
     session.commit()
 
