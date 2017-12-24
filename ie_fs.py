@@ -193,7 +193,7 @@ class IEImage(object):
             self.image_size = (int(w), int(h))
         if 'Subject' in item:
             for tag in item['Subject']:
-                self.add_tag(IETag(IETagType.UNBASED, text=tag))
+                self.add_tag(IETag(IETagType.UNBASED, text=tag, bases='band,person'))
         else:
             pass
         pass

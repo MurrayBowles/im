@@ -198,6 +198,63 @@ class _TestCmd:
         self.session = open_mem_db()
 
 
+def _check_item_tags(item_tags, tags, checks):
+    for c in checks:
+
+        def find_item_tag(text):
+            for item_tag in item_tags:
+                if item_tag.text.lower() == text.lower():
+                    return item_tag
+            else:
+                assert False
+
+        def check_item_tag(item_tag):
+            type = FsTagType.WORD if c[0][0] == 'w' else FsTagType.TAG
+            binding = {
+                'u': FsTagBinding.UNBOUND,
+                's': FsTagBinding.SUGGESTED,
+                'b': FsTagBinding.BOUND
+            }[c[0][1]]
+            source = {
+                'n': FsItemTagSource.NONE,
+                't': FsItemTagSource.DBTAG,
+                'g': FsItemTagSource.GLOBTS,
+                'f': FsItemTagSource.FSTS,
+                'd': FsItemTagSource.DIRECT
+            }[c[0][2]]
+            assert item_tag.type == type
+            if item_tag.binding != binding:
+                pass
+            assert item_tag.binding == binding
+            if item_tag.source != source:
+                pass
+            assert item_tag.source == source
+            if binding != FsTagBinding.UNBOUND:
+                if len(c) < 3:
+                    pass
+                assert item_tag.db_tag is tags[c[2]]
+
+        if c[0][0] == 't':
+            item_tag = find_item_tag(c[1])
+            check_item_tag(item_tag)
+        else:  # w
+            item_tag0 = find_item_tag(c[1][0])
+            check_item_tag(item_tag0)
+            for x in range(1, len(c[1])):
+                item_tag = find_item_tag(c[1][x])
+                assert item_tag.idx == item_tag0.idx + x
+                assert item_tag.first_idx == item_tag0.idx
+                check_item_tag(item_tag)
+
+
+def _check_image(fs_image, tags, checks):
+    _check_item_tags(fs_image.item_tags, tags, checks)
+
+
+def _check_folder(fs_folder, tags, checks):
+    _check_item_tags(fs_folder.item_tags, tags, checks)
+
+
 def _test_cmd(volume, dir_name, source_type, cfg):
     session = open_mem_db()
 
@@ -226,20 +283,20 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     tag_source = FsTagSource.add(session, 'test')
 
     # create the FsTagMappings in cfg['mappings'], a list of
-    # ('{b|s}{g|f}', text, tag-var), where the flags are
+    # ('{b|s}{g|f}', text, tag-var|None), where the flags are
     #   Bound vs Suggested, Glob TS vs FsSource TS
     if 'mappings' in cfg:
         for m in cfg['mappings']:
             assert len(m) == 3
             try:
-                db_tag = tags[m[2]]
+                db_tag = tags[m[2]] if m[2] is not None else None
             except:
                 pass
             FsTagMapping.add(session,
                 db.global_tag_source if m[0][1] == 'g' else tag_source,
                 m[1],
                 FsTagBinding.SUGGESTION if m[0][0] == 's' else FsTagBinding.BOUND,
-                tags[m[2]]
+                db_tag
             )
     all_mappings = session.query(FsTagMapping).all()
 
@@ -253,66 +310,31 @@ def _test_cmd(volume, dir_name, source_type, cfg):
 
     # check the FsItemTags in cfg['checks'], a list of
     # ('folder name', [item-tags]), where item-tag is one of
-    #   ('t{usb}{ntgsd}', 'tag-text', 'tag-var')(
-    #   ('w{usb}{ntgsd}', ['word',...], 'tag-var')
+    #   ('t{usb}{ntgfd}', 'tag-text', 'tag-var')(
+    #   ('w{usb}{ntgfd}', ['word',...], 'tag-var')
     # usb is Unbound | Suggested | Bound
     # ntgfd is None | dbTag | Globts | Fsts | Direct
     if 'checks' in cfg:
         for check in cfg['checks']:
-            # find the folder in the results
+            # find the folder (check[0]) in the results
             for wi in worklist:
                 if wi.fs_folder.name == check[0]:
                     fs_folder = wi.fs_folder
+                    _check_folder(fs_folder, tags, check[1])
                     break
             else:
                 assert False
 
-            for c in check[1]:
-
-                def find_item_tag(text):
-                    for item_tag in fs_folder.item_tags:
-                        if item_tag.text.lower() == text.lower():
-                            return item_tag
+            if len(check) > 2:
+                # check the images: check[2] is a list of
+                # ('image-name', [item-tags])
+                for ic in check[2]:
+                    for fs_image in fs_folder.images:
+                        if fs_image.name == ic[0]:
+                            _check_image(fs_image, tags, ic[1])
+                            break
                     else:
                         assert False
-
-                def check_item_tag(item_tag):
-                    type = FsTagType.WORD if c[0][0] == 'w' else FsTagType.TAG
-                    binding = {
-                        'u': FsTagBinding.UNBOUND,
-                        's': FsTagBinding.SUGGESTED,
-                        'b': FsTagBinding.BOUND
-                    }[c[0][1]]
-                    source = {
-                        'n': FsItemTagSource.NONE,
-                        't': FsItemTagSource.DBTAG,
-                        'g': FsItemTagSource.GLOBTS,
-                        'f': FsItemTagSource.FSTS,
-                        'd': FsItemTagSource.DIRECT
-                    }[c[0][2]]
-                    assert item_tag.type == type
-                    if item_tag.binding != binding:
-                        pass
-                    assert item_tag.binding == binding
-                    if item_tag.source != source:
-                        pass
-                    assert item_tag.source == source
-                    if binding != FsTagBinding.UNBOUND:
-                        if len(c) < 3:
-                            pass
-                        assert item_tag.db_tag is tags[c[2]]
-
-                if c[0][0] == 't':
-                    item_tag = find_item_tag(c[1])
-                    check_item_tag(item_tag)
-                else: # w
-                    item_tag0 = find_item_tag(c[1][0])
-                    check_item_tag(item_tag0)
-                    for x in range(1, len(c[1])):
-                        item_tag = find_item_tag(c[1][x])
-                        assert item_tag.idx == item_tag0.idx + x
-                        assert item_tag.first_idx == item_tag0.idx
-                        check_item_tag(item_tag)
 
 
 def test_my_cmd():
@@ -330,8 +352,8 @@ def test_my_cmd():
         'checks': [
             ('171007 virginia', [
                 ('tun', 'Cult Mind'),
+                ('tun', 'Repunknante'),
                 ('tbt', 'Scythe', 'scythe'),
-                ('tst', 'Repunknante', 'repunk'),
                 ('tbg', 'Neglected Truth', 'nt'),
                 ('tbf', 'Dysphoric', 'dys')
             ])
@@ -343,9 +365,13 @@ def test_main_cmd():
     cfg = {
         'tags': [
             ('bk',      'band|Bikini Kill'),
+            ('crimp',   'band|Crimpshrine'),
             ('15',      'band|Fifteen'),
             ('t8',      'band|Tribe 8'),
             ('jb',      'band|Jawbreaker'),
+            ('jf',      'person|Jake Filth'),
+            ('jo',      'person|Jeff Ott'),
+            ('js',      'person|Jake Sales'),
             ('gilman',  'venue|Gilman')
         ],
         'mappings': [
@@ -353,7 +379,9 @@ def test_main_cmd():
             ('bf',     'band|Fifteen', '15'),
             ('bf',     'band|Tribe 8', 't8'),
             ('bf',     'band|Jawbreaker', 'jb'),
-            ('bg',     'venue|Gilman', 'gilman')
+            ('bg',     'venue|Gilman', 'gilman'),
+            ('bf',     'JSALES', None),
+            ('bf',     'meta', None)
         ],
         'checks': [
             ('BIKINI_KILL_GILMAN_10_10_92-9336.psd', [
@@ -365,6 +393,14 @@ def test_main_cmd():
                 ('wbf', ['tribe', '8'], 't8'),
                 ('wbf', ['jawbreaker'], 'jb'),
                 ('wbg', ['gilman'], 'gilman')
+            ], [
+                ('5605', [
+                    ('tbt', 'crimpshrine', 'crimp'),
+                    ('tbt', 'Jake Filth', 'jf'),
+                    ('tbt', 'Jake Sales', 'js'),
+                    ('tbt', 'Jeff Ott', 'jo')
+                ]),
+                ('5631', [])
             ])
         ]
     }

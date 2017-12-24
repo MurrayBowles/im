@@ -596,6 +596,8 @@ class FsItemTag(Base):
             pass
         if bases == '0':
             pass
+        if source == FsItemTagSource.DBTAG and binding == FsTagBinding.UNBOUND:
+            pass
         tag = FsItemTag(
             item=item, idx=idx, first_idx = idx_range[0], last_idx = idx_range[1],
             type=type, text=text, bases=bases,

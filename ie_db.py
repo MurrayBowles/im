@@ -231,34 +231,37 @@ def find_text_binding(session, text, fs_tag_source):
 
 def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
     ''' return [text, FsTagBinding, FsItemTagSource, DbTag id] '''
-    type = db.FsTagType.WORD if ie_tag.type == IETagType.WORD else db.FsTagType.TAG
-    if text.find('|') == -1 and ie_tag.bases is not None:
-        # try both <text> and <base>|<text> for each base in ie_tag.bases
-        bases = ie_tag.bases.split(',')
-        results = []
-        for base in bases:
-            base = base.strip()
-            t = base + '|' + text
-            results.append(find_text_binding(session, t, fs_tag_source))
 
+    if text == 'aake Filth':
+        pass
+    results = []
+    if text.find('|') == -1:
+        # <text> is a flat tag
+        # try <base>|<text> for each base in ie_tag.bases
+        if ie_tag.bases is not None:
+            bases = ie_tag.bases.split(',')
+            for base in bases:
+                base = base.strip()
+                t = base + '|' + text
+                results.append(find_text_binding(session, t, fs_tag_source))
+
+        # try just <text>
         flat_result = find_text_binding(session, text, fs_tag_source)
-        if flat_result[1].has_db_tag() and flat_result[3].parent is not None:
-            # DbTag parent is not one of the proposed bases:
+        if (flat_result[3] is not None and
+            flat_result[3].parent is not None and
+            flat_result[3].parent.text not in ie_tag.bases
+        ):
+            # DbTag has a parent, and it's not one of the proposed bases:
             # demote from BOUND to SUGGESTED
             if flat_result[1] == db.FsTagBinding.BOUND:
                 flat_result[1] = db.FsTagBinding.SUGGESTED
-        results.append(flat_result)
-
-        flat_tag_matches = db.DbTag.find_flat(session, text)
-        for flat_tag_match in flat_tag_matches:
-            binding = [
-                text, db.FsTagBinding.SUGGESTED, db.FsItemTagSource.DBTAG, flat_tag_match]
-            results.append(binding)
-
-        results.sort(key = lambda x: x[1], reverse=True)
-        result = results[0]
     else:
-        result = find_text_binding(session, text, fs_tag_source)
+        # <text> is a hierarchical tag
+        flat_result = result = find_text_binding(session, text, fs_tag_source)
+    results.append(flat_result)
+
+    results.sort(key = lambda x: x[1], reverse=True)
+    result = results[0]
     return result
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
@@ -308,10 +311,11 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
 
 def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
-    binding = find_ie_tag_binding(session, ie_tag, ie_tag.text, fs_tag_source)
+    text = ie_tag.text.replace('/', '|') # 'meta/misc/cool' => 'meta|misc|cool'
+    binding = find_ie_tag_binding(session, ie_tag, text, fs_tag_source)
     item_tag = db.FsItemTag.add(session,
         item, idx, (idx, idx),
-        type=db.FsTagType.TAG, text=ie_tag.text, bases=ie_tag.bases,
+        type=db.FsTagType.TAG, text=text, bases=ie_tag.bases,
         binding=binding[1], source=binding[2], db_tag=binding[3])
     pass
 
