@@ -154,13 +154,13 @@ class IEFolder(object):
     def add_tag(self, ie_tag):
         self.tags.append(ie_tag)
 
-    def text(self):
+    def pname(self):
         return '%s %s' % (
             str(self.db_date) if self.db_date is not None else '-',
             self.db_name)
 
     def __repr__(self):
-        return '<IEFolder %s>' % self.text()
+        return '<IEFolder %s>' % self.pname()
 
 thumbnail_exts = [ '.jpg', '.jpg-hi' ] # TODO: silly PIL doesn't do TIFFs
 exif_exts = [ '.tif', '.psd', '.jpg', '.jpg-hi' ]
@@ -181,11 +181,11 @@ class IEImage(object):
     def add_tag(self, ie_tag):
         self.tags.append(ie_tag)
 
-    def text(self):
-        return '%s|%s' % (self.ie_folder.text(), self.name)
+    def pname(self):
+        return '%s|%s' % (self.ie_folder.pname(), self.name)
 
     def __repr__(self):
-        return '<IEImage %s>' % self.text()
+        return '<IEImage %s>' % self.pname()
 
     def set_attrs_from_exiftool_json(self, item):
         if 'ImageSize' in item:
@@ -216,11 +216,11 @@ class IEImageInst(object):
                 mod_datetime > ie_image.newest_inst_with_thumbnail.mod_datetime):
             ie_image.newest_inst_with_thumbnail = self
 
-    def text(self):
-        return '%s|%s' % (self.ie_image.text(), self.ext)
+    def pname(self):
+        return '%s|%s' % (self.ie_image.pname(), self.ext)
 
     def __repr__(self):
-        return '<IEImageInst %s>' % self.text()
+        return '<IEImageInst %s>' % self.pname()
 
     def get_thumbnail(self):
         try:

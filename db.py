@@ -326,7 +326,7 @@ class DbTag(Item):
     def find_id(cls, session, id):
         return session.query(DbTag).filter_by(id=id).first()
 
-    def text(self):
+    def pname(self):
         tag = self
         str = tag.name
         while tag.parent is not None:
@@ -335,7 +335,11 @@ class DbTag(Item):
         return str
 
     def __repr__(self):
-        return "<DbTag[%s] %s>" % (str(self.flags), self.text())
+        return "<DbTag[%s] %s>" % (str(self.flags), self.pname())
+
+    def __cmp__(self, other):
+        return self.pname().__cmp__(other.pname())
+
 
 class DbTextType(PyIntEnum):
     ''' the syntax of a DbNote's text '''
@@ -545,6 +549,9 @@ class FsItem(Item):
     def db_item(self):
         raise NotImplementedError
 
+    def db_tags(self):
+        ''' return a list of (DbTagFlags, DbTag), sorted by DbTag.__cmp__ '''
+
 
 class FsTagType(PyIntEnum):
     ''' tag word(s) vs tag '''
@@ -639,7 +646,7 @@ class FsItemTag(Base):
             idx = 'w%s/%s..%s' % (self.idx, self.first_idx, self.last_idx)
         else:
             idx = 't%s' % self.idx
-        tgt = ' => ' + self.db_tag.text() if self.db_tag is not None else ''
+        tgt = ' => ' + self.db_tag.pname() if self.db_tag is not None else ''
         return '<FsItemTag [%s] %s: %s/%s%s>' % (
             idx, self.text, self.binding.name, self.source.name, tgt)
 
@@ -688,7 +695,7 @@ class FsTagMapping(Base):
     def pname(self):
         return '%s => %s' % (
             self.text,
-            self.db_tag.text() if self.db_tag is not None else 'None'
+            self.db_tag.pname() if self.db_tag is not None else 'None'
         )
 
     def __repr__(self):
@@ -752,11 +759,11 @@ class FsFolder(FsItem):
     def db_item(self):
         return self.db_folder
 
-    def text(self):
-        return '%s|%s' % (self.source.text(), self.name)
+    def pname(self):
+        return '%s|%s' % (self.source.pname(), self.name)
 
     def __repr__(self):
-        return '<FsFolder %s>' % self.text()
+        return '<FsFolder %s>' % self.pname()
 
 
 class FsImage(FsItem):
@@ -803,7 +810,7 @@ class FsImage(FsItem):
         return self.db_image
 
     def text(self):
-        return '%s|%s' % (self.folder.text(), self.name)
+        return '%s|%s' % (self.folder.pname(), self.name)
 
     def __repr__(self):
         return "<FsImage %s>" % (self.text())
