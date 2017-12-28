@@ -500,7 +500,7 @@ class _FsFolderTag_Tester(_Tester):
             session,
             item=key2[0], idx=0,idx_range=(0,0),
             type=key2[1], text=key2[2], bases=None,
-            binding=FsTagBinding.BOUND, source=FsItemTagSource.DIRECT,
+            binding=FsTagBinding.BOUND, source=FsItemTagSource.FSTS,
             db_tag = self.dep_objs[1]
         )
         return item_tag

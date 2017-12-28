@@ -217,6 +217,24 @@ class DbTagType(PyIntEnum):
     DEPRECATED = 4  # this tag is deprecated; .base_tag is None
 
 
+class DbTagFlags(PyIntEnum):
+    ''' flags describing the relationshop between an DbTag and its Item '''
+
+    DIRECT      = 1 # the tag was applied directly by the user
+    EXTERNAL    = 2 # the tag was mapped from an FsItem
+    BLOCKED     = 4 # the EXTERNAL tag was explicitly blocked
+    # the possible flag combinations
+    DE          = DIRECT | EXTERNAL
+    DEB         = DIRECT | EXTERNAL | BLOCKED
+    EB          = EXTERNAL | BLOCKED
+
+    def __repr__(self):
+        s = ''
+        if DbTagFlags.DIRECT in self.value: s += 'D'
+        if DbTagFlags.EXTERNAL in self.value: s += 'E'
+        if DbTagFlags.BLOCKED in self.value: s += 'B'
+        return s
+
 class DbTag(Item):
     ''' a hierarchical tag on a Item '''
     __tablename__ = 'db-tag'
@@ -237,6 +255,9 @@ class DbTag(Item):
     tag_type = Column(Integer)  # DbTagType
     base_tag_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     base_tag = relationship('DbTag', remote_side=[id], foreign_keys=[base_tag_id])
+
+    # flags
+    flags = Column(Enum(DbTagFlags))
 
     #Index('db-tag', text('lower(name)'), 'parent') TODO: this is supposed to work
     lower_name = Column(String) # TODO this extra column shouldn't be necessary
@@ -314,7 +335,7 @@ class DbTag(Item):
         return str
 
     def __repr__(self):
-        return "<DbTag %s>" % self.text()
+        return "<DbTag[%s] %s>" % (str(self.flags), self.text())
 
 class DbTextType(PyIntEnum):
     ''' the syntax of a DbNote's text '''

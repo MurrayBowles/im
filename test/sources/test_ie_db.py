@@ -219,8 +219,7 @@ def _check_item_tags(item_tags, tags, checks):
                 'n': FsItemTagSource.NONE,
                 't': FsItemTagSource.DBTAG,
                 'g': FsItemTagSource.GLOBTS,
-                'f': FsItemTagSource.FSTS,
-                'd': FsItemTagSource.DIRECT
+                'f': FsItemTagSource.FSTS
             }[c[0][2]]
             assert item_tag.type == type
             if item_tag.binding != binding:
@@ -310,10 +309,10 @@ def _test_cmd(volume, dir_name, source_type, cfg):
 
     # check the FsItemTags in cfg['checks'], a list of
     # ('folder name', [item-tags]), where item-tag is one of
-    #   ('t{usb}{ntgfd}', 'tag-text', 'tag-var')(
-    #   ('w{usb}{ntgfd}', ['word',...], 'tag-var')
+    #   ('t{usb}{ntgf}', 'tag-text', 'tag-var')(
+    #   ('w{usb}{ntgf}', ['word',...], 'tag-var')
     # usb is Unbound | Suggested | Bound
-    # ntgfd is None | dbTag | Globts | Fsts | Direct
+    # ntgfd is None | dbTag | Globts | Fsts
     if 'checks' in cfg:
         for check in cfg['checks']:
             # find the folder (check[0]) in the results

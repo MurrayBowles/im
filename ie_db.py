@@ -232,12 +232,10 @@ def find_text_binding(session, text, fs_tag_source):
 def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
     ''' return [text, FsTagBinding, FsItemTagSource, DbTag id] '''
 
-    if text == 'aake Filth':
-        pass
     results = []
     if text.find('|') == -1:
         # <text> is a flat tag
-        # try <base>|<text> for each base in ie_tag.bases
+        # try <base>|<text> for each suggested base in ie_tag.bases
         if ie_tag.bases is not None:
             bases = ie_tag.bases.split(',')
             for base in bases:
