@@ -348,24 +348,6 @@ class _DbTagReplacement_Tester(_Tester):
         assert obj.base_tag is self.dep_objs[0]
 
 
-class _DbTagFolder_Tester(_Tester):
-    def __init__(self):
-        _Tester.__init__(self)
-        self.dep_classes = [_DbFolder_Tester]
-
-    def create(self, session, key, key2):
-        tag = DbTag.add(session, parent=None, name=_mk_name('tag'))
-        tag.items = [self.dep_objs[0]]
-        return tag
-
-    def find(self, key):
-        return session.query(DbTag).filter_by(id=key).first()
-
-    def test_deps(self, obj):
-        assert obj.items[0] is self.dep_objs[0]
-        assert self.dep_objs[0].tags[0] is obj
-
-
 class _DbNoteType_Tester(_Tester):
 
     def create(self, session, key, key2):
@@ -577,6 +559,7 @@ def test_classes():
     # classes = [ _FsFolder_Tester ]
     for cls in classes:
         test_obj = cls()
+        # print(str(cls))
         obj = test_obj.add()
         test_obj.delete()
         pass
@@ -609,30 +592,6 @@ def _test_association(tester_classes, list_names):
 
 def test_associations():
     _test_association(
-        [_DbFolder_Tester, _DbTag_Tester],
-        ['tags', 'items']
-    )
-    _test_association(
-        [_DbCollection_Tester, _DbTag_Tester],
-        ['tags', 'items']
-    )
-    _test_association(
-        [_DbTag_Tester, _DbTag_Tester],
-        ['tags', 'items']
-    )
-    _test_association(
-        [_FsSource_Tester, _DbTag_Tester],
-        ['tags', 'items']
-    )
-    _test_association(
-        [_FsFolder_Tester, _DbTag_Tester],
-        ['tags', 'items']
-    )
-    _test_association(
-        [_FsImage_Tester, _DbTag_Tester],
-        ['tags', 'items']
-    )
-    _test_association(
         [_DbImage_Tester, _DbCollection_Tester],
         ['collections', 'images']
     )
@@ -662,3 +621,28 @@ def test_notes():
             folder.del_note(session, 0)
         session.commit()
     pass
+
+
+def test_tags():
+    folder = DbFolder.add(session, _mk_date(), _mk_name('folder'))
+    tag = DbTag.add(session, _mk_name('tag'))
+
+    folder.mod_tag_flags(session, tag, add_flags=TagFlags.DIRECT)
+    tags = folder.get_tags(session)
+    assert len(tags) == 1
+    assert tags[0].flags == TagFlags.DIRECT
+
+    folder.mod_tag_flags(session, tag, add_flags=TagFlags.EXTERNAL)
+    tags = folder.get_tags(session)
+    assert len(tags) == 1
+    assert tags[0].flags == TagFlags.DIRECT | TagFlags.EXTERNAL
+
+    folder.mod_tag_flags(session, tag, del_flags=TagFlags.DIRECT)
+    tags = folder.get_tags(session)
+    assert len(tags) == 1
+    assert tags[0].flags == TagFlags.EXTERNAL
+
+    folder.mod_tag_flags(session, tag, del_flags=TagFlags.EXTERNAL)
+    tags = folder.get_tags(session)
+    assert len(tags) == 0
+

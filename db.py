@@ -1,6 +1,5 @@
 ''' database classes '''
 
-from enum import Enum as PyEnum
 from enum import IntEnum as PyIntEnum
 
 import os
@@ -11,20 +10,46 @@ Base = declarative_base()
 from sqlalchemy.ext.orderinglist import ordering_list
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Enum
-from sqlalchemy import Float, ForeignKey, Index, Integer
+from sqlalchemy import ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
-from sqlalchemy import text
 from sqlalchemy.orm import backref, relationship
 
 import util
 
+
 # DbXxx: the database's representation of folders/images/tags/notes
 
-# DbTag <<->> Item
-tagged_items = Table('tagged-items', Base.metadata,
-    Column('tag_id', Integer, ForeignKey('db-tag.id')),
-    Column('item_id', Integer, ForeignKey('item.id'))
-)
+
+class TagFlags(PyIntEnum):
+    ''' flags describing the relationshop between an DbTag and its Item '''
+
+    NONE        = 0
+    DIRECT      = 1 # the tag was applied directly by the user
+    EXTERNAL    = 2 # the tag was mapped from an FsItem
+    BLOCKED     = 4 # the EXTERNAL tag was explicitly blocked
+    # the possible flag combinations
+    DE          = DIRECT | EXTERNAL
+    DEB         = DIRECT | EXTERNAL | BLOCKED
+    EB          = EXTERNAL | BLOCKED
+
+    def __repr__(self):
+        if self.value == 0: return TagFlags.NONE
+        s = ''
+        if TagFlags.DIRECT in self.value: s += 'D'
+        if TagFlags.EXTERNAL in self.value: s += 'E'
+        if TagFlags.BLOCKED in self.value: s += 'B'
+        return s
+
+
+class ItemTag(Base):
+    ''' Item <<->> DbTag association table '''
+
+    __tablename__ = 'item-tags'
+
+    id = Column(Integer, primary_key=True)
+    tag_id = Column(Integer, ForeignKey('db-tag.id'))
+    item_id = Column(Integer, ForeignKey('item.id'))
+    flags = Column(Enum(TagFlags))
 
 
 # DbImage <<->> DbCollection
@@ -45,7 +70,8 @@ class Item(Base):
     name = Column(String(100))
 
     # Item <<->> DbTag
-    tags = relationship('DbTag', secondary=tagged_items, back_populates='items')
+    tags = relationship(
+        'ItemTag', backref='item', primaryjoin = id == ItemTag.item_id)
 
     # Item ->> DbNotes
     notes = relationship(
@@ -77,6 +103,21 @@ class Item(Base):
     def move_note(self, session, old_idx, new_idx):
         ''' move the note at old_idx to new_idx '''
         self.notes[old_idx], self.notes[new_idx] = self.notes[new_idx], self.notes[old_idx]
+
+    def mod_tag_flags(self, session, tag, add_flags=0, del_flags=0):
+        item_tag = session.query(ItemTag).filter_by(item=self, tag=tag).first()
+        if item_tag is not None:
+            item_tag.flags &= ~del_flags
+            item_tag.flags |= add_flags
+            if item_tag.flags == 0:
+                session.delete(item_tag)
+        else:
+            flags = add_flags & ~del_flags
+            if flags != 0:
+                session.add(ItemTag(item=self, tag=tag, flags=add_flags))
+
+    def get_tags(self, session):
+        return session.query(ItemTag).filter_by(item=self).all()
 
     def __repr__(self):
         # this should always be overloaded
@@ -217,24 +258,6 @@ class DbTagType(PyIntEnum):
     DEPRECATED = 4  # this tag is deprecated; .base_tag is None
 
 
-class DbTagFlags(PyIntEnum):
-    ''' flags describing the relationshop between an DbTag and its Item '''
-
-    DIRECT      = 1 # the tag was applied directly by the user
-    EXTERNAL    = 2 # the tag was mapped from an FsItem
-    BLOCKED     = 4 # the EXTERNAL tag was explicitly blocked
-    # the possible flag combinations
-    DE          = DIRECT | EXTERNAL
-    DEB         = DIRECT | EXTERNAL | BLOCKED
-    EB          = EXTERNAL | BLOCKED
-
-    def __repr__(self):
-        s = ''
-        if DbTagFlags.DIRECT in self.value: s += 'D'
-        if DbTagFlags.EXTERNAL in self.value: s += 'E'
-        if DbTagFlags.BLOCKED in self.value: s += 'B'
-        return s
-
 class DbTag(Item):
     ''' a hierarchical tag on a Item '''
     __tablename__ = 'db-tag'
@@ -249,15 +272,13 @@ class DbTag(Item):
     children = relationship('DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent')
 
     # DbTag <<->> Item
-    items = relationship('Item', secondary=tagged_items, back_populates='tags')
+    items = relationship(
+        'ItemTag', backref='tag', primaryjoin = id == ItemTag.tag_id)
 
     # DbTag -> replacement or identity DbTag
     tag_type = Column(Integer)  # DbTagType
     base_tag_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     base_tag = relationship('DbTag', remote_side=[id], foreign_keys=[base_tag_id])
-
-    # flags
-    flags = Column(Enum(DbTagFlags))
 
     #Index('db-tag', text('lower(name)'), 'parent') TODO: this is supposed to work
     lower_name = Column(String) # TODO this extra column shouldn't be necessary
@@ -335,7 +356,7 @@ class DbTag(Item):
         return str
 
     def __repr__(self):
-        return "<DbTag[%s] %s>" % (str(self.flags), self.pname())
+        return "<DbTag %s>" % self.pname()
 
     def __cmp__(self, other):
         return self.pname().__cmp__(other.pname())
