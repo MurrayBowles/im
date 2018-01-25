@@ -1,14 +1,14 @@
 ''' import/export folders/images to/from the database '''
 
-from collections import deque
 import copy
+from collections import deque
 
 import db
+import web_ie_db
 from ie_cfg import *
 from ie_fs import *
 from tag import init_fs_item_tags
 from task import Task
-import web_ie_db
 
 
 class IEWorkItem(object):

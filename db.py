@@ -14,6 +14,8 @@ from sqlalchemy import ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
 
+from tag import on_db_tag_added, on_db_tag_removed
+from tag import on_fs_tag_mapping_added, on_fs_tag_mapping_removed
 import util
 
 
@@ -298,6 +300,8 @@ class DbTag(Item):
             parent=parent, name=name, lower_name=name.lower(),
             tag_type=tag_type.value, base_tag=base_tag)
         if obj is not None: session.add(obj)
+        if tag_type != DbTagType.DEPRECATED:
+            on_db_tag_added(session, obj)
         return obj
 
     @classmethod
@@ -346,7 +350,23 @@ class DbTag(Item):
     @classmethod
     def find_id(cls, session, id):
         return session.query(DbTag).filter_by(id=id).first()
-
+    
+    def set_type(self, session, new_type):
+        if new_type != self.tag_type:
+            if new_type == DbTagType.DEPRECATED:
+                on_db_tag_removed(session, self)
+            old_type = self.tag_type
+            self.tag_type = new_type
+            if old_type == DbTagType.DEPRECATED:
+                on_db_tag_added(session, self)
+                
+    def set_name(self, session, new_name):
+        # TODO: change parent too, or just name?
+        if new_name != self.name:
+            on_db_tag_removed(session, self)
+            self.name = new_name
+            on_db_tag_added(session, self)
+    
     def pname(self):
         tag = self
         str = tag.name
@@ -581,7 +601,7 @@ class FsTagType(PyIntEnum):
 
 
 class FsTagBinding(PyIntEnum):
-    UNBOUND     = 0 # not bound
+    UNBOUND     = 0 # not bound (this external tag is being ignored)
     SUGGESTED   = 1 # .db_tag is a suggested tag
     BOUND       = 2 # .db_tag will be bound to the external tag or word(s)
 
@@ -646,7 +666,7 @@ class FsItemTag(Base):
         if bases == '0':
             pass
         if source == FsItemTagSource.DBTAG and binding == FsTagBinding.UNBOUND:
-            pass
+            raise ValueError
         tag = FsItemTag(
             item=item, idx=idx, first_idx = idx_range[0], last_idx = idx_range[1],
             type=type, text=text, bases=bases,
@@ -693,9 +713,12 @@ class FsTagMapping(Base):
 
     @classmethod
     def add(cls, session, tag_source, text, binding, db_tag):
+        if binding == FsTagBinding.UNBOUND:
+            raise ValueError
         mapping = FsTagMapping(
             tag_source=tag_source, text=text, binding=binding, db_tag=db_tag)
         if mapping is not None: session.add(mapping)
+        on_fs_tag_mapping_added(session, mapping)
         return mapping
 
     @classmethod
@@ -707,11 +730,28 @@ class FsTagMapping(Base):
     def set(cls, session, tag_source, text, binding, db_tag):
         mapping = cls.find(session, tag_source, text)
         if mapping is None:
-            mapping = cls.add(session, tag_source, text, binding, db_tag)
+            if binding != FsTagBinding.UNBOUND:
+                mapping = cls.add(session, tag_source, text, binding, db_tag)
         else:
+            old_binding = mapping.binding
+            if binding != old_binding:
+                on_fs_tag_mapping_removed(session, mapping)
+                if binding == FsTagMapping.UNBOUND:
+                    session.delete(mapping)
+                    return None
             mapping.binding = binding
             mapping.db_tag = db_tag
+            if binding != old_binding:
+                on_fs_tag_mapping_added(session, mapping)
         return mapping
+
+    def leaf_text(self):
+        x = self.text.rfind('|')
+        if x == -1:
+            return self.text
+        else:
+            # TODO: strip spaces around '|' when storing .text
+            return self.text[x + 1:].lstrip(' ')
 
     def pname(self):
         return '%s => %s' % (

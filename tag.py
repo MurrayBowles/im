@@ -145,3 +145,34 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
                 ie_tag = next(ie_tag_iter)
     except StopIteration:
         pass
+    
+def on_tag_change(session, text):
+    ''' schedule a task to recalculate all FsItemTag bindings involving <text>
+        called when a DbTag or FsTagMapping is changed
+        <text> is a leaf tag string, e.g. 'Green Day' if the eDbTag 'band}Green Day' was changed
+    '''
+    pass
+
+def on_db_tag_added(session, db_tag):
+    ''' schedule a task to add auto-FsItemTags to matching FsItems
+        called when a DbTag is added, renamed, or un-deprecated
+    '''
+    on_tag_change(session, db_tag.name)
+
+def on_db_tag_removed(session, db_tag):
+    ''' schedule a task to remove auto-FsItemTags from matching FsItems
+        called when a DbTag is renamed or deprecated
+    '''
+    on_tag_change(session, db_tag.name)
+
+def on_fs_tag_mapping_added(session, mapping):
+    ''' schedule a task to add auto-FsItemTags for matching FsItems
+        called when an FsTagMapping is added or its .binding is changed
+    '''
+    on_tag_change(session, mapping.leaf_text())
+
+def on_fs_tag_mapping_removed(session, mapping):
+    ''' schedule a task to remove auto-FsItemTags from matching FsItems
+        called when an FsTagMapping is deleted or its .binding is changed
+    '''
+    on_tag_change(session, mapping.leaf_text())
