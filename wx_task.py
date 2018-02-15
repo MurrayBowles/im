@@ -1,4 +1,4 @@
-''' wxPython implementation of Task, using threading and pubsub '''
+''' wxPython implementation of Task, using Python threads and wxPython pubsub '''
 
 from threading import Thread
 import wx
@@ -7,7 +7,7 @@ from wx.lib.pubsub import pub
 class WxTask:
 
     def init_impl(self, **kwargs):
-        for msg, method in self.subs.items():
+        for msg, method in self.subsciptions.items():
             ps.subscribe(msg, method)
         pub.subscribe(self._call, 'Task.call')
 

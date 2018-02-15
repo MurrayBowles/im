@@ -13,7 +13,7 @@ from tags_gui import TagsTab
 from task import Task
 import time
 from wx_task import WxTask
-from test_task import TestTask
+from mock_task import MockTask
 
 # TODO: move to test_task
 
@@ -51,7 +51,7 @@ class MyTask(Task):
 class WxMyTask(WxTask, MyTask):
     pass
 
-class TestMyTask(TestTask, MyTask):
+class MockMyTask(MockTask, MyTask):
     pass
 
 class GuiApp(wx.App):
