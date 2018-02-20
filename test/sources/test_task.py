@@ -3,7 +3,7 @@
 import pytest
 from time import sleep
 
-from mock_task import *
+from mock_task import MockSlicer
 from task import *
 
 class TaskTester:
@@ -71,19 +71,17 @@ class OvertimeTester(TaskTester):
         assert self.steps > 0
         assert self.after
 
-
 _mock_slicer = MockSlicer()
 
-
 def test_return():
-    ReturnTester(_mock_slicer, MockTask2)
+    ReturnTester(_mock_slicer, Task2)
 
 def test_exception():
-    ExceptionTester(_mock_slicer, MockTask2)
+    ExceptionTester(_mock_slicer, Task2)
 
 def test_step():
-    StepTester(_mock_slicer, MockTask2)
+    StepTester(_mock_slicer, Task2)
 
 def test_overtime():
-    OvertimeTester(_mock_slicer, MockTask2)
+    OvertimeTester(_mock_slicer, Task2)
 
