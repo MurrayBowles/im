@@ -1,4 +1,4 @@
-''' import/export folders/images from/to the file system '''
+""" import/export folders/images from/to the file system """
 
 import datetime
 from enum import Enum, IntEnum
@@ -241,7 +241,7 @@ _exiftool_args = [
 ]
 
 def _get_exiftool_json(argv):
-    ''' runs exiftool on <argv> and returns a list of dictionaries containing the results '''
+    """ runs exiftool on <argv> and returns a list of dictionaries containing the results """
     outb = subprocess.check_output(argv)
     outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '').replace(r"\'", "'")
     try:
@@ -253,9 +253,9 @@ def _get_exiftool_json(argv):
 ie_image_set0 = None
 
 def get_ie_image_exifs(ie_image_set, pub):
-    ''' get exif data for all the images in <ie_image_set>
+    """ get exif data for all the images in <ie_image_set>
         deletes images from the set as their exifs are processed
-    '''
+    """
 
     def proc_exiftool_json(ie_image_set, ext_paths, exiftool_json):
         for item in exiftool_json:
@@ -314,9 +314,9 @@ def get_ie_image_exifs(ie_image_set, pub):
                     pub('ie.sts imported tags', len0 - len(ie_image_set))
 
 def get_ie_image_thumbnails(ie_image_set, pub):
-    ''' extract thumbnails for the images in <ie_image_set>
+    """ extract thumbnails for the images in <ie_image_set>
         deletes images from the set as their thumbnails are proecesed
-    '''
+    """
     pub('ie.sts.import thumbnails', len(ie_image_set))
     for ie_image in ie_image_set:
         ie_image_inst = ie_image.newest_inst_with_thumbnail
@@ -331,7 +331,7 @@ leading_date_underscore = re.compile(r'^\d{6,6}_')
 leading_date = re.compile(r'^\d{6,6}')
 
 def is_std_dirname(dirname):
-    ''' return whether dirname is a "standard" directory of image files '''
+    """ return whether dirname is a "standard" directory of image files """
     return True
     # TODO: return leading_date_space.match(dirname) is not None
 
@@ -352,11 +352,11 @@ def proc_std_dirname(dir_pathname, dir_name):
     return folder
 
 def scan_dir_set(dir_set_pathname, test, proc):
-    ''' return a list of IEFolders representing each directory satisfying test
+    """ return a list of IEFolders representing each directory satisfying test
         the list is sorted by folder fs_name
         test(dir_name) checks whether the directory should be processed
         proc(dir_pathname, dir_name) returns an IEFolder for the directory
-    '''
+    """
     folders = []
     for dir in os.listdir(dir_set_pathname):
         dir_path = os.path.join(dir_set_pathname, dir)
@@ -368,10 +368,10 @@ def scan_dir_set(dir_set_pathname, test, proc):
     return folders
 
 def scan_dir_sel(dir_pathname_list, proc):
-    ''' return a list of IEFolders representing each directory satisfying test
+    """ return a list of IEFolders representing each directory satisfying test
         the list is sorted by fs_name
         proc(dir_pathname, dir_name) returns an IEFolder for the directory
-    '''
+    """
 
     folders = []
     for dir_path in dir_pathname_list:
@@ -420,13 +420,13 @@ def add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime):
         ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
 
 def add_ie_folder_name_word_tags(ie_folder, bases):
-    ''' add tags based on th ewords of the folder's name '''
+    """ add tags based on th ewords of the folder's name """
     for word in ie_folder.db_name.split(' '):
         ie_folder.add_tag(
             IETag(IETagType.WORD, text=word, bases=bases))
 
 def add_ie_folder_name_tag(ie_folder, bases):
-    ''' add a tag based on the folder's name '''
+    """ add a tag based on the folder's name """
     ie_folder.add_tag(IETag(IETagType.BASED, text=ie_folder.db_name, bases=bases))
 
 def scan_std_dir_files(ie_folder):
@@ -543,13 +543,13 @@ def proc_corbett_filename(file_pathname, file_name, folders):
     return ie_image_inst
 
 def scan_file_set(file_set_pathname, test, proc):
-    ''' return a list of IEFolders (each containing IEImages)
+    """ return a list of IEFolders (each containing IEImages)
         representing the folders and images found in file_set_pathname
         the list is sorted by folder fs_path
         test(file_name) checks whether the directory should be processed
         proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
         if the filename has a new prefix, adds a new IEFolder to folders
-    '''
+    """
     folders = []
     try:
         os.listdir(file_set_pathname)
@@ -564,13 +564,13 @@ def scan_file_set(file_set_pathname, test, proc):
     return folders
 
 def scan_file_sel(file_pathname_list, proc):
-    ''' return a list of IEFolders (each containing IEImages)
+    """ return a list of IEFolders (each containing IEImages)
         representing the folders and images found in file_pathname_list
         the list is sorted by folder fs_path
         test(file_name) checks whether the directory should be processed
         proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
         if the filename has a new prefix, adds a new IEFolder to folders
-    '''
+    """
     folders = []
     for file_path in file_pathname_list:
         if os.path.isfile(file_path):

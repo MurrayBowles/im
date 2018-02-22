@@ -1,4 +1,4 @@
-''' scrape PBase pages '''
+""" scrape PBase pages """
 
 import datetime
 from lxml import html
@@ -49,7 +49,7 @@ gallery_tag_map = {
 #   ...
 
 def get_gallery_header_tags(header_list, base_gallery):
-    ''' return a list of IETags derived from the gallery headers '''
+    """ return a list of IETags derived from the gallery headers """
 
     def line_type_str(lines):
         def is_fb_event(line):
@@ -72,7 +72,7 @@ def get_gallery_header_tags(header_list, base_gallery):
         return s
 
     def get_line_tags(line, line_type, template, bases, tags):
-        ''' append IETags for <line> to <tags> '''
+        """ append IETags for <line> to <tags> """
         tag_type = IETagType.from_code(template[0])
         base = bases[int(template[1])] if len(template) == 2 else None
         if line_type == '1':
@@ -146,11 +146,11 @@ def get_gallery_header_tags(header_list, base_gallery):
 def scan_pbase_gallery_bytes(
     path, bytes, top_gallery, proc_gallery_link, proc_gallery_tag,  proc_image_link
 ):
-    ''' scrape date from the gallery page at <path>
+    """ scrape date from the gallery page at <path>
         for each item in the gallery description area, call proc_gallery_tag(IETag)
         for each image thumbnail, call proc_image_link(url, image_name)
         for each gallery thumbnail, call proc_gallery_link(path)
-    '''
+    """
 
     tree = html.fromstring(bytes)
 
@@ -238,9 +238,9 @@ def scan_pbase_gallery(
         path, bytes, top_gallery, proc_gallery_link, proc_gallery_tag, proc_image_link)
 
 def scan_web_page_children(ie_folder, top_gallery, child_paths):
-    ''' collect IEImages, IETags, and child paths for the gallery of <ie-folder>
+    """ collect IEImages, IETags, and child paths for the gallery of <ie-folder>
         see scan_pbase_gallery()
-    '''
+    """
     got_gallery_tags = [False]
     def on_gallery_link(path):
         child_paths.append(path)

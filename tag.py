@@ -1,10 +1,10 @@
-''' tag operations '''
+""" tag operations """
 
 import db
 from ie_fs import IETagType
 
 def find_text_binding(session, text, fs_tag_source):
-    ''' return [text, FsTagBinding, FsItemTagSource, DbTag id] '''
+    """ return [text, FsTagBinding, FsItemTagSource, DbTag id] """
     mapping = db.FsTagMapping.find(session, fs_tag_source, text)
     if mapping is not None:
         # <text> is mapped in <fs_tag_source>
@@ -20,7 +20,7 @@ def find_text_binding(session, text, fs_tag_source):
     return [text, db.FsTagBinding.UNBOUND, db.FsItemTagSource.NONE, None]
 
 def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
-    ''' return [text, FsTagBinding, FsItemTagSource, DbTag id] '''
+    """ return [text, FsTagBinding, FsItemTagSource, DbTag id] """
 
     results = []
     if text.find('|') == -1:
@@ -53,7 +53,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
     return result
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
-    ''' add db.FsItemTags to <item>.tags[<base_idx>...], of type WORD '''
+    """ add db.FsItemTags to <item>.tags[<base_idx>...], of type WORD """
     def partition_words(pfx, words, partitions):
         partitions.append(pfx + [words])
         if len(words) > 1:
@@ -98,7 +98,7 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     pass
 
 def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
-    ''' add a db.FsItemTag to <item>.tags[<idx>], of type TAG '''
+    """ add a db.FsItemTag to <item>.tags[<idx>], of type TAG """
     text = ie_tag.text.replace('/', '|') # 'meta/misc/cool' => 'meta|misc|cool'
     binding = find_ie_tag_binding(session, ie_tag, text, fs_tag_source)
     item_tag = db.FsItemTag.add(session,
@@ -108,7 +108,7 @@ def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     pass
 
 def add_fs_item_note(session, item, ie_tag):
-    ''' add a Note to <item> '''
+    """ add a Note to <item> """
     pass
 
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
@@ -147,32 +147,32 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
         pass
     
 def on_tag_change(session, text):
-    ''' schedule a task to recalculate all FsItemTag bindings involving <text>
+    """ schedule a task to recalculate all FsItemTag bindings involving <text>
         called when a DbTag or FsTagMapping is changed
         <text> is a leaf tag string, e.g. 'Green Day' if the eDbTag 'band}Green Day' was changed
-    '''
+    """
     pass
 
 def on_db_tag_added(session, db_tag):
-    ''' schedule a task to add auto-FsItemTags to matching FsItems
+    """ schedule a task to add auto-FsItemTags to matching FsItems
         called when a DbTag is added, renamed, or un-deprecated
-    '''
+    """
     on_tag_change(session, db_tag.name)
 
 def on_db_tag_removed(session, db_tag):
-    ''' schedule a task to remove auto-FsItemTags from matching FsItems
+    """ schedule a task to remove auto-FsItemTags from matching FsItems
         called when a DbTag is renamed or deprecated
-    '''
+    """
     on_tag_change(session, db_tag.name)
 
 def on_fs_tag_mapping_added(session, mapping):
-    ''' schedule a task to add auto-FsItemTags for matching FsItems
+    """ schedule a task to add auto-FsItemTags for matching FsItems
         called when an FsTagMapping is added or its .binding is changed
-    '''
+    """
     on_tag_change(session, mapping.leaf_text())
 
 def on_fs_tag_mapping_removed(session, mapping):
-    ''' schedule a task to remove auto-FsItemTags from matching FsItems
+    """ schedule a task to remove auto-FsItemTags from matching FsItems
         called when an FsTagMapping is deleted or its .binding is changed
-    '''
+    """
     on_tag_change(session, mapping.leaf_text())

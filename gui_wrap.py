@@ -1,4 +1,4 @@
-''' wrappers for wxPython widgets and sizers '''
+""" wrappers for wxPython widgets and sizers """
 
 from bisect import *
 import db
@@ -281,7 +281,7 @@ class ListBox:
 
 
 class ListBoxAED:
-    ''' a list box plus ADD, EDIT, DELETE buttons '''
+    """ a list box plus ADD, EDIT, DELETE buttons """
 
     def __init__(
         self, parent, sizer,

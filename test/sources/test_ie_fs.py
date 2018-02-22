@@ -1,4 +1,4 @@
-''' test ie_fs (import/export folders/images from/to the file system) '''
+""" test ie_fs (import/export folders/images from/to the file system) """
 
 from pathlib import Path
 import pytest
@@ -10,7 +10,7 @@ base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
 def touch_file(path):
-    ''' update the modification date of the file at <path> '''
+    """ update the modification date of the file at <path> """
     Path(path).touch()
 
 _ext_map = {

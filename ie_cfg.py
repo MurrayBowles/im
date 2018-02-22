@@ -1,4 +1,4 @@
-''' persistent data for Import/Export: cfg.ie '''
+""" persistent data for Import/Export: cfg.ie """
 
 from enum import Enum
 # import wx
@@ -14,13 +14,13 @@ class ImportMode(Enum):
         return ImportMode.SET
 
 class IEFolderAct(Enum):
-    ''' import/export actions on a folder '''
+    """ import/export actions on a folder """
     SCAN = 0        # scan folder and its images
     IMPORT_TAGS = 1 # import folder tags
 
 
 class IEImageAct(Enum):
-    ''' import/export actions on an image file '''
+    """ import/export actions on an image file """
     IMPORT_TAGS = 0     # import image tags
     EXPORT_TAGS = 1     # export image tags
     IMPORT_THUMBS = 2   # import image thimbnails

@@ -1,4 +1,4 @@
-''' top-level GUI '''
+""" top-level GUI """
 
 import logging
 import wx

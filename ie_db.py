@@ -1,4 +1,4 @@
-''' import/export folders/images to/from the database '''
+""" import/export folders/images to/from the database """
 
 import copy
 from collections import deque
@@ -75,11 +75,11 @@ def get_web_ie_work_item(session, fs_source, path, parent):
     return work_item
 
 def get_ie_worklist(session, fs_source, import_mode, paths):
-    ''' return a list of IEWorkItems
+    """ return a list of IEWorkItems
         1) scan <paths> to obtain a list of IEFolders
         2) for each, check whether there's already an db.FsFolder
         an IEWorkItem is a fs_folder/ie_folder pair, where one item may be None
-    '''
+    """
 
     worklist = deque()
     if import_mode == ImportMode.SET:
@@ -132,7 +132,7 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
     return worklist
 
 def create_fs_folder(session, ie_folder, fs_source):
-    ''' create an FsFolder, and maybe a DbFolder, for <ie_folder> '''
+    """ create an FsFolder, and maybe a DbFolder, for <ie_folder> """
     # create an FsFolder
     fs_folder = db.FsFolder.get(
         session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
@@ -215,7 +215,7 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
                 break
 
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
-    ''' do auto-tagging, move thumbnails to db.DbImage '''
+    """ do auto-tagging, move thumbnails to db.DbImage """
 
     if fs_source.source_type == db.FsSourceType.WEB:
         # create FsFolders and FsImages for the IEFolders/Images scanned
@@ -251,10 +251,10 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     pass
 
 def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
-    ''' get thumbnails or exifs for a work item
+    """ get thumbnails or exifs for a work item
         do all the processing for a web page
         run in a background thread
-    '''
+    """
     if fs_source.source_type == db.FsSourceType.WEB:
         if work_item.ie_folder is not None:
             pub_fn('ie.sts.import webpage', 1)
@@ -270,7 +270,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
             get_ie_image_exifs(work_item.get_exif, pub_fn)
 
 class IETask(Task):
-    ''' an import/export command '''
+    """ an import/export command """
 
     def __init__(self, session, ie_cfg, fs_source, import_mode, paths):
         super().__init__()
@@ -287,10 +287,10 @@ class IETask(Task):
         self.start(self.start_item)
 
     def start_item(self, data):
-        ''' preprocess the work item, gathering image files in some cases,
+        """ preprocess the work item, gathering image files in some cases,
             then spawn a background process if thumbnails or EXIFs need to be read
             called by the main thread when it receives ie.cmd.start item
-        '''
+        """
 
         if self.cancelled() or self.worklist_idx >= len(self.worklist):
             self.pub('ie.sts.done', True)
@@ -307,19 +307,19 @@ class IETask(Task):
                 self.queue(self.finish_item)
 
     def bg_proc(self, data):
-        ''' extract the exifs and/or thumbnails for a folder
+        """ extract the exifs and/or thumbnails for a folder
             or do all the extraction for a web page
             run in the background thread created by bg_spawn
-        '''
+        """
         work_item = self.worklist[self.worklist_idx]
         bg_proc_ie_work_item(work_item, self.fs_source, self.pub)
         self.queue(self.finish_item)
 
     def finish_item(self, data):
-        ''' post-process the work item, autotagging the folder and its images
+        """ post-process the work item, autotagging the folder and its images
             where possible, then report completion of the folder to the GUI
            called by the main thread when it receives ie.cmd.start item
-        '''
+        """
         if self.worklist_idx >= len(self.worklist):
             self.pub('ie.sts.done', True)
             return

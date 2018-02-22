@@ -1,4 +1,4 @@
-''' persistent data for GUI: cfg.gui '''
+""" persistent data for GUI: cfg.gui """
 
 import wx
 

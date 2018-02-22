@@ -1,4 +1,4 @@
-''' wxPython implementation of Task, using Python threads and wxPython pubsub '''
+""" wxPython implementation of Task, using Python threads and wxPython pubsub """
 
 from threading import Thread
 import wx
@@ -12,7 +12,7 @@ class WxTask:
         pub.subscribe(self._call, 'Task.call')
 
     def pub(self, msg, data=None):
-        ''' publish msg, data '''
+        """ publish msg, data """
         def do_pub(msg, data):
             pub.sendMessage(msg, data=data)
         wx.CallAfter(do_pub, msg, data=data)
@@ -21,13 +21,13 @@ class WxTask:
         self._step(step)
 
     def _queue(self, step):
-        ''' queue <method> to be called with <data> '''
+        """ queue <method> to be called with <data> """
         def do_pub(msg, data):
             pub.sendMessage(msg, step=step)
         wx.CallAfter(do_pub, 'Task.call', step)
 
     def _spawn(self, step):
-        ''' start a thread calling <method> with <data> '''
+        """ start a thread calling <method> with <data> """
         _WxThread(self, step)
 
 

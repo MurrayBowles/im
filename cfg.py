@@ -1,4 +1,4 @@
-''' per-user persistent app data, stored jsonpicked in UserDataDir/im-config '''
+""" per-user persistent app data, stored jsonpicked in UserDataDir/im-config """
 
 import copy
 import jsonpickle
@@ -32,7 +32,7 @@ class Cfg(object):
         config_file.close()
 
     def restore(self):
-        ''' called once on initialization to restore the configuration settings '''
+        """ called once on initialization to restore the configuration settings """
         config_file = _config_file('r')
         if config_file is not None:
             config_str = config_file.read()
@@ -50,7 +50,7 @@ class Cfg(object):
         pass
 
     def snapshot(self):
-        ''' used when passing cfg to background threads '''
+        """ used when passing cfg to background threads """
         return copy.deepcopy(self)
 
 cfg = Cfg() # per-user persistent app data

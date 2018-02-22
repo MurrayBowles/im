@@ -1,4 +1,4 @@
-''' database classes '''
+""" database classes """
 
 from enum import IntEnum as PyIntEnum
 
@@ -23,7 +23,7 @@ import util
 
 
 class TagFlags(PyIntEnum):
-    ''' flags describing the relationshop between an DbTag and its Item '''
+    """ flags describing the relationshop between an DbTag and its Item """
 
     NONE        = 0
     DIRECT      = 1 # the tag was applied directly by the user
@@ -44,7 +44,7 @@ class TagFlags(PyIntEnum):
 
 
 class ItemTag(Base):
-    ''' Item <<->> DbTag association table '''
+    """ Item <<->> DbTag association table """
 
     __tablename__ = 'item-tags'
 
@@ -62,7 +62,7 @@ image_collections = Table('image-collections', Base.metadata,
 
 
 class Item(Base):
-    ''' something which has a name and can be tagged: a Folder, Collection, Image, or Tag '''
+    """ something which has a name and can be tagged: a Folder, Collection, Image, or Tag """
     __tablename__ = 'item'
     id = Column(Integer, primary_key=True)
 
@@ -84,7 +84,7 @@ class Item(Base):
         return session.query(Item).filter_by(id=id).first()
 
     def add_note(self, session, idx, note_type):
-        ''' add a note at self.notes[idx] and return it '''
+        """ add a note at self.notes[idx] and return it """
         note = DbNote(item=self, type=note_type)
         if idx == -1:
             self.notes.append(note)
@@ -94,7 +94,7 @@ class Item(Base):
         return note
 
     def del_note(self, session, idx):
-        ''' delete the note at self.notes[idx] '''
+        """ delete the note at self.notes[idx] """
         if idx == -1:
             note = self.notes.pop()
         else:
@@ -103,7 +103,7 @@ class Item(Base):
         pass
 
     def move_note(self, session, old_idx, new_idx):
-        ''' move the note at old_idx to new_idx '''
+        """ move the note at old_idx to new_idx """
         self.notes[old_idx], self.notes[new_idx] = self.notes[new_idx], self.notes[old_idx]
 
     def mod_tag_flags(self, session, tag, add_flags=0, del_flags=0):
@@ -127,7 +127,7 @@ class Item(Base):
 
 
 class DbFolder(Item):
-    ''' represents a single photo-shooting session '''
+    """ represents a single photo-shooting session """
     __tablename__ = 'db-folder'
 
     # isa Item
@@ -161,7 +161,7 @@ class DbFolder(Item):
 
     @classmethod
     def get(cls, session, date, name):
-        ''' find or create a DbFolder: return db_folder, is_new'''
+        """ find or create a DbFolder: return db_folder, is_new"""
         db_folder = cls.find(session, date, name)
         if db_folder is None:
             return cls.add(session, date, name), True
@@ -173,7 +173,7 @@ class DbFolder(Item):
 
 
 class DbCollection(Item):
-    ''' a collection of images from multiple folders '''
+    """ a collection of images from multiple folders """
     __tablename__ = 'db-collection'
 
     # isa Item
@@ -204,7 +204,7 @@ class DbCollection(Item):
 
 
 class DbImage(Item):
-    ''' a single image (usually with multiple files: NEF/TIFF/PSD/JPEG) '''
+    """ a single image (usually with multiple files: NEF/TIFF/PSD/JPEG) """
     __tablename__ = 'db-image'
 
     # isa Item (name is <seq>[<suffix>], as with FsImage and IEImage)
@@ -252,7 +252,7 @@ class DbImage(Item):
 
 
 class DbTagType(PyIntEnum):
-    ''' the relation between a tag and its .base_tag '''
+    """ the relation between a tag and its .base_tag """
 
     BASE = 1        # this is a normal (base) tag; .base_tag is None
     IDENTITY_IS = 2 # this tag refers to the person/place/thing represented by .base_tag
@@ -261,7 +261,7 @@ class DbTagType(PyIntEnum):
 
 
 class DbTag(Item):
-    ''' a hierarchical tag on a Item '''
+    """ a hierarchical tag on a Item """
     __tablename__ = 'db-tag'
 
     # isa Item
@@ -383,13 +383,13 @@ class DbTag(Item):
 
 
 class DbTextType(PyIntEnum):
-    ''' the syntax of a DbNote's text '''
+    """ the syntax of a DbNote's text """
     TEXT = 1        # simple text
     URL = 2         # a URL
 
 
 class DbNoteType(Base):
-    ''' the type of a DbNote (e.g. name, location, PBase page,...) '''
+    """ the type of a DbNote (e.g. name, location, PBase page,...) """
     __tablename__ = 'db-note-type'
     id = Column(Integer, primary_key=True)
 
@@ -410,9 +410,9 @@ class DbNoteType(Base):
         return '<NoteType %s: %s>' % (self.name, DbTextType(self.text_type).name)
 
 class DbNote(Base):
-    ''' a text note on a Item
+    """ a text note on a Item
         DbNotes are added/accessed/deleted by calling <Item>.add/get/del_note
-    '''
+    """
     __tablename__ = 'db-note'
     id = Column(Integer, primary_key=True)
 
@@ -434,11 +434,11 @@ class DbNote(Base):
             str(self.item), self.type.name, str(self.idx), str(id(self)))
 
 
-''' FsXxx: an inventory of what's been imported when, and from where in the filesystem '''
+""" FsXxx: an inventory of what's been imported when, and from where in the filesystem """
 
 
 class FsTagSource(Base):
-    ''' the person/organization who tagged a set of folders/images being imported '''
+    """ the person/organization who tagged a set of folders/images being imported """
     __tablename__ = 'fs-tag-source'
 
     id = Column(Integer, primary_key=True)
@@ -471,16 +471,16 @@ class FsTagSource(Base):
 
 
 class FsSourceType(PyIntEnum):
-    ''' whether the FsSource is a directory of directories or a directory of image files
+    """ whether the FsSource is a directory of directories or a directory of image files
         IntEnum because SQLAlchemy creates int python attributes when you say Column(Enum)
-    '''
+    """
     DIR     = 1 # a directory of image directories
     FILE    = 2 # a directory of image files
     WEB     = 3 # a web site to be scraped
 
 
 class FsSource(Item):
-    ''' the filesystem parent directory from which a set of folders/images was imported '''
+    """ the filesystem parent directory from which a set of folders/images was imported """
     __tablename__ = 'fs-source'
 
     # isa Item (.name is the user-assigned name, or None)
@@ -577,7 +577,7 @@ class FsSource(Item):
 
 
 class FsItem(Item):
-    ''' FsFolder | FsImage '''
+    """ FsFolder | FsImage """
     __tablename__ = 'fs-item'
 
     # isa Item
@@ -591,11 +591,11 @@ class FsItem(Item):
         raise NotImplementedError
 
     def db_tags(self):
-        ''' return a list of (DbTagFlags, DbTag), sorted by DbTag.__cmp__ '''
+        """ return a list of (DbTagFlags, DbTag), sorted by DbTag.__cmp__ """
 
 
 class FsTagType(PyIntEnum):
-    ''' tag word(s) vs tag '''
+    """ tag word(s) vs tag """
     WORD        = 1
     TAG         = 2
 
@@ -622,7 +622,7 @@ class FsItemTagSource(PyIntEnum):
 
 
 class FsItemTag(Base):
-    ''' an external tag (or a possible word of a tag) for an FsFolder or FsImage '''
+    """ an external tag (or a possible word of a tag) for an FsFolder or FsImage """
     __tablename__ = 'fs-item-tag'
 
     # primary key
@@ -693,7 +693,7 @@ class FsItemTag(Base):
 
 
 class FsTagMapping(Base):
-    ''' text -> DbTag map in a FsTagSource, or globally '''
+    """ text -> DbTag map in a FsTagSource, or globally """
     __tablename__ = 'fs-tag-mapping'
 
     # key
@@ -764,10 +764,10 @@ class FsTagMapping(Base):
 
 
 class FsFolder(FsItem):
-    ''' a filesystem source from which DbFolder were imported
+    """ a filesystem source from which DbFolder were imported
         if source.type is dir_set, this was a filesystem directory
         if source.type is file_set, this was a group of files with (say) a common prefix
-    '''
+    """
     __tablename__ = 'fs-folder'
 
     # isa FsItem (.name is relative path from FsSource.path to IEFolder.fs_path)
@@ -828,10 +828,10 @@ class FsFolder(FsItem):
 
 
 class FsImage(FsItem):
-    ''' a (family of) filesystem file(s) from which a DbImage was imported
+    """ a (family of) filesystem file(s) from which a DbImage was imported
         the filesystem could contain a .tif, a .psd, and a .jpg, and one FsImage would be created,
         with .image_types indicating which were found
-    '''
+    """
     __tablename__ = 'fs-image'
 
     # isa Item (name is <seq>[<suffix>], as with DbImage and FsImage)
@@ -860,7 +860,7 @@ class FsImage(FsItem):
 
     @classmethod
     def get(cls, session, folder, name, db_image=None):
-        ''' find or add an FsImage: return fs_image, is_new '''
+        """ find or add an FsImage: return fs_image, is_new """
         fs_image = cls.find(session, folder, name)
         if fs_image is None:
             return cls.add(session, folder, name, db_image), True
@@ -885,14 +885,14 @@ band_tag = None
 venue_tag = None
 
 def _get_db_builtins(session):
-    ''' get builtin database objects '''
+    """ get builtin database objects """
     global global_tag_source, band_tag, venue_tag
     global_tag_source, is_new = FsTagSource.get(session, '$global')
     band_tag = DbTag.get(session, 'band')
     venue_tag = DbTag.get(session, 'venue')
 
 def _open_db(url):
-    ''' open a database and return a session '''
+    """ open a database and return a session """
     global session
     engine = create_engine(url, echo=False)
     Base.metadata.create_all(engine)
@@ -903,11 +903,11 @@ def _open_db(url):
     return session
 
 def open_mem_db():
-    ''' open a memory database '''
+    """ open a memory database """
     return _open_db('sqlite:///:memory:')
 
 def close_db():
-    ''' close the database '''
+    """ close the database """
     pass
 
 def open_preloaded_mem_db():

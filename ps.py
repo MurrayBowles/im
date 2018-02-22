@@ -1,4 +1,4 @@
-''' pub/sub publish functions, messages '''
+""" pub/sub publish functions, messages """
 
 from wx.lib.pubsub import pub
 

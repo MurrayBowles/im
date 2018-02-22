@@ -1,4 +1,4 @@
-''' import/export GUI '''
+""" import/export GUI """
 
 import logging
 import os
@@ -123,7 +123,7 @@ class ImportExportTab(wx.Panel):
         self.hide_box_item(self.fs_source_box, self.dir_ctrl_sizer_idx)
 
     def fix_display(self):
-        ''' show/hide add/remove display items depending on state '''
+        """ show/hide add/remove display items depending on state """
         new_accessible_source = self.source != None and self.source.accessible()
         new_fs_source = (new_accessible_source and
             self.source.source_type != db.FsSourceType.WEB)
@@ -350,9 +350,9 @@ class FsSourceCtrl:
 
 
 class FsSourceAEDialog(wx.Dialog):
-    ''' dialog for adding or editing an import/export source
+    """ dialog for adding or editing an import/export source
         collects source_name, readonly, volume, path
-    '''
+    """
 
     def __init__(self, *args, **kw):
 
