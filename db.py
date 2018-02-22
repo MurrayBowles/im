@@ -928,7 +928,7 @@ def open_preloaded_mem_db():
     bikini_kill = DbTag.add(session, 'Bikini Kill', parent=band)
 
     bk_mapping = FsTagMapping.add(
-        session, corbett_ts, FsTagType.WORD, 'Bikini Kill',
+        session, corbett_ts, 'Bikini Kill',
         FsTagBinding.BOUND, bikini_kill)
 
     session.commit()
