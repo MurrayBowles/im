@@ -54,5 +54,10 @@ class MockSlicer(Slicer):
     def queue(self):
         self.state = SlicerState.QUEUED
 
+    def _subthread(self, method, data):
+        method(data)
+        self.slicer._schedule(self, self.pri)
+
+
 class MockTask2(Task2):
     pass

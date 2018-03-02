@@ -145,9 +145,11 @@ class Slicer:
         return '<Slicer %s>' % self.state.name.lower()
 
     def suspend(self):
+        """ Prevent future slice() calls from executing. """
         self.suspended = True
 
     def resume(self):
+        """ Allow future slice() calls to execute. """
         if self.suspended:
             self.suspended = False
             if self.state == SlicerState.IDLE:
@@ -252,14 +254,15 @@ class Task2:
     def _step(self):
         """ Perform the next step of the Task.
 
-            called only from the Slicer
+            called only from the Slicer; calls self.step()
         """
         self.state = Task2State.RUNNING
         try:
             res = self.step()
             if res is not None:
-                # currently the only case is if the step did 'yield Task.thread()'
+                # currently the only case is if the step did 'yield (method, data)'
                 self.state = Task2State.BLOCKED
+                self.slicer._subthread(res[0], res[1])
             else:
                 # finished a step, but there are more: reschedule
                 self.state = Task2State.READY
@@ -274,6 +277,6 @@ class Task2:
             if self.on_done is not None:
                 self.on_done(exc_data)
 
-    def subthread(self, method, data):
+    def _subthread(self, method, data):
         """ Execute method(data) in a subthread. """
         raise NotImplementedError

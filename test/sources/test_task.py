@@ -71,6 +71,20 @@ class OvertimeTester(TaskTester):
         assert self.steps > 0
         assert self.after
 
+class SubthreadTester(TaskTester):
+    def __init__(self, slicer, task_class):
+        self.sub_data = None
+        super().__init__(slicer, task_class)
+
+    def run(self):
+        yield (self.sub, 123)
+
+    def sub(self, data):
+        self.sub_data = data
+
+    def check(self):
+        assert self.sub_data == 123
+
 _mock_slicer = MockSlicer()
 
 def test_return():
@@ -85,3 +99,5 @@ def test_step():
 def test_overtime():
     OvertimeTester(_mock_slicer, Task2)
 
+def test_subthread():
+    SubthreadTester(_mock_slicer, Task2)
