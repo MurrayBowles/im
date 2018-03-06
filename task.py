@@ -173,18 +173,25 @@ class Slicer:
         """
         raise NotImplementedError
 
+    def subthread(self, fn):
+        """ Run fn in a subthread.
+
+            must be implemented by subclass
+        """
+        raise NotImplementedError
+    
     def _queue(self):
         """ Queue the Slicer for execution. """
         self.queue()
         self.state = SlicerState.QUEUED
 
-    def _schedule(self, task, pri):
+    def _schedule(self, task):
         """ Schedule a Task.
 
             called only from Task
         """
-        assert pri < len(self.queues)
-        self.queues[pri].append(task)
+        assert task.pri < len(self.queues)
+        self.queues[task.pri].append(task)
         if self.state == SlicerState.IDLE and not self.suspended:
             self._queue()
 
@@ -219,11 +226,11 @@ class Slicer:
 
 
 class Task2State(Enum):
-    READY       = 0 # the Task is ready to run
-    RUNNING     = 1 # the Slicer is running a Step of the Task
-    BLOCKED     = 2 # the Task is blocked (needs to be re-scheduled)
-    DONE        = 3 # the Task has exited with a return
-    EXCEPTION   = 4 # the task has executed with an exception
+    READY         = 0 # the Task is ready to run
+    RUNNING       = 1 # the Slicer is running a Step of the Task
+    SUBTHREAD     = 2 # the Task is waiting for a Thread to complete
+    DONE          = 3 # the Task has exited with a return
+    EXCEPTION     = 4 # the task has executed with an exception
 
 
 class Task2:
@@ -236,7 +243,7 @@ class Task2:
         self.state = Task2State.READY
         self.exc_data = None
         s = str(self)
-        slicer._schedule(self, pri)
+        slicer._schedule(self)
 
     def __repr__(self):
         s = 'Task %s: %s' % (self.name, self.state.name.lower())
@@ -261,12 +268,15 @@ class Task2:
             res = self.step()
             if res is not None:
                 # currently the only case is if the step did 'yield (method, data)'
-                self.state = Task2State.BLOCKED
-                self.slicer._subthread(res[0], res[1])
+                def do_step():
+                    res[0](res[1])
+                    self.slicer._schedule(self)
+                self.state = Task2State.SUBTHREAD
+                self.slicer._subthread(do_step)
             else:
                 # finished a step, but there are more: reschedule
                 self.state = Task2State.READY
-                self.slicer._schedule(self, self.pri)
+                self.slicer._schedule(self)
         except StopIteration:
             self.state = Task2State.DONE
             if self.on_done is not None:
@@ -276,7 +286,3 @@ class Task2:
             self.exc_data = exc_data
             if self.on_done is not None:
                 self.on_done(exc_data)
-
-    def _subthread(self, method, data):
-        """ Execute method(data) in a subthread. """
-        raise NotImplementedError

@@ -43,21 +43,18 @@ class MockSlicer(Slicer):
     def __init__(self, num_queues=2, max_slice_ms=100, suspended=False):
         super().__init__(num_queues, max_slice_ms, suspended)
         if not suspended:
-            while self.state == SlicerState.QUEUED:
-                self.slice()
+            self._run()
 
     def resume(self):
         super().resume()
+        self._run()
+
+    def _run(self):
         while self.state == SlicerState.QUEUED:
             self.slice()
 
     def queue(self):
-        self.state = SlicerState.QUEUED
+        pass
 
-    def _subthread(self, method, data):
-        method(data)
-        self.slicer._schedule(self, self.pri)
-
-
-class MockTask2(Task2):
-    pass
+    def _subthread(self, fn):
+        fn()
