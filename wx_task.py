@@ -46,9 +46,10 @@ class _WxThread(Thread):
 
 
 class WxSlicer(Slicer):
-    def __init__(self, num_queues=2, max_slice_ms=100, suspended=False, msg=None):
+    def __init__(self, num_queues=2, max_slice_ms=100, suspended=False, app, msg):
         # <msg> is the pubsub message string used to queue slices in the
         # wxpython message queue
+        self.app = app
         self._msg = msg
         pub.subscribe(self._on_slice, msg)
         super().__init__(num_queues, max_slice_ms, suspended)
@@ -63,3 +64,7 @@ class WxSlicer(Slicer):
 
     def _subthread(self, fn):
         Thread(target=fn)
+
+    def exit_test(self):
+        self.app.ExitMainLoop()
+

@@ -8,12 +8,17 @@ from task import *
 
 class TaskTester:
     def __init__(self, slicer, task_class):
+        self.slicer = slicer
         slicer.suspend()
         self.task = task_class(generator=self.run(), slicer=slicer)
         slicer.resume()
         while self.task.state != Task2State.DONE and self.task.state != Task2State.EXCEPTION:
             sleep(1)
         self.check()
+
+    def run_test(self):
+        yield from self.run()
+        self.slicer.exit_test()
 
     def run(self):
         raise NotImplementedError

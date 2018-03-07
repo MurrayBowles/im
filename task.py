@@ -179,6 +179,13 @@ class Slicer:
             must be implemented by subclass
         """
         raise NotImplementedError
+
+    def exit_test(self):
+        """ Exit the dispatch loop.
+
+            must be implementer by subclass for test_task
+        """
+        raise NotImplementedError
     
     def _queue(self):
         """ Queue the Slicer for execution. """
