@@ -1,6 +1,7 @@
 """ wxPython implementation of Task, using Python threads and wxPython pubsub """
 
 from threading import Thread
+from time import sleep
 import wx
 from wx.lib.pubsub import pub
 
@@ -46,25 +47,22 @@ class _WxThread(Thread):
 
 
 class WxSlicer(Slicer):
-    def __init__(self, num_queues=2, max_slice_ms=100, suspended=False, app, msg):
+    def __init__(self, msg, num_queues=2, max_slice_ms=100, suspended=False):
         # <msg> is the pubsub message string used to queue slices in the
         # wxpython message queue
-        self.app = app
         self._msg = msg
         pub.subscribe(self._on_slice, msg)
         super().__init__(num_queues, max_slice_ms, suspended)
-        if not suspended:
-            self._queue()
 
     def queue(self):
-        wx.callAfter(lambda: pub.sendMessage(self._msg, None))
+        pub.sendMessage(self._msg)
+        #wx.CallAfter(lambda: pub.sendMessage(self._msg, None))
+        pass
 
     def _on_slice(self):
         self.slice()
 
     def _subthread(self, fn):
-        Thread(target=fn)
+        Thread(target=fn).start()
 
-    def exit_test(self):
-        self.app.ExitMainLoop()
 

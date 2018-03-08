@@ -180,17 +180,10 @@ class Slicer:
         """
         raise NotImplementedError
 
-    def exit_test(self):
-        """ Exit the dispatch loop.
-
-            must be implementer by subclass for test_task
-        """
-        raise NotImplementedError
-    
     def _queue(self):
         """ Queue the Slicer for execution. """
-        self.queue()
         self.state = SlicerState.QUEUED
+        self.queue()
 
     def _schedule(self, task):
         """ Schedule a Task.
@@ -207,7 +200,8 @@ class Slicer:
         if self.suspended:
             self.state = SlicerState.IDLE
             return
-        assert self.state == SlicerState.QUEUED
+        if self.state == SlicerState.IDLE:
+            return
         self.state = SlicerState.RUNNING
         self.slice_begun = datetime.datetime.now()
         while True:
@@ -249,7 +243,6 @@ class Task2:
         self.on_done = on_done
         self.state = Task2State.READY
         self.exc_data = None
-        s = str(self)
         slicer._schedule(self)
 
     def __repr__(self):
@@ -272,11 +265,10 @@ class Task2:
         """
         self.state = Task2State.RUNNING
         try:
-            res = self.step()
-            if res is not None:
-                # currently the only case is if the step did 'yield (method, data)'
+            thread_fn = self.step()
+            if thread_fn is not None:
                 def do_step():
-                    res[0](res[1])
+                    thread_fn()
                     self.slicer._schedule(self)
                 self.state = Task2State.SUBTHREAD
                 self.slicer._subthread(do_step)

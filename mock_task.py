@@ -41,7 +41,6 @@ class MockTask:
 
 class MockSlicer(Slicer):
     def __init__(self, num_queues=2, max_slice_ms=100, suspended=False):
-        self.exiting = False
         super().__init__(num_queues, max_slice_ms, suspended)
         if not suspended:
             self._run()
@@ -51,14 +50,11 @@ class MockSlicer(Slicer):
         self._run()
 
     def _run(self):
-        while not self.exiting and self.state == SlicerState.QUEUED:
+        while self.state == SlicerState.QUEUED:
             self.slice()
 
     def queue(self):
         pass
-
-    def exit_test(self):
-        self.exiting = True
 
     def _subthread(self, fn):
         fn()

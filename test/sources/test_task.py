@@ -2,49 +2,68 @@
 
 import pytest
 from time import sleep
+import wx
 
 from mock_task import MockSlicer
 from task import *
+from wx_task import WxSlicer
 
-class TaskTester:
-    def __init__(self, slicer, task_class):
-        self.slicer = slicer
-        slicer.suspend()
-        self.task = task_class(generator=self.run(), slicer=slicer)
-        slicer.resume()
-        while self.task.state != Task2State.DONE and self.task.state != Task2State.EXCEPTION:
-            sleep(1)
-        self.check()
+def _run_mock_task_test(test_class, task_class):
+    slicer = MockSlicer(suspended=True)
+    test = test_class()
+    task = task_class(generator=test.run(), slicer=slicer)
+    test.task = task
+    slicer.resume()
+    assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
+    test.check(task.state)
 
-    def run_test(self):
-        yield from self.run()
-        self.slicer.exit_test()
+def _run_wx_task_test(test_class, task_class):
+    app = wx.App()
+    slicer = WxSlicer(msg='slice', suspended=True)
+    test = test_class()
+    def run_then_exit(test):
+        yield from test.run()
+        app.ExitMainLoop()
+    task = task_class(generator=run_then_exit(test), slicer=slicer)
+    test.task = task
+    slicer.resume()
+    #app.MainLoop()
+    assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
+    test.check(task.state)
 
+def _run_task_tests(test):
+    _run_mock_task_test(test, Task2)
+    _run_wx_task_test(test, Task2)
+
+
+class TaskTest:
     def run(self):
         raise NotImplementedError
 
-    def check(self):
+    def check(self, task_state):
         raise NotImplementedError
 
-class ReturnTester(TaskTester):
+
+class ReturnTest(TaskTest):
     def run(self):
         yield
 
-    def check(self):
-        assert self.task.state == Task2State.DONE
+    def check(self, task_state):
+        assert task_state == Task2State.DONE
 
-class ExceptionTester(TaskTester):
+
+class ExceptionTest(TaskTest):
     def run(self):
         yield
         raise ValueError
 
-    def check(self):
-        assert self.task.state == Task2State.EXCEPTION
+    def check(self, task_state):
+        assert task_state == Task2State.EXCEPTION
 
-class StepTester(TaskTester):
-    def __init__(self, slicer, task_class):
+
+class StepTest(TaskTest):
+    def __init__(self):
         self.steps = []
-        super().__init__(slicer, task_class)
 
     def run(self):
         self.steps.append(1)
@@ -52,17 +71,17 @@ class StepTester(TaskTester):
         self.steps.append(2)
         return
 
-    def check(self):
-        assert self.task.state == Task2State.DONE
+    def check(self, task_state):
+        assert task_state == Task2State.DONE
         assert len(self.steps) == 2
         assert self.steps[0] == 1
         assert self.steps[1] == 2
 
-class OvertimeTester(TaskTester):
-    def __init__(self, slicer, task_class):
+
+class OvertimeTest(TaskTest):
+    def __init__(self):
         self.steps = 0
         self.after = False
-        super().__init__(slicer, task_class)
 
     def run(self):
         while not self.task.overtime():
@@ -72,37 +91,43 @@ class OvertimeTester(TaskTester):
         yield
         self.after = True
 
-    def check(self):
+    def check(self, task_state):
         assert self.steps > 0
         assert self.after
 
-class SubthreadTester(TaskTester):
-    def __init__(self, slicer, task_class):
+
+class SubthreadTest(TaskTest):
+    def __init__(self):
         self.sub_data = None
-        super().__init__(slicer, task_class)
+        self.run_cnt = 0
+        self.sub_cnt = 0
 
     def run(self):
-        yield (self.sub, 123)
+        self.run_cnt += 1
+        yield lambda: self.sub(123)
+        pass
 
     def sub(self, data):
+        self.sub_cnt = 1
         self.sub_data = data
 
-    def check(self):
+    def check(self, task_state):
         assert self.sub_data == 123
-
-_mock_slicer = MockSlicer()
-
-def test_return():
-    ReturnTester(_mock_slicer, Task2)
-
-def test_exception():
-    ExceptionTester(_mock_slicer, Task2)
-
-def test_step():
-    StepTester(_mock_slicer, Task2)
-
-def test_overtime():
-    OvertimeTester(_mock_slicer, Task2)
+        assert self.run_cnt == 1
+        assert self.sub_cnt == 1
 
 def test_subthread():
-    SubthreadTester(_mock_slicer, Task2)
+    _run_task_tests(SubthreadTest)
+
+def test_return():
+    _run_task_tests(ReturnTest)
+
+def test_exception():
+    _run_task_tests(ExceptionTest)
+
+def test_step():
+    _run_task_tests(StepTest)
+
+def test_overtime():
+    _run_task_tests(OvertimeTest)
+
