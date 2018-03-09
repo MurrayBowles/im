@@ -6,6 +6,8 @@ from db import *
 from test_db import _mk_date, _mk_name
 
 def test_tags():
+    session = open_mem_db()
+
     folder = DbFolder.add(session, _mk_date(), _mk_name('folder'))
     tag = DbTag.add(session, _mk_name('tag'))
 
