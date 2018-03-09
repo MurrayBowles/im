@@ -19,15 +19,15 @@ def _run_mock_task_test(test_class, task_class):
 
 def _run_wx_task_test(test_class, task_class):
     app = wx.App()
+    frame = wx.Frame(None, -1, 'TOTO: why do i need this Frame to make MainLoop work?')
     slicer = WxSlicer(msg='slice', suspended=True)
     test = test_class()
-    def run_then_exit(test):
-        yield from test.run()
+    def on_done(exc_data):
         app.ExitMainLoop()
-    task = task_class(generator=run_then_exit(test), slicer=slicer)
+    task = task_class(generator=test.run(), slicer=slicer, on_done=on_done)
     test.task = task
     slicer.resume()
-    #app.MainLoop()
+    app.MainLoop()
     assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
     test.check(task.state)
 
@@ -116,18 +116,17 @@ class SubthreadTest(TaskTest):
         assert self.run_cnt == 1
         assert self.sub_cnt == 1
 
+def test_exception():
+    _run_task_tests(ExceptionTest)
+
 def test_subthread():
     _run_task_tests(SubthreadTest)
 
 def test_return():
     _run_task_tests(ReturnTest)
 
-def test_exception():
-    _run_task_tests(ExceptionTest)
-
 def test_step():
     _run_task_tests(StepTest)
 
 def test_overtime():
     _run_task_tests(OvertimeTest)
-

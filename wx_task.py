@@ -51,16 +51,12 @@ class WxSlicer(Slicer):
         # <msg> is the pubsub message string used to queue slices in the
         # wxpython message queue
         self._msg = msg
-        pub.subscribe(self._on_slice, msg)
         super().__init__(num_queues, max_slice_ms, suspended)
 
     def queue(self):
-        pub.sendMessage(self._msg)
-        #wx.CallAfter(lambda: pub.sendMessage(self._msg, None))
-        pass
-
-    def _on_slice(self):
-        self.slice()
+        def do_slice():
+            self.slice()
+        wx.CallAfter(do_slice)
 
     def _subthread(self, fn):
         Thread(target=fn).start()

@@ -265,13 +265,14 @@ class Task2:
         """
         self.state = Task2State.RUNNING
         try:
-            thread_fn = self.step()
-            if thread_fn is not None:
-                def do_step():
-                    thread_fn()
+            subthread_fn = self.step()
+            if subthread_fn is not None:
+                # start thread_fn in a subthread and block this Task until it's done
+                def do_thread_fn():
+                    subthread_fn()
                     self.slicer._schedule(self)
                 self.state = Task2State.SUBTHREAD
-                self.slicer._subthread(do_step)
+                self.slicer._subthread(do_thread_fn)
             else:
                 # finished a step, but there are more: reschedule
                 self.state = Task2State.READY
