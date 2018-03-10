@@ -244,6 +244,8 @@ class Task2:
         self.state = Task2State.INIT
         self.generator = None
         self.exc_data = None
+        self.cancel_requested = False
+        self.cancel_seen = False
 
     def start(self):
         """ Schedule the Task to begin running in its Slicer """
@@ -251,21 +253,25 @@ class Task2:
         self.generator = self.run()
         self.slicer._schedule(self)
 
-    def run(self):
-        """ Run the Task's code. This must yield a generator """
-        raise NotImplementedError
-
-    def pname(self):
-        s = '%s: %s' % (type(self).__name__, self.state.name.lower())
-        if self.state == Task2State.EXCEPTION:
-            s += '(%s)' % str(self.exc_data)
-        return s
-
-    def __repr__(self):
-        return '<Task %s>' % self.pname()
-
     def overtime(self):
         return self.slicer.overtime()
+
+    def cancel(self):
+        """ cancel the current task """
+        self.cancel_requested = True
+
+    def cancelled(self):
+        """ check whether the Task is cancel_seen """
+        if self.cancel_requested:
+            self.cancel_seen = True
+        return self.cancel_seen
+
+    def run(self):
+        """ Run the Task's code.
+
+            This must be supplied by subclasses and must yield a generator.
+        """
+        raise NotImplementedError
 
     def step(self):
         """ Perform the next step of the Task. """
@@ -299,3 +305,16 @@ class Task2:
             self.exc_data = exc_data
             if self.on_done is not None:
                 self.on_done(exc_data)
+
+    def pname(self):
+        s = '%s: %s' % (type(self).__name__, self.state.name.lower())
+        if self.state == Task2State.EXCEPTION:
+            s += '(%s)' % str(self.exc_data)
+        if self.cancel_requested:
+            s += '?c'
+        if self.cancel_seen:
+            s += '!c'
+        return s
+
+    def __repr__(self):
+        return '<Task %s>' % self.pname()

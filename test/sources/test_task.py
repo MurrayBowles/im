@@ -63,6 +63,16 @@ class ExceptionTest(TaskTest):
         assert self.state == Task2State.EXCEPTION
 
 
+class CancelTest(TaskTest):
+    def run(self):
+        assert not self.cancelled()
+        self.cancel()
+        yield
+
+    def check(self):
+        assert self.cancelled()
+        assert self.cancel_seen
+
 class StepTest(TaskTest):
     def setup(self):
         self.steps = []
@@ -117,6 +127,9 @@ class SubthreadTest(TaskTest):
         assert self.sub_data == 123
         assert self.run_cnt == 1
         assert self.sub_cnt == 1
+
+def test_cancel():
+    _run_task_tests(CancelTest)
 
 def test_return():
     _run_task_tests(ReturnTest)
