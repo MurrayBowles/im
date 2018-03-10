@@ -409,7 +409,7 @@ class FsSourceAEDialog(wx.Dialog):
             # self.text_ctrl.set_hidden(True)
         else: # Edit
             gui_wrap.StaticText(self, box, 'source type: ' + types[self.obj.source_type])
-            gui_wrap.StaticText(self, box, 'source: ' + self.obj.pname())
+            gui_wrap.StaticText(self, box, 'source: ' + self.obj.text())
 
         # name
         gui_wrap.AttrTextCtrl(self, box, 'name', self, 'source_name')
