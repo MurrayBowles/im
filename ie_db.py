@@ -269,6 +269,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
             pub_fn('ie.sts.import tags', len(work_item.get_exif))
             get_ie_image_exifs(work_item.get_exif, pub_fn)
 
+
 class IETask(Task):
     """ an import/export command """
 

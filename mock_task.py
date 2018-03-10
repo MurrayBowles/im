@@ -40,9 +40,9 @@ class MockTask:
 
 
 class MockSlicer(Slicer):
-    def __init__(self, num_queues=2, max_slice_ms=100, suspended=False):
-        super().__init__(num_queues, max_slice_ms, suspended)
-        if not suspended:
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        if not self.suspended:
             self._run()
 
     def resume(self):

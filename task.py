@@ -133,13 +133,14 @@ class SlicerState(Enum):
 
 
 class Slicer:
-    def __init__(self, num_queues=2, max_slice_ms=100, suspended=False):
+    def __init__(self, **kw):
+        self.max_slice_ms = kw['max_slice_ms'] if 'max_slice_ms' in kw else 100
+        self.suspended = kw['suspended'] if 'suspended' in kw else False
+        num_queues = kw['num_queues'] if 'num_queues' in kw else 2
         self.queues = []
         for pri in range(num_queues):
             self.queues.append(deque())  # deque of Task
         self.state = SlicerState.IDLE
-        self.max_slice_ms = max_slice_ms
-        self.suspended = suspended
 
     def __repr__(self):
         return '<Slicer %s>' % self.state.name.lower()
@@ -225,6 +226,10 @@ class Slicer:
             pass
         return ms > self.max_slice_ms
 
+    def pub(self, *args, **kw):
+        """ Publish a message at the end of the current slice. """
+        raise NotImplementedError
+
 
 class Task2State(Enum):
     INIT        = 0 # task.start() has not yet been called
@@ -267,11 +272,12 @@ class Task2:
         return self.cancel_seen
 
     def run(self):
-        """ Run the Task's code.
-
-            This must be supplied by subclasses and must yield a generator.
-        """
+        """ Run the Task's code. """
         raise NotImplementedError
+
+    def pub(self, *args, **kw):
+        """ Publish a message at the end of the current slice. """
+        self.slicer.pub(*args, **kw)
 
     def step(self):
         """ Perform the next step of the Task. """
