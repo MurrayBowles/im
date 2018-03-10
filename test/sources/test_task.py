@@ -8,39 +8,41 @@ from mock_task import MockSlicer
 from task import *
 from wx_task import WxSlicer
 
-def _run_mock_task_test(test_class, task_class):
+def _run_mock_task_test(task_class):
     slicer = MockSlicer(suspended=True)
-    test = test_class()
-    task = task_class(generator=test.run(), slicer=slicer)
-    test.task = task
+    task = task_class(slicer=slicer)
+    task.start()
     slicer.resume()
     assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
-    test.check(task.state)
+    task.check()
 
-def _run_wx_task_test(test_class, task_class):
+def _run_wx_task_test(task_class):
     app = wx.App()
     frame = wx.Frame(None, -1, 'TOTO: why do i need this Frame to make MainLoop work?')
     slicer = WxSlicer(msg='slice', suspended=True)
-    test = test_class()
     def on_done(exc_data):
         app.ExitMainLoop()
-    task = task_class(generator=test.run(), slicer=slicer, on_done=on_done)
-    test.task = task
+    task = task_class(slicer=slicer, on_done=on_done)
+    task.start()
     slicer.resume()
     app.MainLoop()
     assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
-    test.check(task.state)
+    task.check()
 
 def _run_task_tests(test):
-    _run_mock_task_test(test, Task2)
-    _run_wx_task_test(test, Task2)
+    _run_mock_task_test(test)
+    _run_wx_task_test(test)
 
 
-class TaskTest:
-    def run(self):
-        raise NotImplementedError
+class TaskTest(Task2):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.setup()
 
-    def check(self, task_state):
+    def setup(self):
+        pass
+
+    def check(self):
         raise NotImplementedError
 
 
@@ -48,8 +50,8 @@ class ReturnTest(TaskTest):
     def run(self):
         yield
 
-    def check(self, task_state):
-        assert task_state == Task2State.DONE
+    def check(self):
+        assert self.state == Task2State.DONE
 
 
 class ExceptionTest(TaskTest):
@@ -57,12 +59,12 @@ class ExceptionTest(TaskTest):
         yield
         raise ValueError
 
-    def check(self, task_state):
-        assert task_state == Task2State.EXCEPTION
+    def check(self):
+        assert self.state == Task2State.EXCEPTION
 
 
 class StepTest(TaskTest):
-    def __init__(self):
+    def setup(self):
         self.steps = []
 
     def run(self):
@@ -71,33 +73,33 @@ class StepTest(TaskTest):
         self.steps.append(2)
         return
 
-    def check(self, task_state):
-        assert task_state == Task2State.DONE
+    def check(self):
+        assert self.state == Task2State.DONE
         assert len(self.steps) == 2
         assert self.steps[0] == 1
         assert self.steps[1] == 2
 
 
 class OvertimeTest(TaskTest):
-    def __init__(self):
+    def setup(self):
         self.steps = 0
         self.after = False
 
     def run(self):
-        while not self.task.overtime():
+        while not self.overtime():
             self.steps += 1
             if self.steps > 100000:
                 pass
         yield
         self.after = True
 
-    def check(self, task_state):
+    def check(self):
         assert self.steps > 0
         assert self.after
 
 
 class SubthreadTest(TaskTest):
-    def __init__(self):
+    def setup(self):
         self.sub_data = None
         self.run_cnt = 0
         self.sub_cnt = 0
@@ -111,19 +113,19 @@ class SubthreadTest(TaskTest):
         self.sub_cnt = 1
         self.sub_data = data
 
-    def check(self, task_state):
+    def check(self):
         assert self.sub_data == 123
         assert self.run_cnt == 1
         assert self.sub_cnt == 1
+
+def test_return():
+    _run_task_tests(ReturnTest)
 
 def test_exception():
     _run_task_tests(ExceptionTest)
 
 def test_subthread():
     _run_task_tests(SubthreadTest)
-
-def test_return():
-    _run_task_tests(ReturnTest)
 
 def test_step():
     _run_task_tests(StepTest)

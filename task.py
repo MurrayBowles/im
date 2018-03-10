@@ -227,29 +227,42 @@ class Slicer:
 
 
 class Task2State(Enum):
-    READY         = 0 # the Task is ready to run
-    RUNNING       = 1 # the Slicer is running a Step of the Task
-    SUBTHREAD     = 2 # the Task is waiting for a Thread to complete
-    DONE          = 3 # the Task has exited with a return
-    EXCEPTION     = 4 # the task has executed with an exception
+    INIT        = 0 # task.start() has not yet been called
+    READY       = 1 # the Task is ready to run
+    RUNNING     = 2 # the Slicer is running a Step of the Task
+    SUBTHREAD   = 3 # the Task is waiting for a Thread to complete
+    DONE        = 4 # the Task has exited with a return
+    EXCEPTION   = 5 # the task has executed with an exception
 
 
 class Task2:
-    def __init__(self, generator, slicer, pri=0, on_done=None):
-        self.generator = generator
-        self.name = generator.gi_code.co_name # generator function name
+    def __init__(self, slicer, pri=0, on_done=None):
+        # task.on_done(None | exc_data) is called when the Task is finished
         self.slicer = slicer
         self.pri = pri
         self.on_done = on_done
-        self.state = Task2State.READY
+        self.state = Task2State.INIT
+        self.generator = None
         self.exc_data = None
-        slicer._schedule(self)
 
-    def __repr__(self):
-        s = 'Task %s: %s' % (self.name, self.state.name.lower())
+    def start(self):
+        """ Schedule the Task to begin running in its Slicer """
+        assert self.state == Task2State.INIT
+        self.generator = self.run()
+        self.slicer._schedule(self)
+
+    def run(self):
+        """ Run the Task's code. This must yield a generator """
+        raise NotImplementedError
+
+    def pname(self):
+        s = '%s: %s' % (type(self).__name__, self.state.name.lower())
         if self.state == Task2State.EXCEPTION:
             s += '(%s)' % str(self.exc_data)
-        return '<%s>' % s
+        return s
+
+    def __repr__(self):
+        return '<Task %s>' % self.pname()
 
     def overtime(self):
         return self.slicer.overtime()
