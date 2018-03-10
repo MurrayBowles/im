@@ -128,20 +128,8 @@ class SubthreadTest(TaskTest):
         assert self.run_cnt == 1
         assert self.sub_cnt == 1
 
-def test_cancel():
-    _run_task_tests(CancelTest)
-
-def test_return():
-    _run_task_tests(ReturnTest)
-
-def test_exception():
-    _run_task_tests(ExceptionTest)
-
-def test_subthread():
-    _run_task_tests(SubthreadTest)
-
-def test_step():
-    _run_task_tests(StepTest)
-
-def test_overtime():
-    _run_task_tests(OvertimeTest)
+@pytest.mark.parametrize("task_class", [
+    ReturnTest, ExceptionTest, CancelTest, SubthreadTest, StepTest, OvertimeTest
+])
+def test_task(task_class):
+    _run_task_tests(task_class)
