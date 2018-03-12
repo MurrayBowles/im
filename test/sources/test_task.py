@@ -19,7 +19,7 @@ def _run_mock_task_test(task_class):
 def _run_wx_task_test(task_class):
     app = wx.App()
     frame = wx.Frame(None, -1, 'TOTO: why do i need this Frame to make MainLoop work?')
-    slicer = WxSlicer(msg='slice', suspended=True)
+    slicer = WxSlicer(suspended=True)
     def on_done(exc_data):
         app.ExitMainLoop()
     task = task_class(slicer=slicer, on_done=on_done)
@@ -128,8 +128,34 @@ class SubthreadTest(TaskTest):
         assert self.run_cnt == 1
         assert self.sub_cnt == 1
 
+
+class PubsubTest(TaskTest):
+    def setup(self):
+        self.a_calls = 0
+        self.b_calls = 0
+        self.sub([(self.on_a, 'a'), (self.on_b, 'b')])
+
+    def run(self):
+        self.pub('a', data='a')
+        yield
+        self.pub('b', data='b')
+        yield
+        self.pub('b', data='b')
+
+    def on_a(self, data):
+        assert data == 'a'
+        self.a_calls += 1
+
+    def on_b(self, data):
+        assert data == 'b'
+        self.b_calls += 1
+
+    def check(self):
+        assert self.a_calls == 1
+        assert self.b_calls == 2
+
 @pytest.mark.parametrize("task_class", [
-    ReturnTest, ExceptionTest, CancelTest, SubthreadTest, StepTest, OvertimeTest
+    ReturnTest, ExceptionTest, CancelTest, SubthreadTest, StepTest, OvertimeTest, PubsubTest
 ])
 def test_task(task_class):
     _run_task_tests(task_class)

@@ -137,6 +137,8 @@ class Slicer:
         self.max_slice_ms = kw['max_slice_ms'] if 'max_slice_ms' in kw else 100
         self.suspended = kw['suspended'] if 'suspended' in kw else False
         num_queues = kw['num_queues'] if 'num_queues' in kw else 2
+        # map: topic -> list of function
+
         self.queues = []
         for pri in range(num_queues):
             self.queues.append(deque())  # deque of Task
@@ -226,6 +228,13 @@ class Slicer:
             pass
         return ms > self.max_slice_ms
 
+    def sub(self, list):
+        """ Subscribe to the topics in list.
+
+        <list> is a list of (function, topic) paits
+        """
+        raise NotImplementedError
+
     def pub(self, *args, **kw):
         """ Publish a message at the end of the current slice. """
         raise NotImplementedError
@@ -274,6 +283,13 @@ class Task2:
     def run(self):
         """ Run the Task's code. """
         raise NotImplementedError
+
+    def sub(self, list):
+        """ Subscribe to the topics in list.
+
+        <list> is a list of (function, topic) pairs
+        """
+        self.slicer.sub(list)
 
     def pub(self, *args, **kw):
         """ Publish a message at the end of the current slice. """

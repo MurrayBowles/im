@@ -11,7 +11,7 @@ class WxTask:
 
     def init_impl(self, **kwargs):
         for msg, method in self.subsciptions.items():
-            ps.subscribe(msg, method)
+            pub.subscribe(msg, method)
         pub.subscribe(self._call, 'Task.call')
 
     def pub(self, msg, data=None):
@@ -47,16 +47,18 @@ class _WxThread(Thread):
 
 
 class WxSlicer(Slicer):
-    def __init__(self, msg, **kw):
-        # <msg> is the pubsub message string used to queue slices in the
-        # wxpython message queue
-        self._msg = msg
+    def __init__(self, **kw):
         super().__init__(**kw)
 
+    def sub(self, list):
+        for function, topic in list:
+            pub.subscribe(function, topic)
+
+    def pub(self, topic, **kw):
+        wx.CallAfter(lambda: pub.sendMessage(topic, **kw))
+
     def queue(self):
-        def do_slice():
-            self.slice()
-        wx.CallAfter(do_slice)
+        wx.CallAfter(lambda: self.slice())
 
     def _subthread(self, fn):
         Thread(target=fn).start()
