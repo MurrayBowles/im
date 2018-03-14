@@ -63,9 +63,9 @@ class MockSlicer(Slicer):
 
     def pub(self, topic, **kw):
         # TODO: queue these and invoke them at the end of a slice
-        assert topic in self.subs
-        for function in self.subs[topic]:
-            function(**kw)
+        if topic in self.subs:
+            for function in self.subs[topic]:
+                function(**kw)
 
     def queue(self):
         pass

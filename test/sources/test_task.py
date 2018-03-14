@@ -1,7 +1,6 @@
 """ Test Slicer and Task implementations """
 
 import pytest
-from time import sleep
 import wx
 
 from mock_task import MockSlicer
@@ -35,8 +34,8 @@ def _run_task_tests(test):
 
 
 class TaskTest(Task2):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self, slicer, **kw):
+        super().__init__(slicer, **kw)
         self.setup()
 
     def setup(self):
@@ -85,9 +84,7 @@ class StepTest(TaskTest):
 
     def check(self):
         assert self.state == Task2State.DONE
-        assert len(self.steps) == 2
-        assert self.steps[0] == 1
-        assert self.steps[1] == 2
+        assert self.steps == [1, 2]
 
 
 class OvertimeTest(TaskTest):
@@ -155,7 +152,8 @@ class PubsubTest(TaskTest):
         assert self.b_calls == 2
 
 @pytest.mark.parametrize("task_class", [
-    ReturnTest, ExceptionTest, CancelTest, SubthreadTest, StepTest, OvertimeTest, PubsubTest
+    ReturnTest, ExceptionTest, CancelTest, SubthreadTest, StepTest, OvertimeTest,
+    PubsubTest
 ])
 def test_task(task_class):
     _run_task_tests(task_class)

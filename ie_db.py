@@ -8,7 +8,7 @@ import web_ie_db
 from ie_cfg import *
 from ie_fs import *
 from tag import init_fs_item_tags
-from task import Task
+from task import Task, Task2
 
 
 class IEWorkItem(object):
@@ -257,16 +257,17 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
     """
     if fs_source.source_type == db.FsSourceType.WEB:
         if work_item.ie_folder is not None:
-            pub_fn('ie.sts.import webpage', 1)
+            pub_fn('ie.sts.import webpage', data=1)
             web_ie_db.scan_web_page_children(
                 work_item.ie_folder, work_item.base_folder, work_item.child_paths)
-            pub_fn('ie.sts.imported webpage', 1)
+            pub_fn('ie.sts.imported webpage', data=1)
     else:
         if len(work_item.get_thumbnail) > 0:
-            pub_fn('ie.sts.import thumbnails', len(work_item.get_thumbnail))
+            pub_fn('ie.sts.import thumbnails', data=len(work_item.get_thumbnail))
             get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
+            pass
         if len(work_item.get_exif) > 0:
-            pub_fn('ie.sts.import tags', len(work_item.get_exif))
+            pub_fn('ie.sts.import tags', data=len(work_item.get_exif))
             get_ie_image_exifs(work_item.get_exif, pub_fn)
 
 
@@ -334,4 +335,43 @@ class IETask(Task):
         self.queue(self.start_item)
 
 
+class IETask2(Task2):
+    """ an import/export command """
 
+    def __init__(self, slicer, **kw):
+        super().__init__(slicer, **kw)
+
+        self.session = kw['session']
+        self.ie_cfg = copy.deepcopy(kw['ie_cfg'])
+        self.ie_cfg.source = kw['fs_source']
+        self.ie_cfg.import_mode = kw['import_mode']
+        self.ie_cfg.paths = kw['paths'] # does this need to be a copy?
+
+        self.fs_source = self.ie_cfg.source
+        self.worklist = get_ie_worklist(
+            self.session,
+            self.fs_source, self.ie_cfg.import_mode, self.ie_cfg.paths)
+        self.worklist_idx = 0
+
+    def run(self):
+        self.pub('ie.sts.begun', data=self.worklist)
+        while not self.cancelled() and self.worklist_idx < len(self.worklist):
+            work_item = self.worklist[self.worklist_idx]
+            fg_start_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
+
+            if (len(work_item.get_exif) > 0 or
+                len(work_item.get_thumbnail) > 0 or
+                self.fs_source.source_type == db.FsSourceType.WEB
+            ):
+                yield (lambda: bg_proc_ie_work_item(work_item, self.fs_source, self.pub))
+                pass
+            else:
+                yield
+
+            fg_finish_ie_work_item(
+                self.session, self.ie_cfg, work_item, self.fs_source, self.worklist)
+
+            self.pub('ie.sts.folder done', data=self.worklist[self.worklist_idx].ie_folder.db_name)
+            self.worklist_idx += 1
+            yield
+        self.pub('ie.sts.done', data=True)

@@ -21,29 +21,13 @@ from test_ie_fs import test_scan_file_sel_corbett_psds_expected_list
 from test_ie_fs import test_scan_file_set_corbett_tiffs_expected_list
 from test_ie_fs import test_scan_file_sel_corbett_tiffs_selected_list
 from test_ie_fs import test_scan_file_sel_corbett_tiffs_expected_list
-from mock_task import MockTask
+from mock_task import MockTask, MockSlicer
+from task import Task2, Task2State
 base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
 ie_cfg = IECfg()
 ie_cfg.import_thumbnails = True
-
-def _gen():
-    x = 123
-    yield x
-    x = 456
-    yield None
-
-def test_gen():
-    g = _gen()
-    n = next(g)
-    n = next(g)
-    try:
-        n = next(g)
-    except:
-        pass
-    pass
-
 
 def check_images(fs_folder, ie_image_iter, image_expected_list):
     assert len(ie_image_iter) == len(image_expected_list)
@@ -67,7 +51,7 @@ def check_images(fs_folder, ie_image_iter, image_expected_list):
 
 def check_worklist_no_fs_folders(
         session, fs_source, import_mode, paths, expected_list):
-    def pub_fn(msg, data):
+    def pub_fn(msg, **kw):
         pass
     worklist = get_ie_worklist(session, fs_source, import_mode, paths)
     assert len(worklist) == len(expected_list)
@@ -209,12 +193,6 @@ class _MockIETask(MockTask, IETask):
     pass
 
 
-class _TestCmd:
-
-    def __init__(self):
-        self.session = open_mem_db()
-
-
 def _check_item_tags(item_tags, tags, checks):
     for c in checks:
 
@@ -319,8 +297,17 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     fs_source = FsSource.add(
         session, volume, path, source_type, readonly=True, tag_source=tag_source)
 
-    cmd = _MockIETask(session, ie_cfg, fs_source, import_mode, paths)
-    worklist = cmd.worklist
+    #cmd = _MockIETask(session, ie_cfg, fs_source, import_mode, paths)
+
+    slicer = MockSlicer(suspended=True)
+    task = IETask2(
+        slicer=slicer, session=session,
+        ie_cfg=ie_cfg, fs_source=fs_source, import_mode=import_mode, paths=paths)
+    task.start()
+    slicer.resume()
+    assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
+
+    worklist = task.worklist
     session.commit()
 
 

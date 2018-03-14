@@ -250,11 +250,11 @@ class Task2State(Enum):
 
 
 class Task2:
-    def __init__(self, slicer, pri=0, on_done=None):
+    def __init__(self, slicer, **kw):
         # task.on_done(None | exc_data) is called when the Task is finished
         self.slicer = slicer
-        self.pri = pri
-        self.on_done = on_done
+        self.pri = kw['pri'] if 'pri' in kw else 0
+        self.on_done = kw['on_done'] if 'on_done' in kw else None
         self.state = Task2State.INIT
         self.generator = None
         self.exc_data = None

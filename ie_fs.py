@@ -299,7 +299,7 @@ def get_ie_image_exifs(ie_image_set, pub):
                 argv.append(os.path.join(dir_path, '*' + fs_ext))
                 exiftool_json = _get_exiftool_json(argv)
                 proc_exiftool_json(ie_image_set, ext_paths, exiftool_json)
-                pub('ie.sts imported tags', len0 - len(ie_image_set))
+                pub('ie.sts imported tags', data = len0 - len(ie_image_set))
             else:
                 # run exiftools on <file1> <file2> ...
                 while len(worklist) > 0:
@@ -311,18 +311,18 @@ def get_ie_image_exifs(ie_image_set, pub):
                         argv.append(ie_image_inst.fs_path)
                     exiftool_json = _get_exiftool_json(argv)
                     proc_exiftool_json(ie_image_set, ext_paths, exiftool_json)
-                    pub('ie.sts imported tags', len0 - len(ie_image_set))
+                    pub('ie.sts imported tags', data = len0 - len(ie_image_set))
 
 def get_ie_image_thumbnails(ie_image_set, pub):
     """ extract thumbnails for the images in <ie_image_set>
         deletes images from the set as their thumbnails are proecesed
     """
-    pub('ie.sts.import thumbnails', len(ie_image_set))
+    pub('ie.sts.import thumbnails', data=len(ie_image_set))
     for ie_image in ie_image_set:
         ie_image_inst = ie_image.newest_inst_with_thumbnail
         assert ie_image_inst is not None
         ie_image.thumbnail = ie_image_inst.get_thumbnail()
-        pub('ie.sts imported thumbnails', 1)
+        pub('ie.sts imported thumbnails', data=1)
     # clear(ie_image_set) FIXME: why does this fail?
 
 # a std_dirname has the form 'yymmdd name'
