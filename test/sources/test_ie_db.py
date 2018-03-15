@@ -189,10 +189,6 @@ def test_get_worklist_file_sel_corbett_tiffs():
     session.commit()
 
 
-class _MockIETask(MockTask, IETask):
-    pass
-
-
 def _check_item_tags(item_tags, tags, checks):
     for c in checks:
 

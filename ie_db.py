@@ -8,7 +8,7 @@ import web_ie_db
 from ie_cfg import *
 from ie_fs import *
 from tag import init_fs_item_tags
-from task import Task, Task2
+from wx_task import WxTask2
 
 
 class IEWorkItem(object):
@@ -271,71 +271,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
             get_ie_image_exifs(work_item.get_exif, pub_fn)
 
 
-class IETask(Task):
-    """ an import/export command """
-
-    def __init__(self, session, ie_cfg, fs_source, import_mode, paths):
-        super().__init__()
-
-        self.session = session
-        self.ie_cfg = copy.deepcopy(ie_cfg)
-        self.ie_cfg.source = fs_source
-        self.ie_cfg.import_mode = import_mode
-        self.ie_cfg.paths = paths # copy?
-        self.fs_source = fs_source
-        self.worklist = get_ie_worklist(session, fs_source, import_mode, paths)
-        self.worklist_idx = 0
-        self.pub('ie.sts.begun', self.worklist)
-        self.start(self.start_item)
-
-    def start_item(self, data):
-        """ preprocess the work item, gathering image files in some cases,
-            then spawn a background process if thumbnails or EXIFs need to be read
-            called by the main thread when it receives ie.cmd.start item
-        """
-
-        if self.cancelled() or self.worklist_idx >= len(self.worklist):
-            self.pub('ie.sts.done', True)
-        else:
-            work_item = self.worklist[self.worklist_idx]
-
-            fg_start_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
-
-            if (len(work_item.get_exif) > 0 or
-                len(work_item.get_thumbnail) > 0 or
-                self.fs_source.source_type == db.FsSourceType.WEB):
-                self.spawn(self.bg_proc)
-            else:
-                self.queue(self.finish_item)
-
-    def bg_proc(self, data):
-        """ extract the exifs and/or thumbnails for a folder
-            or do all the extraction for a web page
-            run in the background thread created by bg_spawn
-        """
-        work_item = self.worklist[self.worklist_idx]
-        bg_proc_ie_work_item(work_item, self.fs_source, self.pub)
-        self.queue(self.finish_item)
-
-    def finish_item(self, data):
-        """ post-process the work item, autotagging the folder and its images
-            where possible, then report completion of the folder to the GUI
-           called by the main thread when it receives ie.cmd.start item
-        """
-        if self.worklist_idx >= len(self.worklist):
-            self.pub('ie.sts.done', True)
-            return
-
-        work_item = self.worklist[self.worklist_idx]
-        fg_finish_ie_work_item(
-            self.session, self.ie_cfg, work_item, self.fs_source, self.worklist)
-
-        self.pub('ie.sts.folder done', self.worklist[self.worklist_idx].ie_folder.db_name)
-        self.worklist_idx += 1
-        self.queue(self.start_item)
-
-
-class IETask2(Task2):
+class IETask2(WxTask2):
     """ an import/export command """
 
     def __init__(self, slicer, **kw):

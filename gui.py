@@ -9,6 +9,9 @@ from cfg import cfg
 import db
 from ie_gui import ImportExportTab
 from tags_gui import TagsTab
+from wx_task import WxSlicer
+
+slicer = None # initialized in GuiApp.OnInit()
 
 
 class GuiApp(wx.App):
@@ -19,6 +22,11 @@ class GuiApp(wx.App):
         frame = GuiTop()
         frame.Show()
         self.SetTopWindow(frame)
+
+        # pseudo-thread scheduling
+        global slicer
+        slicer = WxSlicer(num_queues=2, max_slice_ms=100)
+        pass
 
         # logging
         handler = logging.FileHandler(

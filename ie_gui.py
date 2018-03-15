@@ -9,9 +9,8 @@ import db
 import gui_wrap
 from cfg import cfg
 from ie_cfg import *
-from ie_db import IETask
+from ie_db import IETask2
 import util
-from wx_task import WxTask
 
 class IEState(Enum):
 
@@ -203,8 +202,12 @@ class ImportExportTab(wx.Panel):
             pub.subscribe(self.on_ie_folder_done, 'ie.sts.folder done')
             pub.subscribe(self.on_ie_done, 'ie.sts.done')
 
-            self.ie_cmd = WxIETask(
-                db.session, cfg.ie, self.source, self.import_mode, self.paths)
+            self.ie_cmd = IETask(
+                slicer=slicer, session=db.session,
+                ie_cfg=cfg.ie, fs_source=self.source,
+                import_mode=self.import_mode, paths=self.paths)
+            self.start()
+            pass
         elif self.ie_state == IEState.IE_GOING:
             logging.info('import/export stopping')
             self.ie_state = IEState.IE_CANCELLING
@@ -275,9 +278,6 @@ class ImportExportTab(wx.Panel):
         self.Layout()
         pass
 
-
-class WxIETask(WxTask, IETask):
-    pass
 
 class FsSourceCtrl:
     def __init__(

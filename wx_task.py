@@ -45,6 +45,8 @@ class _WxThread(Thread):
     def run(self):
         self.itself._step(self.step)
 
+wx_slicer = None
+
 
 class WxSlicer(Slicer):
     def __init__(self, **kw):
@@ -63,4 +65,15 @@ class WxSlicer(Slicer):
     def _subthread(self, fn):
         Thread(target=fn).start()
 
+    @classmethod
+    def get(cls, **kw):
+        global wx_slicer
+        if wx_slicer is None:
+            wx_slicer = cls(**kw)
+        return wx_slicer
 
+class WxTask2(Task2):
+    def __init__(self, slicer=None, **kw):
+        if slicer is None:
+            slicer = WxSLicer.get(**kw)
+        super().__init__(slicer, **kw)
