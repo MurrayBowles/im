@@ -274,8 +274,8 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
 class IETask2(WxTask2):
     """ an import/export command """
 
-    def __init__(self, slicer, **kw):
-        super().__init__(slicer, **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
 
         self.session = kw['session']
         self.ie_cfg = copy.deepcopy(kw['ie_cfg'])

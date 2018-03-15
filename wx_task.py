@@ -75,5 +75,5 @@ class WxSlicer(Slicer):
 class WxTask2(Task2):
     def __init__(self, slicer=None, **kw):
         if slicer is None:
-            slicer = WxSLicer.get(**kw)
+            slicer = WxSlicer.get(**kw)
         super().__init__(slicer, **kw)

@@ -202,11 +202,11 @@ class ImportExportTab(wx.Panel):
             pub.subscribe(self.on_ie_folder_done, 'ie.sts.folder done')
             pub.subscribe(self.on_ie_done, 'ie.sts.done')
 
-            self.ie_cmd = IETask(
-                slicer=slicer, session=db.session,
+            self.ie_cmd = IETask2(
+                session=db.session,
                 ie_cfg=cfg.ie, fs_source=self.source,
                 import_mode=self.import_mode, paths=self.paths)
-            self.start()
+            self.ie_cmd.start()
             pass
         elif self.ie_state == IEState.IE_GOING:
             logging.info('import/export stopping')
