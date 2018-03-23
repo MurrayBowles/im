@@ -7,7 +7,7 @@ import db
 import web_ie_db
 from ie_cfg import *
 from ie_fs import *
-from tag import init_fs_item_tags
+from tags import init_fs_item_tags
 from wx_task import WxTask2
 
 

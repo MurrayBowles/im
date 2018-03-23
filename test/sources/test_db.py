@@ -553,7 +553,6 @@ class _FsImageTag_Tester(_FsFolderTag_Tester):
             _FsImage_Tester
         ]
 
-
 def test_classes():
     classes = _Tester.__subclasses__()
     # classes = [ _FsFolder_Tester ]
@@ -622,4 +621,25 @@ def test_notes():
         session.commit()
     pass
 
+
+def test_tag_change():
+    change_texts = [
+        'band|Green Day',
+        'fred',
+        'topic|boredom'
+    ]
+    changes = []
+    time = datetime.datetime.now()
+    for ct in change_texts:
+        changes.append(TagChange.add(session, ct))
+    session.flush()
+    for ct in change_texts:
+        c = TagChange.first(session)
+        assert c is not None
+        assert c.text == ct
+        assert c.timestamp >= time
+        c.delete(session)
+        time = c.timestamp
+    c = TagChange.first(session)
+    assert c is None
 

@@ -301,7 +301,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
         ie_cfg=ie_cfg, fs_source=fs_source, import_mode=import_mode, paths=paths)
     task.start()
     slicer.resume()
-    assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
+    assert task.state == Task2State.DONE
 
     worklist = task.worklist
     session.commit()

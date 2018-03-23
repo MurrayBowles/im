@@ -1,7 +1,7 @@
 """ database classes """
 
 from enum import IntEnum as PyIntEnum
-
+import datetime
 import os
 
 from sqlalchemy import create_engine
@@ -14,8 +14,8 @@ from sqlalchemy import ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
 
-from tag import on_db_tag_added, on_db_tag_removed
-from tag import on_fs_tag_mapping_added, on_fs_tag_mapping_removed
+from tags import on_db_tag_added, on_db_tag_removed
+from tags import on_fs_tag_mapping_added, on_fs_tag_mapping_removed
 import util
 
 
@@ -762,6 +762,33 @@ class FsTagMapping(Base):
     def __repr__(self):
         return '<FsTagMapping %s>' %  self.pname()
 
+
+class TagChange(Base):
+    """ a timestamp-sorted list of new DbTags and FsTagMappings
+        which have not yet been applied to FsFolders and FsImages
+    """
+    __tablename__ = 'tag-change'
+
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime)
+    text = Column(String)
+
+    Index('tag-change-index', 'timestamp', unique=False)
+
+    @classmethod
+    def add(cls, session, text):
+        obj = cls(timestamp=datetime.datetime.now(), text=text)
+        if obj is not None: session.add(obj)
+
+    def delete(self, session):
+        session.delete(self)
+
+    @classmethod
+    def first(cls, session):
+        return session.query(TagChange).order_by(TagChange.timestamp).first()
+
+    def __repr__(self):
+        return '<TagChange %s @ %s>' % (self.text, str(self.timestamp))
 
 class FsFolder(FsItem):
     """ a filesystem source from which DbFolder were imported
