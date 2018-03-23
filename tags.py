@@ -3,6 +3,7 @@
 import db
 from ie_fs import IETagType
 
+
 def find_text_binding(session, text, fs_tag_source):
     """ Return [text, FsTagBinding, FsItemTagSource, DbTag id]. """
     mapping = db.FsTagMapping.find(session, fs_tag_source, text)
@@ -19,9 +20,9 @@ def find_text_binding(session, text, fs_tag_source):
         return [text, db.FsTagBinding.BOUND, db.FsItemTagSource.DBTAG, db_tag]
     return [text, db.FsTagBinding.UNBOUND, db.FsItemTagSource.NONE, None]
 
-def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
-    """ Return [text, FsTagBinding, FsItemTagSource, DbTag id]. """
 
+def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
+    """ Return [[text, FsTagBinding, FsItemTagSource, DbTag id]]. """
     results = []
     if text.find('|') == -1:
         # <text> is a flat tag
@@ -51,6 +52,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
     results.sort(key = lambda x: x[1], reverse=True)
     result = results[0]
     return result
+
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
     """ Add a WORD-type db.FsItemTags to <item>.tags[<base_idx>...] """
@@ -97,6 +99,7 @@ def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
             idx += 1
     pass
 
+
 def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
     """ Add a TAG-type db.FsItemTag to <item>.tags[<idx>]. """
     text = ie_tag.text.replace('/', '|') # 'meta/misc/cool' => 'meta|misc|cool'
@@ -107,9 +110,11 @@ def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
         binding=binding[1], source=binding[2], db_tag=binding[3])
     pass
 
+
 def add_fs_item_note(session, item, ie_tag):
     """ Add a Note to <item>. """
     pass
+
 
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
     idx = 0
@@ -153,6 +158,7 @@ def _on_tag_change(session, text):
         called when a DbTag or FsTagMapping is changed
         <text> is a leaf tag string, e.g. 'Green Day' if the eDbTag 'band}Green Day' was changed
     """
+    db.TagChange.add(session, text)
     pass
 
 

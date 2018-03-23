@@ -7,6 +7,7 @@ Base = declarative_base()
 
 from db import *
 session = open_mem_db()
+# TODO: make a fixture
 
 
 class _Tester(object):
@@ -111,14 +112,17 @@ class _Tester(object):
 def _mk_date():
     return date.today()
 
+
 _name_seq = 0
+
+
 def _mk_name(base):
     global _name_seq
     _name_seq += 1
     return base + str(_name_seq)
 
 
-class _DbFolder_Tester(_Tester):
+class DbFolder_Tester(_Tester):
 
     def mk_key2(self):
         return (_mk_date(), _mk_name('folder'))
@@ -138,7 +142,7 @@ class _DbFolder_Tester(_Tester):
         return DbFolder.find(session, key2[0], key2[1])
 
 
-class _DbCollection_Tester(_Tester):
+class DbCollection_Tester(_Tester):
 
     def mk_key2(self):
         return _mk_name('collection')
@@ -154,11 +158,11 @@ class _DbCollection_Tester(_Tester):
         return DbCollection.find(session, key)
 
 
-class _DbImage_Tester(_Tester):
+class DbImage_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_DbFolder_Tester]
+        self.dep_classes = [DbFolder_Tester]
 
     def mk_key2(self):
         return (self.dep_objs[0], _mk_name(''))
@@ -177,11 +181,11 @@ class _DbImage_Tester(_Tester):
         return DbImage.find(session, key[0], key[1])
 
 
-class _DbFolderThumb_Tester(_Tester):
+class DbFolderThumb_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_DbImage_Tester]
+        self.dep_classes = [DbImage_Tester]
 
     def create(self, session, key, key2):
         folder = DbFolder.add(
@@ -197,11 +201,11 @@ class _DbFolderThumb_Tester(_Tester):
         assert obj.thumbnail is self.dep_objs[0]
 
 
-class _DbCollectionThumb_Tester(_Tester):
+class DbCollectionThumb_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_DbImage_Tester]
+        self.dep_classes = [DbImage_Tester]
 
     def create(self, session, key, key2):
         collection = DbCollection.add(session, name=_mk_name('collection'))
@@ -215,11 +219,11 @@ class _DbCollectionThumb_Tester(_Tester):
         assert obj.thumbnail is self.dep_objs[0]
 
 
-class _DbCollectionImage_Tester(_Tester):
+class DbCollectionImage_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_DbImage_Tester]
+        self.dep_classes = [DbImage_Tester]
 
     def create(self, session, key, key2):
         collection = DbCollection.add(session, name=_mk_name('collection'))
@@ -235,7 +239,7 @@ class _DbCollectionImage_Tester(_Tester):
         assert image.collections[0] is obj
 
 
-class _DbTag_Tester(_Tester):
+class DbTag_Tester(_Tester):
 
     def mk_key2(self):
         return _mk_name('tag')
@@ -254,7 +258,7 @@ class _DbTag_Tester(_Tester):
         return DbTag.find(session, key2)
 
 
-class _DbTagLowered_Tester(_DbTag_Tester):
+class DbTagLowered_Tester(DbTag_Tester):
 
     def mk_key2(self):
         return _mk_name('TAG')
@@ -266,7 +270,7 @@ class _DbTagLowered_Tester(_DbTag_Tester):
         return DbTag.find(session, key2.lower())
 
 
-class _DbTagRaised_Tester(_DbTag_Tester):
+class DbTagRaised_Tester(DbTag_Tester):
 
     def mk_key2(self):
         return _mk_name('tag')
@@ -278,11 +282,11 @@ class _DbTagRaised_Tester(_DbTag_Tester):
         return DbTag.find(session, key2.upper())
 
 
-class _DbTagParent_Tester(_Tester):
+class DbTagParent_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_DbTag_Tester]
+        self.dep_classes = [DbTag_Tester]
 
     def mk_key2(self):
         return _mk_name('child'), self.dep_objs[0]
@@ -308,7 +312,7 @@ class _DbTagParent_Tester(_Tester):
         assert l[0] is obj
 
 
-class _DbTagExpr_Tester(_Tester):
+class DbTagExpr_Tester(_Tester):
 
     def mk_key2(self):
         return 'child', 'parent'
@@ -329,11 +333,11 @@ class _DbTagExpr_Tester(_Tester):
         assert obj.name == 'child'
 
 
-class _DbTagReplacement_Tester(_Tester):
+class DbTagReplacement_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_DbTag_Tester]
+        self.dep_classes = [DbTag_Tester]
 
     def create(self, session, key, key2):
         tag = DbTag.add(
@@ -348,7 +352,7 @@ class _DbTagReplacement_Tester(_Tester):
         assert obj.base_tag is self.dep_objs[0]
 
 
-class _DbNoteType_Tester(_Tester):
+class DbNoteType_Tester(_Tester):
 
     def create(self, session, key, key2):
         note_type = DbNoteType.add(
@@ -359,7 +363,7 @@ class _DbNoteType_Tester(_Tester):
         return DbNoteType.find_id(session, key)
 
 
-class _FsTagSource_Tester(_Tester):
+class FsTagSource_Tester(_Tester):
 
     def mk_key2(self):
         return _mk_name('desc')
@@ -377,11 +381,11 @@ class _FsTagSource_Tester(_Tester):
         return FsTagSource.find(session, key2)
 
 
-class _FsTagMapping_Tester(_Tester):
+class FsTagMapping_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_FsTagSource_Tester, _DbTag_Tester]
+        self.dep_classes = [FsTagSource_Tester, DbTag_Tester]
 
     def mk_key(self):
         return (self.dep_objs[0], _mk_name('text'))
@@ -398,11 +402,11 @@ class _FsTagMapping_Tester(_Tester):
         return FsTagMapping.find(session, key[0], key[1])
 
 
-class _FsSource_Tester(_Tester):
+class FsSource_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_FsTagSource_Tester]
+        self.dep_classes = [FsTagSource_Tester]
 
     def mk_key2(self):
         return (_mk_name('label'), _mk_name('path'))
@@ -425,13 +429,13 @@ class _FsSource_Tester(_Tester):
         return FsSource.find(session, key2[0], key2[1])
 
 
-class _FsFolder_Tester(_Tester):
+class FsFolder_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
         self.dep_classes = [
-            _FsSource_Tester,
-            _DbFolder_Tester
+            FsSource_Tester,
+            DbFolder_Tester
         ]
 
     def mk_key2(self):
@@ -468,11 +472,11 @@ class _FsFolder_Tester(_Tester):
         assert obj.db_folder.fs_folders[0] is obj
 
 
-class _FsFolderTag_Tester(_Tester):
+class FsFolderTag_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
-        self.dep_classes = [_FsFolder_Tester, _DbTag_Tester]
+        self.dep_classes = [FsFolder_Tester, DbTag_Tester]
 
     def mk_key2(self):
         return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
@@ -504,13 +508,13 @@ class _FsFolderTag_Tester(_Tester):
         assert obj.db_tag is self.dep_objs[1]
 
 
-class _FsImage_Tester(_Tester):
+class FsImage_Tester(_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
         self.dep_classes = [
-            _FsFolder_Tester,
-            _DbImage_Tester
+            FsFolder_Tester,
+            DbImage_Tester
         ]
 
     def mk_key2(self):
@@ -545,13 +549,14 @@ class _FsImage_Tester(_Tester):
         assert obj.db_image.fs_images[0] is obj
 
 
-class _FsImageTag_Tester(_FsFolderTag_Tester):
+class FsImageTag_Tester(FsFolderTag_Tester):
 
     def __init__(self):
         _Tester.__init__(self)
         self.dep_classes = [
-            _FsImage_Tester
+            FsImage_Tester
         ]
+
 
 @pytest.mark.parametrize("cls", _Tester.__subclasses__())
 def test_class(cls):
@@ -559,6 +564,7 @@ def test_class(cls):
     # print(str(cls))
     obj = test_obj.add()
     test_obj.delete()
+
 
 def _test_association(tester_classes, list_names):
     testers = []
@@ -586,11 +592,13 @@ def _test_association(tester_classes, list_names):
         # clean up
         tester.delete()
 
+
 def test_associations():
     _test_association(
-        [_DbImage_Tester, _DbCollection_Tester],
+        [DbImage_Tester, DbCollection_Tester],
         ['collections', 'images']
     )
+
 
 def test_notes():
     adds = [
@@ -602,7 +610,7 @@ def test_notes():
     type = DbNoteType.add(session, _mk_name('type'), DbTextType.TEXT)
     assert type is not None
     for add in adds:
-        # FIXME: this test doesn't work when the folder create i smoved out of the loop
+        # FIXME: this test doesn't work when the folder create is moved out of the loop
         # (but it DOES work when single-stepped in the debugger!)
         folder = DbFolder.add(session, _mk_date(), _mk_name('folder'))
         assert folder is not None
@@ -626,10 +634,11 @@ def test_tag_change():
         'topic|boredom'
     ]
     changes = []
+    TagChange.clear(session)
     time = datetime.datetime.now()
     for ct in change_texts:
-        changes.append(TagChange.add(session, ct))
-    session.flush()
+        ct = TagChange.add(session, ct)
+        changes.append(ct)
     for ct in change_texts:
         c = TagChange.first(session)
         assert c is not None

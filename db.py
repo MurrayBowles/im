@@ -776,16 +776,30 @@ class TagChange(Base):
     Index('tag-change-index', 'timestamp', unique=False)
 
     @classmethod
+    def clear(cls, session):
+        """ Clear the global TagChange list """
+        session.query(TagChange).delete()
+
+    @classmethod
     def add(cls, session, text):
+        """ Add <text> to the global TagChange list """
         obj = cls(timestamp=datetime.datetime.now(), text=text)
         if obj is not None: session.add(obj)
+        return obj
 
     def delete(self, session):
+        """ Delete from the global TagChange list """
         session.delete(self)
 
     @classmethod
     def first(cls, session):
+        """ Return the oldest item in the global TagChange list. """
         return session.query(TagChange).order_by(TagChange.timestamp).first()
+
+    @classmethod
+    def all(cls, session):
+        """ Return the global TagChange list, sorted oldest-first. """
+        return session.query(TagChange).order_by(TagChange.timestamp).all()
 
     def __repr__(self):
         return '<TagChange %s @ %s>' % (self.text, str(self.timestamp))
