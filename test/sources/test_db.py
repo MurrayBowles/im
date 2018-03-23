@@ -553,15 +553,12 @@ class _FsImageTag_Tester(_FsFolderTag_Tester):
             _FsImage_Tester
         ]
 
-def test_classes():
-    classes = _Tester.__subclasses__()
-    # classes = [ _FsFolder_Tester ]
-    for cls in classes:
-        test_obj = cls()
-        # print(str(cls))
-        obj = test_obj.add()
-        test_obj.delete()
-        pass
+@pytest.mark.parametrize("cls", _Tester.__subclasses__())
+def test_class(cls):
+    test_obj = cls()
+    # print(str(cls))
+    obj = test_obj.add()
+    test_obj.delete()
 
 def _test_association(tester_classes, list_names):
     testers = []
