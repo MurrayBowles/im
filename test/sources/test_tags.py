@@ -1,4 +1,4 @@
-""" test tag.py and db.py tag operations """
+""" test tags.py, and db.py tag operations """
 
 import pytest
 
