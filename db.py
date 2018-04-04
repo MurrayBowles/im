@@ -454,6 +454,11 @@ class FsTagSource(Base):
     def find(cls, session, description):
         return session.query(FsTagSource).filter_by(description=description).first()
 
+    def mappings(self, session):
+        """ Return all the FsTagMappings in this FsTagSource. """
+        return session.query(FsTagMapping).filter_by(
+            tag_source=self).all()
+
     @classmethod
     def get(cls, session, description):
         tag_source = cls.find(session, description)
@@ -585,13 +590,19 @@ class FsItem(Item):
     __mapper_args__ = {'polymorphic_identity': 'FsItem'}
 
     # FsItem ->> FsItemTag
-    item_tags = relationship('FsItemTag', foreign_keys='[FsItemTag.item_id, FsItemTag.idx]')
+    item_tags = relationship(
+        'FsItemTag', foreign_keys='[FsItemTag.item_id, FsItemTag.idx]')
 
     def db_item(self):
         raise NotImplementedError
 
     def db_tags(self):
-        """ return a list of (DbTagFlags, DbTag), sorted by DbTag.__cmp__ """
+        """ Return the set of DbTags currently bound to self.item_tags. """
+        res = set() # of DbTag
+        for item_tag in self.item_tags:
+            if item_tag.binding == FsTagBinding.BOUND:
+                res.add(item_tag.db_tag)
+        return res
 
 
 class FsTagType(PyIntEnum):
@@ -622,7 +633,7 @@ class FsItemTagSource(PyIntEnum):
 
 
 class FsItemTag(Base):
-    """ an external tag (or a possible word of a tag) for an FsFolder or FsImage """
+    """ an external tag (or a possible word of a tag) for an FsItem """
     __tablename__ = 'fs-item-tag'
 
     # primary key
@@ -693,23 +704,27 @@ class FsItemTag(Base):
 
 
 class FsTagMapping(Base):
-    """ text -> DbTag map in a FsTagSource, or globally """
+    """ a text -> DbTag map in an FsTagSource """
     __tablename__ = 'fs-tag-mapping'
 
     # key
 
-    tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'), primary_key=True)
-    tag_source = relationship('FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
+    tag_source_id = Column(
+        Integer, ForeignKey('fs-tag-source.id'), primary_key=True)
+    tag_source = relationship(
+        'FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
 
     text = Column(String(collation='NOCASE'), primary_key=True)
         # e.g. 'band|Tribe 8'
 
     # value
 
-    binding = Column(Enum(FsTagBinding)) # SUGGESTED | BOUND, never UNBOUND
+    binding = Column(Enum(FsTagBinding))
+    # a text is marked to be ignored by setting binding=BOUND, db_tag=None
 
     db_tag_id = Column(Integer, ForeignKey('db-tag.id'))
-    db_tag = relationship('DbTag', backref=backref('fs-tag-mapping', uselist=False))
+    db_tag = relationship(
+        'DbTag', backref=backref('fs-tag-mapping', uselist=False))
 
     @classmethod
     def add(cls, session, tag_source, text, binding, db_tag):
