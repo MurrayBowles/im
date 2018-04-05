@@ -214,6 +214,26 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             else:
                 break
 
+def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
+    """ get thumbnails or exifs for a work item
+        do all the processing for a web page
+        run in a background thread
+    """
+    if fs_source.source_type == db.FsSourceType.WEB:
+        if work_item.ie_folder is not None:
+            pub_fn('ie.sts.import webpage', data=1)
+            web_ie_db.scan_web_page_children(
+                work_item.ie_folder, work_item.base_folder, work_item.child_paths)
+            pub_fn('ie.sts.imported webpage', data=1)
+    else:
+        if len(work_item.get_thumbnail) > 0:
+            pub_fn('ie.sts.import thumbnails', data=len(work_item.get_thumbnail))
+            get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
+            pass
+        if len(work_item.get_exif) > 0:
+            pub_fn('ie.sts.import tags', data=len(work_item.get_exif))
+            get_ie_image_exifs(work_item.get_exif, pub_fn)
+
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     """ do auto-tagging, move thumbnails to db.DbImage """
 
@@ -249,26 +269,6 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
 
     session.commit()
     pass
-
-def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
-    """ get thumbnails or exifs for a work item
-        do all the processing for a web page
-        run in a background thread
-    """
-    if fs_source.source_type == db.FsSourceType.WEB:
-        if work_item.ie_folder is not None:
-            pub_fn('ie.sts.import webpage', data=1)
-            web_ie_db.scan_web_page_children(
-                work_item.ie_folder, work_item.base_folder, work_item.child_paths)
-            pub_fn('ie.sts.imported webpage', data=1)
-    else:
-        if len(work_item.get_thumbnail) > 0:
-            pub_fn('ie.sts.import thumbnails', data=len(work_item.get_thumbnail))
-            get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
-            pass
-        if len(work_item.get_exif) > 0:
-            pub_fn('ie.sts.import tags', data=len(work_item.get_exif))
-            get_ie_image_exifs(work_item.get_exif, pub_fn)
 
 
 class IETask2(WxTask2):

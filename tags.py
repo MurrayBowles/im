@@ -55,7 +55,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
 
 
 def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
-    """ Add a WORD-type db.FsItemTags to <item>.tags[<base_idx>...] """
+    """ Add WORD-type db.FsItemTags to item.item_tags[<base_idx>...]. """
     def partition_words(pfx, words, partitions):
         partitions.append(pfx + [words])
         if len(words) > 1:
@@ -117,13 +117,16 @@ def add_fs_item_note(session, item, ie_tag):
 
 
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
+    """ Initialize item.item_tags from ie_tags. """
     idx = 0
     ie_tag_iter = iter(ie_tags)
     # FIXME: what a mess! this would be easier to code in C
     try:
         ie_tag = next(ie_tag_iter)
         while True:
-            if ie_tag.type in {IETagType.AUTO, IETagType.BASED, IETagType.UNBASED}:
+            if ie_tag.type in {
+                IETagType.AUTO, IETagType.BASED, IETagType.UNBASED
+            }:
                 add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source)
                 idx += 1
                 ie_tag = next(ie_tag_iter)
@@ -141,7 +144,8 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
                     except StopIteration:
                         done = True
                         break
-                add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source)
+                add_word_fs_item_tags(
+                    session, item, base_idx, words, fs_tag_source)
                 if done:
                     break
             else:
