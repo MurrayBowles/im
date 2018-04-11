@@ -21,14 +21,14 @@ def find_text_binding(session, text, fs_tag_source):
     return [text, db.FsTagBinding.UNBOUND, db.FsItemTagSource.NONE, None]
 
 
-def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
-    """ Return [[text, FsTagBinding, FsItemTagSource, DbTag id]]. """
+def tag_text_binding(session, text, bases, fs_tag_source):
+    """ Return [text, FsTagBinding, FsItemTagSource, DbTag id]. """
     results = []
     if text.find('|') == -1:
         # <text> is a flat tag
         # try <base>|<text> for each suggested base in ie_tag.bases
-        if ie_tag.bases is not None:
-            bases = ie_tag.bases.split(',')
+        if bases is not None:
+            bases = bases.split(',')
             for base in bases:
                 base = base.strip()
                 t = base + '|' + text
@@ -38,7 +38,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
         flat_result = find_text_binding(session, text, fs_tag_source)
         if (flat_result[3] is not None and
             flat_result[3].parent is not None and
-            flat_result[3].parent.text not in ie_tag.bases
+            flat_result[3].parent.text not in bases
         ):
             # DbTag has a parent, and it's not one of the proposed bases:
             # demote from BOUND to SUGGESTED
@@ -46,7 +46,7 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
                 flat_result[1] = db.FsTagBinding.SUGGESTED
     else:
         # <text> is a hierarchical tag
-        flat_result = result = find_text_binding(session, text, fs_tag_source)
+        flat_result = find_text_binding(session, text, fs_tag_source)
     results.append(flat_result)
 
     results.sort(key = lambda x: x[1], reverse=True)
@@ -54,60 +54,96 @@ def find_ie_tag_binding(session, ie_tag, text, fs_tag_source):
     return result
 
 
-def add_word_fs_item_tags(session, item, base_idx, words, fs_tag_source):
-    """ Add WORD-type db.FsItemTags to item.item_tags[<base_idx>...]. """
-    def partition_words(pfx, words, partitions):
-        partitions.append(pfx + [words])
-        if len(words) > 1:
-            for x in range(1, len(words)):
-                partition_words(pfx + [words[0:x]], words[x:], partitions)
+def word_list_bindings(session, word_list, bases, fs_tag_source):
+    """ Return [(relative idx range, [text, binding, source, db_tag])]. """
+    def partition_words(pfx, word_list, partitions):
+        partitions.append(pfx + [word_list])
+        if len(word_list) > 1:
+            for x in range(1, len(word_list)):
+                partition_words(
+                    pfx + [word_list[0:x]], word_list[x:], partitions)
     partitions = []
-    partition_words([], words, partitions)
-    results = []
+    partition_words([], word_list, partitions)
+
+    scores = []
     for partition in partitions:
         bindings = []
         total_score = 1
         have_unbound_multiword = False
-        for ie_elt_list in partition:
+        for wl in partition:
             text = ''
             sep = ''
-            for ie_elt in ie_elt_list:
-                text += sep + ie_elt.text
+            for word in wl:
+                text += sep + word
                 sep = ' '
-            binding = find_ie_tag_binding(
-                session, ie_elt_list[0], text, fs_tag_source)
-            if binding[1] == db.FsTagBinding.UNBOUND and len(ie_elt_list) > 1:
+            binding = tag_text_binding(
+                session, text, bases, fs_tag_source)
+            if binding[1] == db.FsTagBinding.UNBOUND and len(wl) > 1:
                 have_unbound_multiword = True
             bindings.append(binding)
             total_score += binding[1].value # UNBOUND | SUGGESTED | BOUND
         if have_unbound_multiword:
             # don't consider a partition that has unbound multi-word elements
             total_score = 0
-        results.append((total_score / len(partition), partition, bindings))
-    results.sort(key = lambda x: x[0], reverse=True) # sort by the score
-    result = results[0]
+        scores.append((total_score / len(partition), partition, bindings))
+    scores.sort(key = lambda x: x[0], reverse=True) # sort by descending score
+
+    results = []
+    score = scores[0]
     idx = 0
-    for ie_tag_list, binding in zip(result[1], result[2]):
-        elt_base_idx = idx
-        first_idx = base_idx + elt_base_idx
-        last_idx = first_idx + len(ie_tag_list) - 1
-        for ie_tag in ie_tag_list:
-            item_tag = db.FsItemTag.add(session,
-                item, base_idx + idx, (first_idx, last_idx),
-                type=db.FsTagType.WORD, text=ie_tag.text, bases=words[0].bases,
+    for wl, binding in zip(score[1], score[2]):
+        r = range(idx, idx + len(wl))
+        results.append((r, binding))
+        idx += len(wl)
+    return results
+
+
+def _bind_fs_item_tags(session, item, fs_tag_source):
+    """ (Re)Bind item.item_tags based on fs_tag_source.
+
+        (1) leaves source==DIRECT tags untouched
+        (2) binds all other tags, ignoring their current binding
+    """
+    if item.name.find("01_03_92_15_GILMAN-001") != -1:
+        pass
+    idx = 0
+    while idx < len(item.item_tags):
+        fs_tag = item.item_tags[idx]
+        if fs_tag.type == db.FsTagType.TAG:
+            binding = tag_text_binding(
+                session, fs_tag.text, fs_tag.bases, fs_tag_source)
+            fs_tag.bind(
                 binding=binding[1], source=binding[2], db_tag=binding[3])
             idx += 1
-    pass
+        else: # db.FsTagType.WORD
+            word_list = [fs_tag.text]
+            base_idx = idx
+            while True:
+                idx += 1
+                if idx >= len(item.item_tags): break
+                fs_tag = item.item_tags[idx]
+                if fs_tag.type != db.FsTagType.WORD: break
+                word_list.append(fs_tag.text)
+            results = word_list_bindings(
+                session, word_list, fs_tag.bases, fs_tag_source)
+            for range, binding in results:
+                for offset in range:
+                    fs_tag = item.item_tags[base_idx + offset]
+                    fs_tag.bind(
+                        binding=binding[1], source=binding[2],
+                        db_tag=binding[3], idx_range=range)
+            pass
 
 
-def add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source):
-    """ Add a TAG-type db.FsItemTag to <item>.tags[<idx>]. """
-    text = ie_tag.text.replace('/', '|') # 'meta/misc/cool' => 'meta|misc|cool'
-    binding = find_ie_tag_binding(session, ie_tag, text, fs_tag_source)
-    item_tag = db.FsItemTag.add(session,
-        item, idx, (idx, idx),
-        type=db.FsTagType.TAG, text=text, bases=ie_tag.bases,
-        binding=binding[1], source=binding[2], db_tag=binding[3])
+def update_fs_item_tags(session, item, fs_tag_source):
+    """ Update item.item_tags based on fs_tag_source.
+
+        (1) leaves source==DIRECT tags untouched
+        (2) rebinds all other tags, ignoring their current binding
+    """
+    old_db_tag_set = item.db_tag_set()
+    _bind_fs_item_tags(session, item, fs_tag_source)
+    new_db_tag_set = item.db_tag_set()
     pass
 
 
@@ -117,43 +153,32 @@ def add_fs_item_note(session, item, ie_tag):
 
 
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
-    """ Initialize item.item_tags from ie_tags. """
+    """ Initialize item.item_tags from ie_tags based on fs_tag_source. """
     idx = 0
-    ie_tag_iter = iter(ie_tags)
-    # FIXME: what a mess! this would be easier to code in C
-    try:
-        ie_tag = next(ie_tag_iter)
-        while True:
-            if ie_tag.type in {
-                IETagType.AUTO, IETagType.BASED, IETagType.UNBASED
-            }:
-                add_tag_fs_item_tag(session, item, idx, ie_tag, fs_tag_source)
-                idx += 1
-                ie_tag = next(ie_tag_iter)
-            elif ie_tag.type == IETagType.WORD:
-                words = [ie_tag]
-                base_idx = idx
-                done = False
-                while True:
-                    try:
-                        idx += 1
-                        ie_tag = next(ie_tag_iter)
-                        if ie_tag.type != IETagType.WORD:
-                            break
-                        words.append(ie_tag)
-                    except StopIteration:
-                        done = True
-                        break
-                add_word_fs_item_tags(
-                    session, item, base_idx, words, fs_tag_source)
-                if done:
-                    break
+    for ie_tag in ie_tags:
+        if ie_tag.type == IETagType.NOTE:
+            add_fs_item_note(session, item, ie_tag)
+        else:
+            if ie_tag.is_tag():
+                type = db.FsTagType.TAG
+                text = ie_tag.text.replace('/', '|')
+                # 'meta/misc/cool' => 'meta|misc|cool'
+                # FIXME: this fix is specific to Corbett image tags,
+                # so it should be done in ie_fs.py
             else:
-                assert ie_tag.type == IETagType.NOTE
-                add_fs_item_note(session, item, ie_tag)
-                ie_tag = next(ie_tag_iter)
-    except StopIteration:
-        pass
+                assert ie_tag.type == IETagType.WORD
+                type = db.FsTagType.WORD
+                text = ie_tag.text
+            item_tag = db.FsItemTag.add(session,
+                item, idx, (idx, idx + 1),
+                type=type, text=text,
+                bases=ie_tag.bases,
+                binding=db.FsTagBinding.UNBOUND, source=db.FsItemTagSource.NONE,
+                db_tag=None)
+            idx += 1
+    _bind_fs_item_tags(session, item, fs_tag_source)
+    new_db_item_tag_set = item.db_tag_set()
+    pass
 
 
 def _on_tag_change(session, text):

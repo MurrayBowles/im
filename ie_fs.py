@@ -135,6 +135,10 @@ class IETag:
     def __repr__(self):
         return '<IETag %s>' % self.pname()
 
+    def is_tag(self):
+        return self.type in {IETagType.AUTO, IETagType.BASED,
+                               IETagType.UNBASED}
+
 
 class IEFolder(object):
 

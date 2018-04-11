@@ -551,7 +551,7 @@ class FsSource(Item):
         rel_path = child_path[len(prefix):]
         return rel_path
 
-    def text(self):
+    def pname(self):
         s = ''
         if self.name is not None:
             s += '%s = ' % (self.name)
@@ -578,7 +578,7 @@ class FsSource(Item):
         return self.source_type == FsSourceType.WEB or (self.win_path() is not None)
 
     def __repr__(self):
-        return '<FsSource %s>' % (self.text())
+        return '<FsSource %s>' % (self.pname())
 
 
 class FsItem(Item):
@@ -596,7 +596,7 @@ class FsItem(Item):
     def db_item(self):
         raise NotImplementedError
 
-    def db_tags(self):
+    def db_tag_set(self):
         """ Return the set of DbTags currently bound to self.item_tags. """
         res = set() # of DbTag
         for item_tag in self.item_tags:
@@ -648,9 +648,9 @@ class FsItemTag(Base):
     text = Column(String(collation='NOCASE'))
 
     # value
-    base_idx = Column(Integer)
     first_idx = Column(Integer) # index of the first FsItemTag in the binding
-    last_idx =  Column(Integer)  # index of the last FsItemTag in the binding
+    last_idx =  Column(Integer) # index of the last FsItemTag in the binding
+        # first_idx <= idx <= last_idx
         # when type == TAG, first_idx == last_idx
 
     bases = Column(String)
@@ -672,18 +672,25 @@ class FsItemTag(Base):
         type, text, bases,
         binding, source, db_tag
     ):
-        if source is None:
-            pass
-        if bases == '0':
-            pass
+        # TODO: maybe remove the last three parameters, and idx_range
         if source == FsItemTagSource.DBTAG and binding == FsTagBinding.UNBOUND:
             raise ValueError
         tag = FsItemTag(
-            item=item, idx=idx, first_idx = idx_range[0], last_idx = idx_range[1],
+            item=item,
+            idx=idx, first_idx = idx_range[0], last_idx = idx_range[1] - 1,
             type=type, text=text, bases=bases,
             binding=binding, source=source, db_tag=db_tag)
         if tag is not None: session.add(tag)
         return tag
+
+    def bind(self, binding, source, db_tag, idx_range=None):
+        self.binding = binding
+        self.source = source
+        self.db_tag = db_tag
+        if idx_range is not None:
+            self.first_idx = idx_range.start
+            self.last_idx = idx_range.stop - 1
+        pass
 
     @classmethod
     def find_idx(cls, session, item, idx):

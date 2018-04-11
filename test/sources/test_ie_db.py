@@ -220,9 +220,10 @@ def _check_item_tags(item_tags, tags, checks):
                 pass
             assert item_tag.source == source
             if binding != FsTagBinding.UNBOUND:
-                if len(c) < 3:
-                    pass
-                assert item_tag.db_tag is tags[c[2]]
+                if len(c) > 2:
+                    if item_tag.db_tag is not tags[c[2]]:
+                        pass
+                    assert item_tag.db_tag is tags[c[2]]
 
         if c[0][0] == 't':
             item_tag = find_item_tag(c[1])
@@ -301,6 +302,8 @@ def _test_cmd(volume, dir_name, source_type, cfg):
         ie_cfg=ie_cfg, fs_source=fs_source, import_mode=import_mode, paths=paths)
     task.start()
     slicer.resume()
+    if task.state != Task2State.DONE:
+        pass
     assert task.state == Task2State.DONE
 
     worklist = task.worklist
