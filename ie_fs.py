@@ -35,14 +35,14 @@ class IEMsgType(Enum):
     FOLDER_DELETED      = ('folder deleted from import folder set', 'ip')
         # (IEWorkItem)
     TAGS_ARE_WORDS      = ('tags need editing', 'i')
-        # (IEFolder, IEImageInst) [ 'green', 'day', 'ok' ] not [ 'green day', 'ok' ]
+        # (IEFolder, IEImageInst) [ 'green', 'day', 'ok' ]
     UNEXPECTED_FILE     = ('unexpected file found', 'ip')
         # (IEFolder)
-    EXTRA_INSTS         = ('multiple instances of this (image, extension)', 'ip')
+    EXTRA_INSTS         = ('multiple instances of (image, extension)', 'ip')
         # (IEImage)
     NO_IMAGES           = ('folder contains no images', 'ip')
         # (IEFolder)
-    CANT_FIND_IMAGE     = ("internal error: can't find folder image from pathmane", 'Ep')
+    CANT_FIND_IMAGE     = ("internal error: can't find folder image", 'Ep')
         # (IEFolder)
     NAME_NEEDS_EDIT     = ('IEFolder.name needs editing', 'is')
         # (IEFolder)
@@ -145,7 +145,7 @@ class IEFolder(object):
     def __init__(self, fs_path, db_date, db_name, mod_datetime):
         self.fs_path = fs_path  # filesystem absolute path
 
-        # DbFolder date and name suggested by import/export code (e.g. scan_dir_set)
+        # DbFolder date and name suggested by import code
         self.db_date = db_date  # folder date, e.g. 10/07/2017, may be None
         self.db_name = db_name  # the name, e.g. 'virginia'
 
@@ -174,12 +174,12 @@ class IEImage(object):
     def __init__(self, ie_folder, name):
 
         self.ie_folder = ie_folder
-        self.name = name        # <seq>[<suffix>] (copied to FsImage and DbImage)
+        self.name = name        # <seq>[<suffix>] (copied to Fs/DbImage)
         self.msgs = []          # list of IEMsg
-        self.insts = {}         # extension (e.g. 'jpg-hi') -> list of IEImageInst
+        self.insts = {}         # extension -> list of IEImageInst
 
         self.newest_inst_with_thumbnail = None  # read by proc_ie_work_item
-        self.thumbnail = None                   # set when/if the thumbnail is extracted
+        self.thumbnail = None                   # set when thumb is extracted
         self.tags = []                          # list of IETag
 
     def add_tag(self, ie_tag):
@@ -197,7 +197,8 @@ class IEImage(object):
             self.image_size = (int(w), int(h))
         if 'Subject' in item:
             for tag in item['Subject']:
-                self.add_tag(IETag(IETagType.UNBASED, text=tag, bases='band,person'))
+                self.add_tag(
+                    IETag(IETagType.UNBASED, text=tag, bases='band,person'))
         else:
             pass
         pass
@@ -215,9 +216,11 @@ class IEImageInst(object):
         # add to the IEFolder's pathname => IEImageInst map
         ie_image.ie_folder.image_insts[fs_path] = self
 
-        if ext in thumbnail_exts and (
-                ie_image.newest_inst_with_thumbnail is None or
-                mod_datetime > ie_image.newest_inst_with_thumbnail.mod_datetime):
+        if (ext in thumbnail_exts
+        and (
+            ie_image.newest_inst_with_thumbnail is None
+            or mod_datetime > ie_image.newest_inst_with_thumbnail.mod_datetime
+        )):
             ie_image.newest_inst_with_thumbnail = self
 
     def pname(self):
@@ -245,9 +248,10 @@ _exiftool_args = [
 ]
 
 def _get_exiftool_json(argv):
-    """ runs exiftool on <argv> and returns a list of dictionaries containing the results """
+    """ Run exiftool on <argv> and return a list of dictionariess. """
     outb = subprocess.check_output(argv)
-    outs = str(outb)[2:-5].replace(r'\n', '').replace(r'\r', '').replace(r"\'", "'")
+    outs = str(outb)[2:-5]\
+        .replace(r'\n', '').replace(r'\r', '').replace(r"\'", "'")
     try:
         exiftool_json = json.loads(outs)
     except:
@@ -257,7 +261,8 @@ def _get_exiftool_json(argv):
 ie_image_set0 = None
 
 def get_ie_image_exifs(ie_image_set, pub):
-    """ get exif data for all the images in <ie_image_set>
+    """ Get exif data for all the images in <ie_image_set>.
+
         deletes images from the set as their exifs are processed
     """
 
@@ -279,11 +284,12 @@ def get_ie_image_exifs(ie_image_set, pub):
             break
         # collect IEImageInsts and their directories
         dir_insts = {} # map: directory pathname => list of IEImageInst
-        ext_paths = {} # map: fs_path => image_inst for images witn this extension
+        ext_paths = {} # map: fs_path => image_inst for images w/ this extension
         for ie_image in ie_image_set:
             if ext in ie_image.insts:
                 for ie_image_inst in ie_image.insts[ext]:
-                    inst_path = os.path.abspath(ie_image_inst.fs_path).replace('\\', '/')
+                    inst_path = (os.path.abspath(ie_image_inst.fs_path)
+                        .replace('\\', '/'))
                     inst_path = os.path.splitdrive(inst_path)[1]
                     ext_paths[inst_path] = ie_image_inst
                     dir_path = os.path.dirname(inst_path)
@@ -391,7 +397,7 @@ img_extensions = [ '.nef', '.tif', '.psd', '.jpg' ]
 raw_prefixes = [ 'img_', 'dsc_' ]
 ignored_extensions = [ '.zip' ]
 ignored_subdirectories = [ 'del' ]
-# the filename 'New Text Document.txt'(!) is recognized as a source of folder tags
+# 'New Text Document.txt'(!) is recognized as a source of folder tags
 
 def add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime):
     base_name, ext = os.path.splitext(file_name)
@@ -431,7 +437,8 @@ def add_ie_folder_name_word_tags(ie_folder, bases):
 
 def add_ie_folder_name_tag(ie_folder, bases):
     """ add a tag based on the folder's name """
-    ie_folder.add_tag(IETag(IETagType.BASED, text=ie_folder.db_name, bases=bases))
+    ie_folder.add_tag(IETag(
+        IETagType.BASED, text=ie_folder.db_name, bases=bases))
 
 def scan_std_dir_files(ie_folder):
 
@@ -443,11 +450,13 @@ def scan_std_dir_files(ie_folder):
             for tag_line in tag_lines:
                 tags = [l.strip(' \n\r') for l in tag_line.split(',')]
                 for tag in tags:
-                    ie_folder.add_tag(IETag(IETagType.BASED, text=tag, bases='band'))
+                    ie_folder.add_tag(IETag(
+                        IETagType.BASED, text=tag, bases='band'))
         elif os.path.isfile(file_path):
             stat_mtime = os.path.getmtime(file_path)
             mtime = datetime.datetime.fromtimestamp(stat_mtime)
-            add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime)
+            add_ie_folder_image_inst(
+                ie_folder, file_path, file_name, high_res, mtime)
         else:
             # special file -- ignore
             pass
@@ -476,12 +485,14 @@ def scan_std_dir_files(ie_folder):
     else:
         # who knows?
         add_ie_folder_name_word_tags(ie_folder, 'band, venue, place, event')
-        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
+        ie_folder.msgs.append(
+            IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
     # TODO: adjust seq numbers for Nikon 9999 rollover:
     # 0001, 9999 => 10001, 09999
 
 corbett_date = re.compile(r'[0-9]{2,2}_[0-9]{2,2}(&[0-9]{2,2})?_[0-9]{2,2}')
-corbett_trailing_date = re.compile(r'[0-9]{2,2}_[0-9]{2,2}(&[0-9]{2,2})?_[0-9]{2,2}$')
+corbett_trailing_date = re.compile(
+    r'[0-9]{2,2}_[0-9]{2,2}(&[0-9]{2,2})?_[0-9]{2,2}$')
 amper_date = re.compile(r'&[0-9]+')
 
 def proc_corbett_filename(file_pathname, file_name, folders):
@@ -547,11 +558,15 @@ def proc_corbett_filename(file_pathname, file_name, folders):
     return ie_image_inst
 
 def scan_file_set(file_set_pathname, test, proc):
-    """ return a list of IEFolders (each containing IEImages)
-        representing the folders and images found in file_set_pathname
-        the list is sorted by folder fs_path
-        test(file_name) checks whether the directory should be processed
-        proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
+    """ Return a list of IEFolders (each containing IEImages).
+
+        the IEFolders/Images represent the folders and images
+            found in file_set_pathname
+        the list is sorted by folder.fs_path
+        test(file_name)
+            checks whether the directory should be processed
+        proc(file_pathname, file_name, folders)
+            returns an IEImage for the file, and,
         if the filename has a new prefix, adds a new IEFolder to folders
     """
     folders = []
@@ -571,8 +586,10 @@ def scan_file_sel(file_pathname_list, proc):
     """ return a list of IEFolders (each containing IEImages)
         representing the folders and images found in file_pathname_list
         the list is sorted by folder fs_path
-        test(file_name) checks whether the directory should be processed
-        proc(file_pathname, file_name, folders) returns an IEImage for the file, and,
+        test(file_name)
+            checks whether the directory should be processed
+        proc(file_pathname, file_name, folders)
+            returns an IEImage for the file, and,
         if the filename has a new prefix, adds a new IEFolder to folders
     """
     folders = []

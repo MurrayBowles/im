@@ -35,9 +35,10 @@ class ImportExportTab(wx.Panel):
         self.import_mode = ImportMode.SET
         self.paths = None
 
-        self.accessible_source = False      # accessible_source_box is being displayed
-        self.fs_source = False              # fs_source_box is being displayed
-        self.selected_fs_source = False     # dir_ctrl is being displayed
+        # xxx_box is being displayed
+        self.accessible_source = False
+        self.fs_source = False
+        self.selected_fs_source = False
 
         # FsSource selection
         FsSourceCtrl(self, box, change_fn = self.on_source_changed)
@@ -61,13 +62,17 @@ class ImportExportTab(wx.Panel):
         self.fs_source_box_idx = 0  # in accessible_source_box
         
         # flags
-        self.import_folder_tags = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+        self.import_folder_tags = gui_wrap.AttrCheckBox(
+            self, self.accessible_source_box,
             'import folder tags', cfg.ie, 'import_folder_tags')
-        self.import_image_tags = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+        self.import_image_tags = gui_wrap.AttrCheckBox(
+            self, self.accessible_source_box,
             'import image tags', cfg.ie, 'import_image_tags')
-        self.import_thumbnails = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+        self.import_thumbnails = gui_wrap.AttrCheckBox(
+            self, self.accessible_source_box,
             'import thumbnails', cfg.ie, 'import_thumbnails')
-        self.export_image_tags = gui_wrap.AttrCheckBox(self, self.accessible_source_box,
+        self.export_image_tags = gui_wrap.AttrCheckBox(
+            self, self.accessible_source_box,
             'export image tags', cfg.ie, 'export_image_tags')
 
         # action
@@ -78,12 +83,14 @@ class ImportExportTab(wx.Panel):
         self.gc_box.Add(self.gc_button)
 
         # progress string
-        self.progress = gui_wrap.StaticText(self, self.gc_box, '', size=(200, 20))
+        self.progress = gui_wrap.StaticText(
+            self, self.gc_box, '', size=(200, 20))
         # FIXME: should auto-resize with the text
 
         self.accessible_source_box.Add(self.gc_box)
         
-        self.top_box.Insert(self.accessible_source_box_idx, self.accessible_source_box)
+        self.top_box.Insert(
+            self.accessible_source_box_idx, self.accessible_source_box)
 
     def del_accessible_source_box(self):
         self.hide_box_item(self.top_box, self.accessible_source_box_idx)
@@ -99,10 +106,11 @@ class ImportExportTab(wx.Panel):
             choices=['All ' + what, 'Some ' + what],
             change_fn=self.on_select_radio)
 
-        # directory/file selection DirCtrl gets inserted here when self.selected_fs_source
+        # directory/file selection DirCtrl inserted here when selected_fs_source
         self.dir_ctrl_sizer_idx = 1  # in fs_source_box
 
-        self.accessible_source_box.Insert(self.fs_source_box_idx, self.fs_source_box)
+        self.accessible_source_box.Insert(
+            self.fs_source_box_idx, self.fs_source_box)
 
     def del_fs_source_box(self):
         self.hide_box_item(self.accessible_source_box, self.fs_source_box_idx)
@@ -115,7 +123,9 @@ class ImportExportTab(wx.Panel):
             init_path=path, select_fn=self.on_select_paths,
             style=(
                 wx.DIRCTRL_MULTIPLE |
-                (wx.DIRCTRL_DIR_ONLY if self.source.source_type == db.FsSourceType.DIR else 0)))
+                (wx.DIRCTRL_DIR_ONLY
+                if self.source.source_type == db.FsSourceType.DIR
+                else 0)))
 
     def del_dir_ctrl(self):
         # self.paths = [self.source.win_path()]
@@ -193,12 +203,15 @@ class ImportExportTab(wx.Panel):
 
             # status messages
             pub.subscribe(self.on_ie_begun, 'ie.sts.begun')
-            pub.subscribe(self.on_ie_import_thumbnails, 'ie.sts.import thumbnails')
-            pub.subscribe(self.on_ie_imported_thumbnails, 'ie.sts.imported thumbnails')
+            pub.subscribe(self.on_ie_import_thumbnails,
+                'ie.sts.import thumbnails')
+            pub.subscribe(self.on_ie_imported_thumbnails,
+                'ie.sts.imported thumbnails')
             pub.subscribe(self.on_ie_import_tags, 'ie.sts.import tags')
             pub.subscribe(self.on_ie_imported_tags, 'ie.sts.imported tags')
             pub.subscribe(self.on_ie_import_webpage, 'ie.sts.import webpage')
-            pub.subscribe(self.on_ie_imported_webpage, 'ie.sts.imported webpage')
+            pub.subscribe(self.on_ie_imported_webpage,
+                'ie.sts.imported webpage')
             pub.subscribe(self.on_ie_folder_done, 'ie.sts.folder done')
             pub.subscribe(self.on_ie_done, 'ie.sts.done')
 
@@ -224,27 +237,31 @@ class ImportExportTab(wx.Panel):
         self.worklist = data
         self.num_folders = len(data)
         self.cur_folders = 0
-        self.progress_text = '%u/%u folders' % (self.cur_folders, self.num_folders)
+        self.progress_text = '%u/%u folders' % (
+            self.cur_folders, self.num_folders)
         self.on_progress()
 
     def on_ie_import_thumbnails(self, data):
         self.num_thumbnails = data
         self.cur_thumbnails = 0
         self.progress_text = '%u/%u folders, %u/%u thumbnails' % (
-            self.cur_folders, self.num_folders, self.cur_thumbnails, self.num_thumbnails)
+            self.cur_folders, self.num_folders,
+            self.cur_thumbnails, self.num_thumbnails)
         self.on_progress()
 
     def on_ie_imported_thumbnails(self, data):
         self.cur_thumbnails +=  data
         self.progress_text = '%u/%u folders, %u/%u thumbnails' % (
-            self.cur_folders, self.num_folders, self.cur_thumbnails, self.num_thumbnails)
+            self.cur_folders, self.num_folders,
+            self.cur_thumbnails, self.num_thumbnails)
         self.on_progress()
 
     def on_ie_import_tags(self, data):
         self.num_tags = data
         self.cur_tags = 0
         self.progress_text = '%u/%u folders, %u/%u EXIFs' % (
-            self.cur_folders, self.num_folders, self.cur_tags, self.num_tags)
+            self.cur_folders, self.num_folders,
+            self.cur_tags, self.num_tags)
         self.on_progress()
 
     def on_ie_imported_tags(self, data):
@@ -264,7 +281,8 @@ class ImportExportTab(wx.Panel):
 
     def on_ie_folder_done(self, data):
         self.cur_folders += 1
-        self.progress_text = '%u/%u folders' % (self.cur_folders, self.num_folders)
+        self.progress_text = '%u/%u folders' % (
+            self.cur_folders, self.num_folders)
         self.on_progress()
 
     def on_ie_done(self, data):
@@ -360,7 +378,8 @@ class FsSourceAEDialog(wx.Dialog):
         if 'edit_obj' in kw:
             self.obj = kw['edit_obj']
             init_tag_source_id = (
-                self.obj.tag_source.id if self.obj.tag_source is not None else -1)
+                self.obj.tag_source.id if self.obj.tag_source is not None
+                else -1)
             self.volume = self.obj.volume
             self.path = self.obj.path
             self.read_only = self.obj.readonly
@@ -383,7 +402,8 @@ class FsSourceAEDialog(wx.Dialog):
         self.tag_source = None
         self.source_type = db.FsSourceType.DIR
 
-        self.SetTitle('%s Import/Export Source' % ('Add' if self.obj is None else 'Edit'))
+        self.SetTitle(
+            '%s Import/Export Source' % ('Add' if self.obj is None else 'Edit'))
         panel = wx.Panel(self)
         box = wx.BoxSizer(wx.VERTICAL)
 
@@ -401,14 +421,17 @@ class FsSourceAEDialog(wx.Dialog):
 
             # directory
             self.dir_ctrl = gui_wrap.DirCtrl(
-                self, box, select_fn=self.on_dir_selected, style = wx.DIRCTRL_DIR_ONLY)
+                self, box, select_fn=self.on_dir_selected,
+                style = wx.DIRCTRL_DIR_ONLY)
 
             # URL
             self.text_ctrl = gui_wrap.TextCtrl(
-                self, box, 'URL', size = (300, 20), change_fn = self.on_text_changed)
+                self, box, 'URL', size = (300, 20),
+                change_fn = self.on_text_changed)
             # self.text_ctrl.set_hidden(True)
         else: # Edit
-            gui_wrap.StaticText(self, box, 'source type: ' + types[self.obj.source_type])
+            gui_wrap.StaticText(
+                self, box, 'source type: ' + types[self.obj.source_type])
             gui_wrap.StaticText(self, box, 'source: ' + self.obj.text())
 
         # name
@@ -416,7 +439,8 @@ class FsSourceAEDialog(wx.Dialog):
 
         # tag source
         FsTagSourceCtrl(
-            self, box, change_fn = self.on_tag_source_changed, init_id=init_tag_source_id)
+            self, box, change_fn = self.on_tag_source_changed,
+            init_id=init_tag_source_id)
 
         # read-only
         gui_wrap.AttrCheckBox(self, box, 'read only', self, 'read_only')
@@ -455,7 +479,7 @@ class FsSourceAEDialog(wx.Dialog):
         self._fix_dialog_buttons()
 
     def on_text_changed(self, text):
-        # this happens on every keystroke, so text can be an invalid URL at any point
+        # this happens on every keystroke, so text can always be an invalid URL
         if text.find(':') != -1:
             self.volume, self.path = text.split(':', 1)
             self.volume += ':'
@@ -543,12 +567,15 @@ class FsTagSourceAEDialog(wx.Dialog):
 
         self.description = ''
 
-        self.SetTitle('%s Import/Export Tag Source' % ('Add' if self.obj is None else 'Edit'))
+        self.SetTitle('%s Import/Export Tag Source' % (
+            'Add' if self.obj is None else 'Edit'))
         panel = wx.Panel(self)
         box = wx.BoxSizer(wx.VERTICAL)
 
         # description
-        gui_wrap.AttrTextCtrl(self, box, 'description', self, 'description', change_fn = self.on_change)
+        gui_wrap.AttrTextCtrl(
+            self, box, 'description', self, 'description',
+            change_fn = self.on_change)
 
         # TODO: view tag mappings if EDIT
 

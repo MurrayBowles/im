@@ -11,7 +11,8 @@ from ie_fs import IEMsg, IEMsgType, IETag, IETagType
 # page-contents directory to avoid web accesses while testing
 use_test_pages = True
 save_test_pages = True  # ignored if use_test_pages
-test_dir_path = 'c:\\\\Users\\User\\PycharmProjects\\im\\test\\import-export sources\\web pages'
+test_dir_path = \
+'c:\\\\Users\\User\\PycharmProjects\\im\\test\\import-export sources\\web pages'
 
 # tag map: ( [ <base> list ], { <line type str>: [ <template list> ] )
 # template: +<base digit> | -<base digit> | ? | N  (see IETagType)
@@ -81,7 +82,8 @@ def get_gallery_header_tags(header_list, base_gallery):
             for elt in line:
                 tags.append(IETag(tag_type, elt[0], base, elt[1]))
         else: # line_type == 'F':
-            tags.append(IETag(IETagType.NOTE, 'Facebook Event', None, line[1][1]))
+            tags.append(
+                IETag(IETagType.NOTE, 'Facebook Event', None, line[1][1]))
 
     if len(header_list) == 0 or base_gallery is None:
         return [] # no autotagging
@@ -144,12 +146,16 @@ def get_gallery_header_tags(header_list, base_gallery):
     return tags
 
 def scan_pbase_gallery_bytes(
-    path, bytes, top_gallery, proc_gallery_link, proc_gallery_tag,  proc_image_link
+    path, bytes, top_gallery,
+    proc_gallery_link, proc_gallery_tag,  proc_image_link
 ):
     """ scrape date from the gallery page at <path>
-        for each item in the gallery description area, call proc_gallery_tag(IETag)
-        for each image thumbnail, call proc_image_link(url, image_name)
-        for each gallery thumbnail, call proc_gallery_link(path)
+        for each item in the gallery description area,
+            call proc_gallery_tag(IETag)
+        for each image thumbnail,
+            call proc_image_link(url, image_name)
+        for each gallery thumbnail,
+            call proc_gallery_link(path)
     """
 
     tree = html.fromstring(bytes)
@@ -235,7 +241,8 @@ def scan_pbase_gallery(
             f.close()
 
     scan_pbase_gallery_bytes(
-        path, bytes, top_gallery, proc_gallery_link, proc_gallery_tag, proc_image_link)
+        path, bytes, top_gallery,
+        proc_gallery_link, proc_gallery_tag, proc_image_link)
 
 def scan_web_page_children(ie_folder, top_gallery, child_paths):
     """ collect IEImages, IETags, and child paths for the gallery of <ie-folder>
@@ -261,7 +268,8 @@ def scan_web_page_children(ie_folder, top_gallery, child_paths):
     else:
         # who knows?
         add_ie_folder_name_word_tags(ie_folder, 'band, venue, place, event')
-        ie_folder.msgs.append(IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
+        ie_folder.msgs.append(
+            IEMsg(IEMsgType.NAME_NEEDS_EDIT, ie_folder.db_name))
 
 def _test_pbase_scan(gallery, top_gallery):
     def on_gallery_link(path):

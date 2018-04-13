@@ -14,7 +14,8 @@ from db import *
 from ie_cfg import IECfg
 from ie_db import *
 from test_ie_fs import test_scan_dir_set_expected_list
-from test_ie_fs import test_scan_dir_sel_selected_list, test_scan_dir_sel_expected_list
+from test_ie_fs import test_scan_dir_sel_selected_list
+from test_ie_fs import test_scan_dir_sel_expected_list
 from test_ie_fs import test_scan_file_set_corbett_psds_expected_list
 from test_ie_fs import test_scan_file_sel_corbett_psds_selected_list
 from test_ie_fs import test_scan_file_sel_corbett_psds_expected_list
@@ -63,7 +64,8 @@ def check_worklist_no_fs_folders(
         bg_proc_ie_work_item(work, fs_source, pub_fn)
     for work, expected in zip(worklist, expected_list):
         assert work.fs_folder is not None
-        check_images(work.fs_folder, work.ie_folder.images.values(), expected[1])
+        check_images(
+            work.fs_folder, work.ie_folder.images.values(), expected[1])
     pass
 
 def check_worklist_with_fs_folders(
@@ -286,20 +288,22 @@ def _test_cmd(volume, dir_name, source_type, cfg):
             FsTagMapping.add(session,
                 db.global_tag_source if m[0][1] == 'g' else tag_source,
                 m[1],
-                FsTagBinding.SUGGESTION if m[0][0] == 's' else FsTagBinding.BOUND,
+                (FsTagBinding.SUGGESTION if m[0][0] == 's'
+                else FsTagBinding.BOUND),
                 db_tag
             )
     all_mappings = session.query(FsTagMapping).all()
 
     fs_source = FsSource.add(
-        session, volume, path, source_type, readonly=True, tag_source=tag_source)
+        session, volume, path, source_type,
+        readonly=True, tag_source=tag_source)
 
     #cmd = _MockIETask(session, ie_cfg, fs_source, import_mode, paths)
 
     slicer = MockSlicer(suspended=True)
     task = IETask2(
-        slicer=slicer, session=session,
-        ie_cfg=ie_cfg, fs_source=fs_source, import_mode=import_mode, paths=paths)
+        slicer=slicer, session=session, ie_cfg=ie_cfg, fs_source=fs_source,
+        import_mode=import_mode, paths=paths)
     task.start()
     slicer.resume()
     if task.state != Task2State.DONE:

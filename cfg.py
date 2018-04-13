@@ -32,7 +32,10 @@ class Cfg(object):
         config_file.close()
 
     def restore(self):
-        """ called once on initialization to restore the configuration settings """
+        """ Restore the configuration settings.
+
+            called once on initialization
+        """
         config_file = _config_file('r')
         if config_file is not None:
             config_str = config_file.read()

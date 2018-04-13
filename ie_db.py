@@ -13,7 +13,9 @@ from wx_task import WxTask2
 
 class IEWorkItem(object):
 
-    def __init__(self, fs_folder, ie_folder, nest_lvl=0, parent=None, base_folder=None):
+    def __init__(self, fs_folder, ie_folder,
+        nest_lvl=0, parent=None, base_folder=None
+    ):
 
         self.fs_folder = fs_folder
         self.ie_folder = ie_folder
@@ -29,10 +31,14 @@ class IEWorkItem(object):
             # shows when processing murrayboelse/shows/xxx...
 
         # set by fs_start_work_item()
-        self.deleted_images = []    # list of db.FsImages that have been deleted from the import source
-        self.existing_images = []   # list of existing (db.FsImage, IEImage, is_new)
-        self.get_exif = set()       # set of ie_images to get the exif data (e.g. tags) for
-        self.get_thumbnail = set()  # set of IeImages to get/update the thumbnail for
+        self.deleted_images = []
+            # list of db.FsImages that have been deleted from the import source
+        self.existing_images = []
+            # list of existing (db.FsImage, IEImage, is_new)
+        self.get_exif = set()
+            # set of ie_images to get the exif data (e.g. tags) for
+        self.get_thumbnail = set()
+            # set of IeImages to get/update the thumbnail for
 
     def __repr__(self):
         return '<WorkItem %s %s>' % (
@@ -84,9 +90,11 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
     worklist = deque()
     if import_mode == ImportMode.SET:
         if fs_source.source_type == db.FsSourceType.DIR:
-            ie_folders = scan_dir_set(paths[0], is_std_dirname, proc_std_dirname)
+            ie_folders = scan_dir_set(
+                paths[0], is_std_dirname, proc_std_dirname)
         elif fs_source.source_type == db.FsSourceType.FILE:
-            ie_folders = scan_file_set(paths[0], lambda filename: True, proc_corbett_filename)
+            ie_folders = scan_file_set(
+                paths[0], lambda filename: True, proc_corbett_filename)
         else:
             assert fs_source.source_type == db.FsSourceType.WEB
             return [
@@ -116,16 +124,18 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
                 fs_rel_path = fs_folders[0].name
                 ie_rel_path = fs_source.rel_path(ie_folders[0].fs_path)
                 if fs_rel_path == ie_rel_path:
-                    worklist.append(IEWorkItem(fs_folders.pop(0), ie_folders.pop(0)))
+                    worklist.append(
+                        IEWorkItem(fs_folders.pop(0), ie_folders.pop(0)))
                 elif fs_rel_path < ie_rel_path:
-                    worklist.append(IEWorkItem(fs_folders.pop(0), None))
+                    worklist.append(
+                        IEWorkItem(fs_folders.pop(0), None))
                 else:
                     worklist.append(IEWorkItem(None, ie_folders.pop(0)))
             elif len(fs_folders) != 0:
-                # an db.FsFolder in the database was not seen in this filesystem scan
+                # an existing FsFolder was not seen in this external scan
                 worklist.append(IEWorkItem(fs_folders.pop(0), None))
             elif len(ie_folders) != 0:
-                # a folder has been found in the filesystem which is not in the db.FsFolder database
+                # a new folder has been found in the external scan
                 worklist.append(IEWorkItem(None, ie_folders.pop(0)))
             else:
                 break
@@ -139,7 +149,8 @@ def create_fs_folder(session, ie_folder, fs_source):
     # also auto-create a DbFolder if ie_folder has a good name and date
     if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
                 IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
-        db_folder = db.DbFolder.get(session, ie_folder.db_date, ie_folder.db_name)[0]
+        db_folder = db.DbFolder.get(
+            session, ie_folder.db_date, ie_folder.db_name)[0]
         fs_folder.db_folder = db_folder
     return fs_folder
 
@@ -152,11 +163,16 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
             if fs_image.db_image is None:
                 fs_image.db_image = db_image
-            if ie_cfg.import_thumbnails and ie_image.newest_inst_with_thumbnail is not None:
+            if (ie_cfg.import_thumbnails
+            and ie_image.newest_inst_with_thumbnail is not None):
                 pass
-            if ie_cfg.import_thumbnails and ie_image.newest_inst_with_thumbnail is not None and (
-                            db_image.thumbnail is None or
-                            ie_image.latest_inst_with_timestamp.mod_datetime > db_image.thumbnail_timestamp):
+            if (ie_cfg.import_thumbnails
+            and ie_image.newest_inst_with_thumbnail is not None
+            and (
+                db_image.thumbnail is None
+                or ie_image.latest_inst_with_timestamp.mod_datetime
+                    > db_image.thumbnail_timestamp
+            )):
                 # add to the list of IEImages to get/update thumbnails for
                 work_item.get_thumbnail.add(ie_image)
         if new_fs_image:
@@ -169,7 +185,8 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
 
     if fs_source.source_type == db.FsSourceType.DIR:
         # scan the folder's image files
-        # (this has already been done in the db.FsSourceType.FILE case by scan_file_set/sel)
+        # (this will have already been done in the db.FsSourceType.FILE case
+        # by scan_file_set/sel)
         scan_std_dir_files(ie_folder)
     elif fs_source.source_type == db.FsSourceType.WEB:
         # all the work is done inn the background thread
@@ -181,13 +198,15 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
         work_item.fs_folder = fs_folder
     db_folder = fs_folder.db_folder # this may be None
 
-    if import_mode == ImportMode.SEL and fs_source.source_type == db.FsSourceType.FILE:
+    if (import_mode == ImportMode.SEL
+    and fs_source.source_type == db.FsSourceType.FILE):
         # find/create FsImages corresponding to each IeImage
         for ie_image in ie_folder.images.values():
-            fs_image, new_fs_image = db.FsImage.get(session, fs_folder, ie_image.name)
+            fs_image, new_fs_image = db.FsImage.get(
+                session, fs_folder, ie_image.name)
             import_ie_image(fs_image, ie_image, new_fs_image)
     else:
-        # get sorted lists of all db.FsImages and IEImages currently known for the folder
+        # get sorted lists of all FsImages and IEImages for the folder
         fs_images = list(fs_folder.images)
         ie_images = list(work_item.ie_folder.images.values())
         fs_images.sort(key=lambda x: x.name)
@@ -223,11 +242,13 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
         if work_item.ie_folder is not None:
             pub_fn('ie.sts.import webpage', data=1)
             web_ie_db.scan_web_page_children(
-                work_item.ie_folder, work_item.base_folder, work_item.child_paths)
+                work_item.ie_folder, work_item.base_folder,
+                work_item.child_paths)
             pub_fn('ie.sts.imported webpage', data=1)
     else:
         if len(work_item.get_thumbnail) > 0:
-            pub_fn('ie.sts.import thumbnails', data=len(work_item.get_thumbnail))
+            pub_fn('ie.sts.import thumbnails',
+                data=len(work_item.get_thumbnail))
             get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
             pass
         if len(work_item.get_exif) > 0:
@@ -246,7 +267,8 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
         work_item.fs_folder = fs_folder
         db_folder = fs_folder.db_folder
         for ie_image in ie_folder.images.values():
-            fs_image, new_fs_image = db.FsImage.get(session, fs_folder, ie_image.name)
+            fs_image, new_fs_image = db.FsImage.get(
+                session, fs_folder, ie_image.name)
             work_item.existing_images.append((fs_image, ie_image))
             if db_folder is not None:
                 db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
@@ -258,7 +280,8 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
         init_fs_item_tags(session,
             work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
         for image in work_item.existing_images:
-            init_fs_item_tags(session, image[0], image[1].tags, fs_source.tag_source)
+            init_fs_item_tags(
+                session, image[0], image[1].tags, fs_source.tag_source)
             pass
 
     # for the WEB case, queue processing for child pages
@@ -293,21 +316,25 @@ class IETask2(WxTask2):
         self.pub('ie.sts.begun', data=self.worklist)
         while not self.cancelled() and self.worklist_idx < len(self.worklist):
             work_item = self.worklist[self.worklist_idx]
-            fg_start_ie_work_item(self.session, self.ie_cfg, work_item, self.fs_source)
+            fg_start_ie_work_item(
+                self.session, self.ie_cfg, work_item, self.fs_source)
 
             if (len(work_item.get_exif) > 0 or
                 len(work_item.get_thumbnail) > 0 or
                 self.fs_source.source_type == db.FsSourceType.WEB
             ):
-                yield (lambda: bg_proc_ie_work_item(work_item, self.fs_source, self.pub))
+                yield (lambda: bg_proc_ie_work_item(
+                    work_item, self.fs_source, self.pub))
                 pass
             else:
                 yield
 
             fg_finish_ie_work_item(
-                self.session, self.ie_cfg, work_item, self.fs_source, self.worklist)
+                self.session, self.ie_cfg, work_item, self.fs_source,
+                self.worklist)
 
-            self.pub('ie.sts.folder done', data=self.worklist[self.worklist_idx].ie_folder.db_name)
+            self.pub('ie.sts.folder done',
+                data=self.worklist[self.worklist_idx].ie_folder.db_name)
             self.worklist_idx += 1
             yield
         self.pub('ie.sts.done', data=True)

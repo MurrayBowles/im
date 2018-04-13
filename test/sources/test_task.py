@@ -17,7 +17,8 @@ def _run_mock_task_test(task_class):
 
 def _run_wx_task_test(task_class):
     app = wx.App()
-    frame = wx.Frame(None, -1, 'TOTO: why do i need this Frame to make MainLoop work?')
+    frame = wx.Frame(
+        None, -1, 'TOTO: why do i need this Frame to make MainLoop work?')
     slicer = WxSlicer(suspended=True)
     def on_done(exc_data):
         app.ExitMainLoop()

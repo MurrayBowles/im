@@ -9,11 +9,13 @@ def find_text_binding(session, text, fs_tag_source):
     mapping = db.FsTagMapping.find(session, fs_tag_source, text)
     if mapping is not None:
         # <text> is mapped in <fs_tag_source>
-        return [text, mapping.binding, db.FsItemTagSource.FSTS, mapping.db_tag]
+        return [
+            text, mapping.binding, db.FsItemTagSource.FSTS, mapping.db_tag]
     mapping = db.FsTagMapping.find(session, db.global_tag_source, text)
     if mapping is not None:
         # <text> is mapped in <global_tag_source>
-        return [text, mapping.binding, db.FsItemTagSource.GLOBTS, mapping.db_tag]
+        return [
+            text, mapping.binding, db.FsItemTagSource.GLOBTS, mapping.db_tag]
     db_tag = db.DbTag.find_expr(session, text)
     if db_tag is not None:
         # <text> occurs in the DbTag database
@@ -71,11 +73,7 @@ def word_list_bindings(session, word_list, bases, fs_tag_source):
         total_score = 1
         have_unbound_multiword = False
         for wl in partition:
-            text = ''
-            sep = ''
-            for word in wl:
-                text += sep + word
-                sep = ' '
+            text = ' '.join(wl)
             binding = tag_text_binding(
                 session, text, bases, fs_tag_source)
             if binding[1] == db.FsTagBinding.UNBOUND and len(wl) > 1:
@@ -185,7 +183,8 @@ def _on_tag_change(session, text):
     """ Schedule a task to recalculate all FsItemTag bindings involving <text>.
 
         called when a DbTag or FsTagMapping is changed
-        <text> is a leaf tag string, e.g. 'Green Day' if the eDbTag 'band}Green Day' was changed
+        <text> is a leaf tag string,
+            e.g. 'Green Day' if the eDbTag 'band}Green Day' was changed
     """
     db.TagChange.add(session, text)
     pass

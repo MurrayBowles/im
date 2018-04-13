@@ -39,7 +39,8 @@ class Slicer:
         if self.suspended:
             self.suspended = False
             if self.state == SlicerState.IDLE:
-                # it's not guaranteed here that there are any queued Tasks, but slice() deals with that
+                # it's not guaranteed here that there are any queued Tasks,
+                # but slice() deals with that case
                 self._queue()
 
     def _pop_task(self):
@@ -191,7 +192,8 @@ class Task2:
         try:
             subthread_fn = self.step()
             if subthread_fn is not None:
-                # start thread_fn in a subthread and block this Task until it's done
+                # start thread_fn in a subthread,
+                # and block this Task until it's done
                 def do_thread_fn():
                     subthread_fn()
                     self.slicer._schedule(self)

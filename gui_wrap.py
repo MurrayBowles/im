@@ -111,7 +111,8 @@ class AttrCheckBox(CheckBox):
         self.attr_on_click_fn = on_click
 
         super().__init__(
-            parent, sizer, label, init_value=getattr(obj, attr), on_click=self.attr_on_click)
+            parent, sizer, label, init_value=getattr(obj, attr),
+            on_click=self.attr_on_click)
 
     def attr_on_click(self, value):
         if self.attr_on_click_fn is not None:
@@ -156,8 +157,7 @@ class DirCtrl:
                 sep = ''
                 while True:
                     try:
-                        # yep, GetItemParent doesn't return None when there's no parent
-                        # go figure
+                        # GetItemParent doesn't return None
                         path = tree_ctrl.GetItemText(item) + sep + path
                     except:
                         break
@@ -165,13 +165,15 @@ class DirCtrl:
                     sep = '/'
                 # <label> (<drive letter>:)<path> => <drive letter>:<path>
                 # FIXME: what if the label contains a paren?
-                # searching from the right won't help -- filenames CAN contain parens
+                # searching from the right won't help
+                # -- filenames CAN contain parens
                 left_paren_idx = path.find('(')
                 right_paren_idx = path.find(')')
-                path = path[left_paren_idx + 1:right_paren_idx] + path[right_paren_idx + 1:]
+                path = path[left_paren_idx + 1:right_paren_idx]\
+                    + path[right_paren_idx + 1:]
                 return path
             paths = []
-            # self.dir_ctrl.GetPaths(paths) # weird API, AND it doesn't work. Thanks wxPython!
+            # self.dir_ctrl.GetPaths(paths) doesn't work
             tree_ctrl = self.dir_ctrl.GetTreeCtrl()
             items = tree_ctrl.GetSelections()
             for item in items:
@@ -200,7 +202,7 @@ class ListBox:
         size = default_box,
         id_fn = lambda x: x.id,
         name_fn = lambda x: x.name,
-        select_fn = None,   # called initially, and when the current selection changes
+        select_fn = None,   # called initially, and when the selection changes
         edit_fn = None,     # called when an item is double-clicked
         label = None,
         init_id = -1,       # object ID to select initially
@@ -288,7 +290,7 @@ class ListBoxAED:
         size = default_box,
         id_fn = lambda x: x.id,
         name_fn = lambda x: x.name,
-        select_fn = None,   # called initially, and when the current selection changes
+        select_fn = None,   # called initially, and when the selection changes
         add_fn = None,      # called to add an object
         edit_fn = None,     # called to edit an object
         del_fn = None,      # called to delete an object
@@ -315,9 +317,11 @@ class ListBoxAED:
         if add_fn is not None:
             Button(parent, button_sizer, 'Add', self.on_add)
         if edit_fn is not None:
-            self.edit_button = Button(parent, button_sizer, 'Edit', self.on_edit)
+            self.edit_button = Button(
+                parent, button_sizer, 'Edit', self.on_edit)
         if del_fn is not None:
-            self.del_button = Button(parent, button_sizer, 'Delete', self.on_del)
+            self.del_button = Button(
+                parent, button_sizer, 'Delete', self.on_del)
         self._fix_buttons()
         outer_sizer.Add(list_sizer)
         outer_sizer.Add(button_sizer)

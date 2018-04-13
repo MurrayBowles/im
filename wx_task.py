@@ -1,4 +1,4 @@
-""" wxPython implementation of Task, using Python threads and wxPython pubsub """
+""" wxPython implementation of Task """
 
 from threading import Thread
 from time import sleep

@@ -62,11 +62,14 @@ image_collections = Table('image-collections', Base.metadata,
 
 
 class Item(Base):
-    """ something which has a name and can be tagged: a Folder, Collection, Image, or Tag """
+    """ something which has a name and can be tagged:
+        a Folder, Collection, Image, or Tag
+    """
     __tablename__ = 'item'
     id = Column(Integer, primary_key=True)
 
-    type = Column(String(12)) # 'DbCollection' | 'DbFolder' | 'DbImage' | 'FsFolder'
+    type = Column(String(12))
+        # 'DbCollection' | 'DbFolder' | 'DbImage' | 'FsFolder'
     __mapper_args__ = {'polymorphic_identity': 'Item', 'polymorphic_on': type}
 
     name = Column(String(100))
@@ -104,7 +107,8 @@ class Item(Base):
 
     def move_note(self, session, old_idx, new_idx):
         """ move the note at old_idx to new_idx """
-        self.notes[old_idx], self.notes[new_idx] = self.notes[new_idx], self.notes[old_idx]
+        self.notes[old_idx], self.notes[new_idx] = \
+            self.notes[new_idx], self.notes[old_idx]
 
     def mod_tag_flags(self, session, tag, add_flags=0, del_flags=0):
         item_tag = session.query(ItemTag).filter_by(item=self, tag=tag).first()
@@ -137,11 +141,13 @@ class DbFolder(Item):
     date = Column(Date)
 
     # DbFolder <->> DbImage
-    images = relationship('DbImage', foreign_keys='[DbImage.folder_id]', back_populates='folder')
+    images = relationship(
+        'DbImage', foreign_keys='[DbImage.folder_id]', back_populates='folder')
 
     # DbFolder <->> FsFolder
     fs_folders = relationship(
-        'FsFolder', foreign_keys='[FsFolder.db_folder_id]', back_populates='db_folder')
+        'FsFolder', foreign_keys='[FsFolder.db_folder_id]',
+        back_populates='db_folder')
 
     # DbFolder -> thumbnail DbImage
     thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
@@ -181,11 +187,13 @@ class DbCollection(Item):
     __mapper_args__ = {'polymorphic_identity': 'DbCollection'}
 
     # DbCollection <<->> DbImage
-    images = relationship('DbImage', secondary=image_collections, back_populates='collections')
+    images = relationship(
+        'DbImage', secondary=image_collections, back_populates='collections')
 
     # DbCollection -> thumbnail DbImage
     thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
-    thumbnail = relationship("DbImage", foreign_keys='[DbCollection.thumbnail_id]')
+    thumbnail = relationship(
+        "DbImage", foreign_keys='[DbCollection.thumbnail_id]')
 
     Index('db-collection-index', 'name', unique=True)
 
@@ -216,14 +224,17 @@ class DbImage(Item):
 
     # DbImage <<-> DbFolder
     folder_id = Column(Integer, ForeignKey('db-folder.id'))
-    folder = relationship('DbFolder', foreign_keys=[folder_id], back_populates='images')
+    folder = relationship(
+        'DbFolder', foreign_keys=[folder_id], back_populates='images')
 
     # DbImage <<->> DbCollection
-    collections = relationship('DbCollection', secondary=image_collections, back_populates='images')
+    collections = relationship(
+        'DbCollection', secondary=image_collections, back_populates='images')
 
-    # DbImage <->> FsImage (filesystem locations where the image files are found)
+    # DbImage <->> FsImage
     fs_images = relationship(
-        'FsImage', foreign_keys='[FsImage.db_image_id]', back_populates='db_image')
+        'FsImage', foreign_keys='[FsImage.db_image_id]',
+        back_populates='db_image')
 
     Index('db-folder-image-index', 'folder_id', 'name', unique=True)
     Index('db-date-image-index', 'folder.date', 'name')
@@ -236,7 +247,8 @@ class DbImage(Item):
 
     @classmethod
     def find(cls, session, db_folder,  name):
-        return session.query(DbImage).filter_by(folder_id=db_folder.id, name=name).first()
+        return session.query(DbImage).filter_by(
+            folder_id=db_folder.id, name=name).first()
     # TODO: find_in_date vs find_in_folder
 
     @classmethod
@@ -248,16 +260,17 @@ class DbImage(Item):
             return db_image, False
 
     def __repr__(self):
-        return '<Image %s-%s>' % (util.yymmdd_from_date(self.folder.date), self.name)
+        return '<Image %s-%s>' % (
+            util.yymmdd_from_date(self.folder.date), self.name)
 
 
 class DbTagType(PyIntEnum):
     """ the relation between a tag and its .base_tag """
 
-    BASE = 1        # this is a normal (base) tag; .base_tag is None
-    IDENTITY_IS = 2 # this tag refers to the person/place/thing represented by .base_tag
-    REPLACED_BY = 3 # this tag has been replaced by .base_tag
-    DEPRECATED = 4  # this tag is deprecated; .base_tag is None
+    BASE = 1        # normal (base) tag; .base_tag is None
+    IDENTITY_IS = 2 # tag refers to the thing represented by .base_tag
+    REPLACED_BY = 3 # tag has been replaced by .base_tag
+    DEPRECATED = 4  # tag has been deprecated; .base_tag is None
 
 
 class DbTag(Item):
@@ -271,7 +284,8 @@ class DbTag(Item):
     # DbTag tree
     parent_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
     parent = relationship('DbTag', remote_side=[id], foreign_keys=[parent_id])
-    children = relationship('DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent')
+    children = relationship(
+        'DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent')
 
     # DbTag <<->> Item
     items = relationship(
@@ -280,10 +294,10 @@ class DbTag(Item):
     # DbTag -> replacement or identity DbTag
     tag_type = Column(Integer)  # DbTagType
     base_tag_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
-    base_tag = relationship('DbTag', remote_side=[id], foreign_keys=[base_tag_id])
+    base_tag = relationship(
+        'DbTag', remote_side=[id], foreign_keys=[base_tag_id])
 
-    #Index('db-tag', text('lower(name)'), 'parent') TODO: this is supposed to work
-    lower_name = Column(String) # TODO this extra column shouldn't be necessary
+    lower_name = Column(String) # TODO: this extra column shouldn't be necessary
     Index('db-tag', lower_name, 'parent')
 
     def base(self):
@@ -295,7 +309,9 @@ class DbTag(Item):
         }[self.type.value]
 
     @classmethod
-    def add(cls, session, name, parent=None, tag_type=DbTagType.BASE, base_tag=None):
+    def add(cls, session, name,
+        parent=None, tag_type=DbTagType.BASE, base_tag=None
+    ):
         obj = cls(
             parent=parent, name=name, lower_name=name.lower(),
             tag_type=tag_type.value, base_tag=base_tag)
@@ -315,7 +331,9 @@ class DbTag(Item):
             lower_name=name.lower()).all()
 
     @classmethod
-    def get(cls, session, name, parent=None, tag_type=DbTagType.BASE, base_tag=None):
+    def get(cls, session, name,
+        parent=None, tag_type=DbTagType.BASE, base_tag=None
+    ):
         tag = cls.find(session, name, parent)
         if tag is None:
             return cls.add(session, name, parent, tag_type, base_tag), True
@@ -325,7 +343,7 @@ class DbTag(Item):
     @classmethod
     def get_expr(cls, session, expr, tag_type=DbTagType.BASE, base_tag=None):
         # <expr> is parent|child
-        # NOTE: unlike most get_xxx functions, does NOT return an (xxx, is-new) tuple
+        # NOTE: does NOT return an (xxx, is-new) tuple
         list = expr.split('|')
         assert len(list) > 0
         parent = None
@@ -407,7 +425,8 @@ class DbNoteType(Base):
         return session.query(DbNoteType).filter_by(id=id).first()
 
     def __repr__(self):
-        return '<NoteType %s: %s>' % (self.name, DbTextType(self.text_type).name)
+        return '<NoteType %s: %s>' % (
+            self.name, DbTextType(self.text_type).name)
 
 class DbNote(Base):
     """ a text note on a Item
@@ -434,11 +453,11 @@ class DbNote(Base):
             str(self.item), self.type.name, str(self.idx), str(id(self)))
 
 
-""" FsXxx: an inventory of what's been imported when, and from where in the filesystem """
+""" FsXxx: an inventory of what's been imported from the filesystem """
 
 
 class FsTagSource(Base):
-    """ the person/organization who tagged a set of folders/images being imported """
+    """ who tagged these FsFolders/Images """
     __tablename__ = 'fs-tag-source'
 
     id = Column(Integer, primary_key=True)
@@ -452,7 +471,8 @@ class FsTagSource(Base):
 
     @classmethod
     def find(cls, session, description):
-        return session.query(FsTagSource).filter_by(description=description).first()
+        return session.query(FsTagSource).filter_by(
+            description=description).first()
 
     def mappings(self, session):
         """ Return all the FsTagMappings in this FsTagSource. """
@@ -476,16 +496,13 @@ class FsTagSource(Base):
 
 
 class FsSourceType(PyIntEnum):
-    """ whether the FsSource is a directory of directories or a directory of image files
-        IntEnum because SQLAlchemy creates int python attributes when you say Column(Enum)
-    """
     DIR     = 1 # a directory of image directories
     FILE    = 2 # a directory of image files
     WEB     = 3 # a web site to be scraped
 
 
 class FsSource(Item):
-    """ the filesystem parent directory from which a set of folders/images was imported """
+    """ external source from which a set of FsFolders/Images was imported """
     __tablename__ = 'fs-source'
 
     # isa Item (.name is the user-assigned name, or None)
@@ -493,20 +510,24 @@ class FsSource(Item):
     __mapper_args__ = {'polymorphic_identity': 'FsSource'}
 
     # secondary key (TODO index? enforce uniqueness?)
-    volume = Column(String(32)) # source volume: '<volume letter>:' or '<volume label>'
-    path = Column(String(260))  # source pathname (if source_type == WEB, a URL)
-    # for source_tyep == WEB, volume is 'http[s]:' and 'path' is the rest of the URL
+    volume = Column(String(32))
+        # source volume: '<volume letter>:' or '<volume label>'
+    path = Column(String(260))
+        # source pathname
+        # for WEB, volume is 'http[s]:' and path is the rest of the URL
 
     source_type = Column(Enum(FsSourceType))
     readonly = Column(Boolean)
 
     # FsSource -> FsTagSourceId
     tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'))
-    tag_source = relationship('FsTagSource', backref=backref('fs-tag-source', uselist=False))
+    tag_source = relationship(
+        'FsTagSource', backref=backref('fs-tag-source', uselist=False))
 
     # FsSource <->> FsFolder
     folders = relationship(
-        'FsFolder', foreign_keys='[FsFolder.source_id]', back_populates='source')
+        'FsFolder', foreign_keys='[FsFolder.source_id]',
+        back_populates='source')
 
     @classmethod
     def add(cls, session, volume, path, source_type, readonly, tag_source):
@@ -527,10 +548,14 @@ class FsSource(Item):
 
     @classmethod
     def find(cls, session, volume, path):
-        return session.query(FsSource).filter_by(volume=volume, path=path).first()
+        return session.query(FsSource).filter_by(
+            volume=volume, path=path).first()
 
     def label(self):
-        return self.volume if self.volume is not None and not self.volume.endswith(':') else None
+        return (
+            self.volume
+            if self.volume is not None and not self.volume.endswith(':')
+            else None)
 
     def win_path(self):
         return (
@@ -575,7 +600,9 @@ class FsSource(Item):
         return s
 
     def accessible(self):
-        return self.source_type == FsSourceType.WEB or (self.win_path() is not None)
+        return (
+            self.source_type == FsSourceType.WEB
+            or (self.win_path() is not None))
 
     def __repr__(self):
         return '<FsSource %s>' % (self.pname())
@@ -639,7 +666,8 @@ class FsItemTag(Base):
     # primary key
 
     item_id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
-    item = relationship('FsItem', foreign_keys=[item_id], back_populates='item_tags')
+    item = relationship(
+        'FsItem', foreign_keys=[item_id], back_populates='item_tags')
     idx = Column(Integer, primary_key=True)
 
     # secondary key
@@ -654,9 +682,10 @@ class FsItemTag(Base):
         # when type == TAG, first_idx == last_idx
 
     bases = Column(String)
-        # ,-separated list of suggested tag bases, e.g. 'band' or 'venue' or 'band, venue'
-        # FIXME this should just be an integer enum: the possible lists
-        # are fixed by the code
+        # ,-separated list of suggested tag bases,
+        #   e.g. 'band' or 'venue' or 'band, venue'
+        # FIXME: this should just be an integer enum:
+        # the possible lists are fixed by the code
 
     binding = Column(Enum(FsTagBinding))
     source = Column(Enum(FsItemTagSource))
@@ -828,8 +857,8 @@ class TagChange(Base):
 
 class FsFolder(FsItem):
     """ a filesystem source from which DbFolder were imported
-        if source.type is dir_set, this was a filesystem directory
-        if source.type is file_set, this was a group of files with (say) a common prefix
+        if source.type is dir_set, a filesystem directory
+        if source.type is file_set, a group of files with a common name prefix
     """
     __tablename__ = 'fs-folder'
 
@@ -849,19 +878,24 @@ class FsFolder(FsItem):
 
     # FsFolder <<-> FsSource
     source_id = Column(Integer, ForeignKey('fs-source.id'))
-    source = relationship('FsSource', foreign_keys=[source_id], back_populates='folders')
+    source = relationship(
+        'FsSource', foreign_keys=[source_id], back_populates='folders')
 
     # FsFolder <<-> DbFolder
     db_folder_id = Column(Integer, ForeignKey('db-folder.id'))
-    db_folder = relationship('DbFolder', foreign_keys=[db_folder_id], back_populates='fs_folders')
+    db_folder = relationship(
+        'DbFolder', foreign_keys=[db_folder_id], back_populates='fs_folders')
 
     # FsFolder <->> FsImage
-    images = relationship('FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
+    images = relationship(
+        'FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
 
     Index('fs-folder-index', 'source', 'name', unique=True)
 
     @classmethod
-    def add(cls, session, source, name, db_date=None, db_name=None, db_folder=None):
+    def add(cls, session, source, name,
+        db_date=None, db_name=None, db_folder=None
+    ):
         obj = cls(
             source=source, name=name,
             db_date=db_date, db_name=db_name, db_folder=db_folder)
@@ -870,13 +904,18 @@ class FsFolder(FsItem):
 
     @classmethod
     def find(cls, session, source, name):
-        return session.query(FsFolder).filter_by(source=source, name=name).first()
+        return session.query(FsFolder).filter_by(
+            source=source, name=name).first()
 
     @classmethod
-    def get(cls, session, source, name, db_date=None, db_name='', db_folder=None):
+    def get(cls, session, source, name,
+        db_date=None, db_name='', db_folder=None
+    ):
         fs_folder = cls.find(session, source, name)
         if fs_folder is None:
-            return cls.add(session, source, name, db_date, db_name, db_folder), True
+            return (
+                cls.add(session, source, name, db_date, db_name, db_folder)
+                , True)
         else:
             return fs_folder, False
 
@@ -892,7 +931,8 @@ class FsFolder(FsItem):
 
 class FsImage(FsItem):
     """ a (family of) filesystem file(s) from which a DbImage was imported
-        the filesystem could contain a .tif, a .psd, and a .jpg, and one FsImage would be created,
+        the filesystem could contain a .tif, a .psd, and a .jpg,
+        and one FsImage would be created,
         with .image_types indicating which were found
     """
     __tablename__ = 'fs-image'
@@ -903,11 +943,13 @@ class FsImage(FsItem):
 
     # FsImage <<-> FsFolder
     folder_id = Column(Integer, ForeignKey('fs-folder.id'), primary_key=True)
-    folder = relationship('FsFolder', foreign_keys=[folder_id], back_populates='images')
+    folder = relationship(
+        'FsFolder', foreign_keys=[folder_id], back_populates='images')
 
     # FsImage <<-> DbImage
     db_image_id = Column(Integer, ForeignKey('db-image.id'))
-    db_image = relationship('DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
+    db_image = relationship(
+        'DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
 
     @classmethod
     def add(cls, session, folder, name, db_image=None):
@@ -978,12 +1020,18 @@ def open_preloaded_mem_db():
 
     std_ts = FsTagSource.add(session, 'standard')
     corbett_ts = FsTagSource.add(session, 'corbett')
-    s1 = FsSource.add(session, 'main1234', '\\photos', FsSourceType.DIR, True, std_ts)
-    s2 = FsSource.add(session, 'C:', '\\photos', FsSourceType.DIR, False, std_ts)
+    s1 = FsSource.add(
+        session, 'main1234', '\\photos',
+        FsSourceType.DIR, True, std_ts)
+    s2 = FsSource.add(
+        session, 'C:', '\\photos',
+        FsSourceType.DIR, False, std_ts)
     s3 = FsSource.add(
-        session, 'HD2', '\\corbett-psds', FsSourceType.FILE, False, corbett_ts)
+        session, 'HD2', '\\corbett-psds',
+        FsSourceType.FILE, False, corbett_ts)
     s4 = FsSource.add(
-        session, 'http:', '//www.pbase.com/murraybowles', FsSourceType.WEB, True, std_ts)
+        session, 'http:', '//www.pbase.com/murraybowles',
+        FsSourceType.WEB, True, std_ts)
 
     venue = DbTag.add(session, 'venue')
     gilman = DbTag.add(session, 'Gilman', parent=venue)
