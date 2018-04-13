@@ -3,7 +3,7 @@
 from collections import deque
 import sys
 
-from task import SlicerState, Slicer, Task2State, Task2
+from task import SlicerState, Slicer, TaskState, Task
 
 
 class MockSlicer(Slicer):

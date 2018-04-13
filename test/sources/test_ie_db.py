@@ -23,7 +23,7 @@ from test_ie_fs import test_scan_file_set_corbett_tiffs_expected_list
 from test_ie_fs import test_scan_file_sel_corbett_tiffs_selected_list
 from test_ie_fs import test_scan_file_sel_corbett_tiffs_expected_list
 from mock_task import MockSlicer
-from task import Task2, Task2State
+from task import Task, TaskState
 base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
@@ -306,9 +306,9 @@ def _test_cmd(volume, dir_name, source_type, cfg):
         import_mode=import_mode, paths=paths)
     task.start()
     slicer.resume()
-    if task.state != Task2State.DONE:
+    if task.state != TaskState.DONE:
         pass
-    assert task.state == Task2State.DONE
+    assert task.state == TaskState.DONE
 
     worklist = task.worklist
     session.commit()

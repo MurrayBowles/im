@@ -5,7 +5,7 @@ from time import sleep
 import wx
 from wx.lib.pubsub import pub
 
-from task import Slicer, Task2
+from task import Slicer, Task
 
 class _WxThread(Thread):
     def __init__(self, itself, step):
@@ -45,7 +45,7 @@ class WxSlicer(Slicer):
             wx_slicer = cls(**kw)
         return wx_slicer
 
-class WxTask2(Task2):
+class WxTask2(Task):
     def __init__(self, slicer=None, **kw):
         if slicer is None:
             slicer = WxSlicer.get(**kw)

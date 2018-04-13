@@ -124,22 +124,22 @@ class Slicer:
         raise NotImplementedError
 
 
-class Task2State(Enum):
-    INIT        = 0 # task.start() has not yet been called
+class TaskState(Enum):
+    INIT        = 0 # start() has not yet been called on the Task
     READY       = 1 # the Task is ready to run
     RUNNING     = 2 # the Slicer is running a Step of the Task
     SUBTHREAD   = 3 # the Task is waiting for a Thread to complete
     DONE        = 4 # the Task has exited with a return
-    EXCEPTION   = 5 # the task has executed with an exception
+    EXCEPTION   = 5 # the Task has executed with an exception
 
 
-class Task2:
+class Task:
     def __init__(self, slicer, **kw):
         # task.on_done(None | exc_data) is called when the Task is finished
         self.slicer = slicer
         self.pri = kw['pri'] if 'pri' in kw else 0
         self.on_done = kw['on_done'] if 'on_done' in kw else None
-        self.state = Task2State.INIT
+        self.state = TaskState.INIT
         self.generator = None
         self.exc_data = None
         self.cancel_requested = False
@@ -147,7 +147,7 @@ class Task2:
 
     def start(self):
         """ Schedule the Task to begin running in its Slicer """
-        assert self.state == Task2State.INIT
+        assert self.state == TaskState.INIT
         self.generator = self.run()
         self.slicer._schedule(self)
 
@@ -188,7 +188,7 @@ class Task2:
 
             called only from the Slicer; calls self.step()
         """
-        self.state = Task2State.RUNNING
+        self.state = TaskState.RUNNING
         try:
             subthread_fn = self.step()
             if subthread_fn is not None:
@@ -197,25 +197,25 @@ class Task2:
                 def do_thread_fn():
                     subthread_fn()
                     self.slicer._schedule(self)
-                self.state = Task2State.SUBTHREAD
+                self.state = TaskState.SUBTHREAD
                 self.slicer._subthread(do_thread_fn)
             else:
                 # finished a step, but there are more: reschedule
-                self.state = Task2State.READY
+                self.state = TaskState.READY
                 self.slicer._schedule(self)
         except StopIteration:
-            self.state = Task2State.DONE
+            self.state = TaskState.DONE
             if self.on_done is not None:
                 self.on_done(None)
         except Exception as exc_data:
-            self.state = Task2State.EXCEPTION
+            self.state = TaskState.EXCEPTION
             self.exc_data = exc_data
             if self.on_done is not None:
                 self.on_done(exc_data)
 
     def pname(self):
         s = '%s: %s' % (type(self).__name__, self.state.name.lower())
-        if self.state == Task2State.EXCEPTION:
+        if self.state == TaskState.EXCEPTION:
             s += '(%s)' % str(self.exc_data)
         if self.cancel_requested:
             s += '?c'

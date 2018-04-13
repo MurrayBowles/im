@@ -12,7 +12,7 @@ def _run_mock_task_test(task_class):
     task = task_class(slicer=slicer)
     task.start()
     slicer.resume()
-    assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
+    assert task.state == TaskState.DONE or task.state == TaskState.EXCEPTION
     task.check()
 
 def _run_wx_task_test(task_class):
@@ -26,7 +26,7 @@ def _run_wx_task_test(task_class):
     task.start()
     slicer.resume()
     app.MainLoop()
-    assert task.state == Task2State.DONE or task.state == Task2State.EXCEPTION
+    assert task.state == TaskState.DONE or task.state == TaskState.EXCEPTION
     task.check()
 
 def _run_task_tests(test):
@@ -34,7 +34,7 @@ def _run_task_tests(test):
     _run_wx_task_test(test)
 
 
-class TaskTest(Task2):
+class TaskTest(Task):
     def __init__(self, slicer, **kw):
         super().__init__(slicer, **kw)
         self.setup()
@@ -51,7 +51,7 @@ class ReturnTest(TaskTest):
         yield
 
     def check(self):
-        assert self.state == Task2State.DONE
+        assert self.state == TaskState.DONE
 
 
 class ExceptionTest(TaskTest):
@@ -60,7 +60,7 @@ class ExceptionTest(TaskTest):
         raise ValueError
 
     def check(self):
-        assert self.state == Task2State.EXCEPTION
+        assert self.state == TaskState.EXCEPTION
 
 
 class CancelTest(TaskTest):
@@ -84,7 +84,7 @@ class StepTest(TaskTest):
         return
 
     def check(self):
-        assert self.state == Task2State.DONE
+        assert self.state == TaskState.DONE
         assert self.steps == [1, 2]
 
 
