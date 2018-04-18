@@ -2,6 +2,7 @@
 
 import pytest
 
+import check_tags
 from db import *
 from test_db import _mk_date, _mk_name
 
@@ -81,4 +82,21 @@ def test_tag_mappings():
             assert md[0] == m.text
         pass
 
+    pass
+
+def test_chack_tags():
+    session = open_mem_db()
+    ctx = check_tags.Ctx(session)
+    ctx.cfg([
+        ('+tag', [
+            ('scythe', 'band|Scythe'),
+            ('repunk', 'venue|Repunknante'),
+            ('nt', 'band|Neglected Truth'),
+            ('dys', 'band|Dysphoric')
+        ]),
+        ('+mapping', [
+            ('bg', 'band|Neglected Truth', 'nt'),
+            ('bl', 'band|Dysphoric', 'dys')
+        ])
+    ])
     pass
