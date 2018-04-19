@@ -4,14 +4,16 @@ import db
 import tags
 
 '''
-run(op)
+execute(op)
 
 op:
-    ('{+-}tag',     tag-spec)
-    ('{+-}mapping', mapping-spec)
-    ('{+-}binding', binding-spec)
-    ('{+-}folder',  folder-spec)
-    '[' cfg-op,... ']'
+    ('{+-}tag',         tag-spec)
+    ('{+-}mapping',     mapping-spec)
+    ('{+-}binding',     binding-spec)
+    ('!source,          source-obj)
+    ('{+-}folder',      folder-spec)
+    ('?folder-tags',    folder-tag-spec)
+    '[' op,... ']'
     
 tag-spec:
     ('tag-label', 'tag-text')
@@ -34,6 +36,18 @@ image-spec:
 item-spec:
     ('w', word-list)    e.g. ['green', 'day']
     ('t', 'tag-text')   e.g. 'band|Green Day'
+    
+folder-tag-spec:
+    ( 'fs-folder-name', list of item-tag-spec [, list of image-tag-spec )
+image-tag-spec:
+    ( 'fs-image-name', list of item-tag-spec )
+    
+item-tag-spec:
+    ( 'w<item-tag-flags>', word-list, 'tag-label' )
+    ( 't<item-tag-flags>', 'tag-text', 'tag-label' ) 
+item-tag-flags: {b|s|u}{n|t|g|l|d}
+    b: BOUND, s: SUGGESTED, u: UNBOUND
+    n: NONE, t: TAG, g: GLOBAL, l: LOCAL, d: DIRECT
 '''
 
 class Ctx:
@@ -41,18 +55,21 @@ class Ctx:
         self.session = session
         self.tags = {}                  # tag-label => DbTag
         self.mappings = {}              # ('g|l', 'tag-text') => FsTagMapping
+        self.fs_source = None           # FsSource, set by '!source'
         self.local_tag_source = None    # FsTagSource
         self.db_folders = {}            # folder-name => DbFolder
         self.fs_folders = {}            # folder-name => FsFolder
         self.db_images = {}             # image-name => DbImage
         self.fs_images = {}             # image-name => FsImage
 
-    def run(self, cfg_op):
+    def execute(self, cfg_op):
         dispatch = {
             '+tag':         self.add_tag,
             '-tag':         self.del_tag,
             '+mapping':     self.add_mapping,
-            '-mapping':     self.del_mapping
+            '-mapping':     self.del_mapping,
+            '!source':      self.set_fs_source,
+            '?folder-tag':  self.check_folder_tags
             #'+binding':     self.add_binding,
             #'-binding':     self.del_binding,
             #'+folder':      self.add_folder,
@@ -142,19 +159,86 @@ class Ctx:
         mapping = self.mappings[(scope_char, tag_text)]
         self.session.delete(mapping)
 
+    def set_fs_source(self, source):
+        self.fs_source = source
 
-'''
-check_item_tags(list of folder-tag-check) 
+    def _check_item_tags(self, item, item_tag_specs):
+        def find_item_tag(text):
+            for item_tag in item.item_tags:
+                if item_tag.text.lower() == text.lower():
+                    return item_tag
+            else:
+                assert False
 
-folder-tag-check:
-    ( 'fs-folder-name', list of item-tag-check [, list of image-tag-check )
-image-tag-check:
-    ( 'fs-image-name', list of item-tag-check )
-    
-item-tag-check:
-    ( 'w<item-tag-flags>', word-list, 'tag-label' )
-    ( 't<item-tag-flags>', 'tag-text', 'tag-label' ) 
-item-tag-flags: {b|s|u}{n|t|g|l|d}
-    b: BOUND, s: SUGGESTED, u: UNBOUND
-    n: NONE, t: TAG, g: GLOBAL, l: LOCAL, d: DIRECT
-'''
+        def check_item_tag(self, item_tag):
+            assert item_tag.type == tag_type
+            if item_tag.binding != binding:
+                pass
+            assert item_tag.binding == binding
+            if item_tag.source != source:
+                pass
+            assert item_tag.source == source
+            if binding != db.FsTagBinding.UNBOUND:
+                if tag_label is not None:
+                    db_tag = self.tags[tag_label]
+                    if item_tag.db_tag is not db_tag:
+                        pass
+                    assert item_tag.db_tag is db_tag
+            pass
+
+        for item_tag_spec in item_tag_specs:
+            # unpack the item_tag_spec
+            flags = item_tag_spec[0]
+            key = item_tag_spec[1]
+            tag_label = None if len(item_tag_spec) < 3 else item_tag_spec[2]
+
+            # unpack the flags
+            tag_type = {
+                'w': db.FsTagType.WORD,
+                't': db.FsTagType.TAG
+            }[flags[0]]
+            binding = {
+                'u': db.FsTagBinding.UNBOUND,
+                's': db.FsTagBinding.SUGGESTED,
+                'b': db.FsTagBinding.BOUND
+            }[flags[1]]
+            source = {
+                'n': db.FsItemTagSource.NONE,
+                't': db.FsItemTagSource.DBTAG,
+                'g': db.FsItemTagSource.GLOBTS,
+                'l': db.FsItemTagSource.FSTS,
+                'f': db.FsItemTagSource.FSTS
+            }[flags[2]]
+
+            if tag_type == db.FsTagType.TAG:
+                item_tag = find_item_tag(key)
+                check_item_tag(self, item_tag)
+            else: # db.FsTagType.WORD
+                item_tag0 = find_item_tag(key[0])
+                check_item_tag(self, item_tag0)
+                for x in range(1, len(key)):
+                    item_tag = find_item_tag(key[x])
+                    assert item_tag.idx == item_tag0.idx + x
+                    assert item_tag.first_idx == item_tag0.idx
+                    check_item_tag(self, item_tag)
+            pass
+
+    def check_folder_tags(self, folder_tag_spec):
+        # unpack the folder-tag-spec
+        folder_name = folder_tag_spec[0]
+        folder_item_tag_specs = folder_tag_spec[1]
+        image_tag_specs = (
+            [] if len(folder_tag_spec) < 3 else folder_tag_spec[2])
+
+        folder = db.FsFolder.find(self.session, self.fs_source, folder_name)
+        assert folder is not None
+        self._check_item_tags(folder, folder_item_tag_specs)
+        for image_tag_spec in image_tag_specs:
+            # unpack the image_tag_spec
+            image_name = image_tag_spec[0]
+            image_item_tag_specs = image_tag_spec[1]
+
+            image = db.FsImage.find(session, folder, image_name)
+            assert image is not None
+            self._check_item_tags(image, image_item_tag_specs)
+        pass

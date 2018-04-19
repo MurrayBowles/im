@@ -87,7 +87,7 @@ def test_tag_mappings():
 def test_chack_tags():
     session = open_mem_db()
     ctx = check_tags.Ctx(session)
-    ctx.run([
+    ctx.execute([
         ('+tag', [
             ('scythe', 'band|Scythe'),
             ('repunk', 'venue|Repunknante'),

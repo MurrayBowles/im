@@ -268,11 +268,11 @@ def _test_cmd(volume, dir_name, source_type, cfg):
             import_mode = ImportMode.SET
             paths = [path]
 
-    ctx.run(('+tag', cfg['tags']))
+    ctx.execute(('+tag', cfg['tags']))
     tags = ctx.tags
     all_tags = session.query(DbTag).all()
 
-    ctx.run(('+mapping', cfg['mappings']))
+    ctx.execute(('+mapping', cfg['mappings']))
     all_mappings = session.query(FsTagMapping).all()
 
     fs_source = FsSource.add(
@@ -292,35 +292,10 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     worklist = task.worklist
     session.commit()
 
-
-    # check the FsItemTags in cfg['checks'], a list of
-    # ('folder name', [item-tags]), where item-tag is one of
-    #   ('t{usb}{ntgf}', 'tag-text', 'tag-var')(
-    #   ('w{usb}{ntgf}', ['word',...], 'tag-var')
-    # usb is Unbound | Suggested | Bound
-    # ntgfd is None | dbTag | Globts | Fsts
     if 'checks' in cfg:
-        for check in cfg['checks']:
-            # find the folder (check[0]) in the results
-            for wi in worklist:
-                if wi.fs_folder.name == check[0]:
-                    fs_folder = wi.fs_folder
-                    _check_folder(fs_folder, tags, check[1])
-                    break
-            else:
-                assert False
-
-            if len(check) > 2:
-                # check the images: check[2] is a list of
-                # ('image-name', [item-tags])
-                for ic in check[2]:
-                    for fs_image in fs_folder.images:
-                        if fs_image.name == ic[0]:
-                            _check_image(fs_image, tags, ic[1])
-                            break
-                    else:
-                        assert False
-
+        ctx.execute(('!source', fs_source))
+        ctx.execute(('?folder-tag', cfg['checks']))
+        pass
 
 def test_my_cmd():
     cfg = {
