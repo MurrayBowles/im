@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
+import check_tags
 from db import *
 #session = open_mem_db()
 
@@ -250,14 +251,8 @@ def _check_folder(fs_folder, tags, checks):
 
 def _test_cmd(volume, dir_name, source_type, cfg):
     session = open_mem_db()
-
-    # create the tags in cfg['tags'], a list of
-    # ('tag-var-name', 'tag string')
-    tags = {}
-    if 'tags' in cfg:
-        for var, tag_expr in cfg['tags']:
-            tags[var] = DbTag.get_expr(session, tag_expr)
-    all_tags = session.query(DbTag).all()
+    ctx = check_tags.Ctx(session)
+    tag_source = ctx.get_tag_source('l')
 
     if source_type == FsSourceType.WEB:
         path = '//www.pbase.com/' + dir_name
@@ -273,32 +268,16 @@ def _test_cmd(volume, dir_name, source_type, cfg):
             import_mode = ImportMode.SET
             paths = [path]
 
-    tag_source = FsTagSource.add(session, 'test')
+    ctx.run(('+tag', cfg['tags']))
+    tags = ctx.tags
+    all_tags = session.query(DbTag).all()
 
-    # create the FsTagMappings in cfg['mappings'], a list of
-    # ('{b|s}{g|f}', text, tag-var|None), where the flags are
-    #   Bound vs Suggested, Glob TS vs FsSource TS
-    if 'mappings' in cfg:
-        for m in cfg['mappings']:
-            assert len(m) == 3
-            try:
-                db_tag = tags[m[2]] if m[2] is not None else None
-            except:
-                pass
-            FsTagMapping.add(session,
-                db.global_tag_source if m[0][1] == 'g' else tag_source,
-                m[1],
-                (FsTagBinding.SUGGESTION if m[0][0] == 's'
-                else FsTagBinding.BOUND),
-                db_tag
-            )
+    ctx.run(('+mapping', cfg['mappings']))
     all_mappings = session.query(FsTagMapping).all()
 
     fs_source = FsSource.add(
         session, volume, path, source_type,
         readonly=True, tag_source=tag_source)
-
-    #cmd = _MockIETask(session, ie_cfg, fs_source, import_mode, paths)
 
     slicer = MockSlicer(suspended=True)
     task = IETask2(

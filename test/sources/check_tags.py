@@ -4,9 +4,9 @@ import db
 import tags
 
 '''
-cfg(cfg-op)
+run(op)
 
-cfg-op:
+op:
     ('{+-}tag',     tag-spec)
     ('{+-}mapping', mapping-spec)
     ('{+-}binding', binding-spec)
@@ -47,7 +47,7 @@ class Ctx:
         self.db_images = {}             # image-name => DbImage
         self.fs_images = {}             # image-name => FsImage
 
-    def cfg(self, cfg_op):
+    def run(self, cfg_op):
         dispatch = {
             '+tag':         self.add_tag,
             '-tag':         self.del_tag,
