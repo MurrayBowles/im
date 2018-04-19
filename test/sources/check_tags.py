@@ -88,10 +88,7 @@ class Ctx:
                 for s in spec:
                     map_spec_tree(fn, s)
             else:
-                try:
-                    fn(spec)
-                except Exception as ed:
-                    pass
+                fn(spec)
         map_op_tree(cfg_op)
 
     def _sql_cleanup(self, obj_list):
@@ -238,7 +235,7 @@ class Ctx:
             image_name = image_tag_spec[0]
             image_item_tag_specs = image_tag_spec[1]
 
-            image = db.FsImage.find(session, folder, image_name)
+            image = db.FsImage.find(self.session, folder, image_name)
             assert image is not None
             self._check_item_tags(image, image_item_tag_specs)
         pass
