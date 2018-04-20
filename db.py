@@ -26,12 +26,16 @@ class TagFlags(PyIntEnum):
     """ flags describing the relationshop between an DbTag and its Item """
 
     NONE        = 0
-    DIRECT      = 1 # the tag was applied directly by the user
-    EXTERNAL    = 2 # the tag was mapped from an FsItem
-    BLOCKED     = 4 # the EXTERNAL tag was explicitly blocked
-    # the possible flag combinations
+    DIRECT      = 1 # this tag was applied directly by the user
+    EXTERNAL    = 2 # some FsItem has this tag
+    BLOCKED     = 4 # this EXTERNAL tag is blocked by the user
+    # shortcuts
+    B           = BLOCKED
+    BD          = BLOCKED | DIRECT
+    D           = DIRECT
     DE          = DIRECT | EXTERNAL
     DEB         = DIRECT | EXTERNAL | BLOCKED
+    E           = EXTERNAL
     EB          = EXTERNAL | BLOCKED
 
     def __repr__(self):
@@ -111,16 +115,17 @@ class Item(Base):
             self.notes[new_idx], self.notes[old_idx]
 
     def mod_tag_flags(self, session, tag, add_flags=0, del_flags=0):
+        def mod_flags(old_flags):
+            return (old_flags | add_flags) & ~del_flags
         item_tag = session.query(ItemTag).filter_by(item=self, tag=tag).first()
         if item_tag is not None:
-            item_tag.flags &= ~del_flags
-            item_tag.flags |= add_flags
+            item_tag.flags = mod_flags(item_tag.flags)
             if item_tag.flags == 0:
                 session.delete(item_tag)
         else:
-            flags = add_flags & ~del_flags
+            flags = mod_flags(0)
             if flags != 0:
-                session.add(ItemTag(item=self, tag=tag, flags=add_flags))
+                session.add(ItemTag(item=self, tag=tag, flags=flags))
 
     def get_tags(self, session):
         return session.query(ItemTag).filter_by(item=self).all()

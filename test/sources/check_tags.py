@@ -1,5 +1,7 @@
 """ library to initialize and check DbTags, FsTagMappings, and FsItemTags """
 
+from datetime import date
+
 import db
 import tags
 
@@ -10,9 +12,11 @@ op:
     ('{+-}tag',         tag-spec)
     ('{+-}mapping',     mapping-spec)
     ('{+-}binding',     binding-spec)
+    ('{+-}db-folder',   folder-name)
+    ('?db-folder-tags', db-folder-tag-spec)
     ('!source,          source-obj)
-    ('{+-}folder',      folder-spec)
-    ('?folder-tags',    folder-tag-spec)
+    ('{+-}fs-folder',   fs-folder-spec)
+    ('?fs-folder-tags', fs-folder-tag-spec)
     '[' op,... ']'
     
 tag-spec:
@@ -28,24 +32,31 @@ mapping-flags: {b|s}{g|l}
     g: GLOBAL, l: LOCAL
         e.g. ('bg', 'C.O.P.', 'cop') 
     
-folder-spec:
-    ('folder-name', list of item-spec [, image-spec])
+db-folder-tag-spec:
+    ( 'db-folder-name', list of db-tag-spec [, list of db-image-tag-spec )
+db-image-tag-spec:
+    ( 'db-image-name', list of db-tag-spec )    
+db_tag_spec:
+    
+    
+fs-folder-spec:
+    ('folder-name', '[' item-spec,... ']' [, fs-image-spec])
     '[' folder-spec,... ']'
-image-spec:
+fs-image-spec:
     ('image-name', '[' item-spec,... ']')
 item-spec:
     ('w', word-list)    e.g. ['green', 'day']
     ('t', 'tag-text')   e.g. 'band|Green Day'
     
-folder-tag-spec:
-    ( 'fs-folder-name', list of item-tag-spec [, list of image-tag-spec )
-image-tag-spec:
-    ( 'fs-image-name', list of item-tag-spec )
+fs-folder-tag-spec:
+    ( 'fs-folder-name', list of fs-item-tag-spec [, list of fs-image-tag-spec )
+fs-image-tag-spec:
+    ( 'fs-image-name', list of fs-item-tag-spec )
     
-item-tag-spec:
-    ( 'w<item-tag-flags>', word-list, 'tag-label' )
-    ( 't<item-tag-flags>', 'tag-text', 'tag-label' ) 
-item-tag-flags: {b|s|u}{n|t|g|l|d}
+fs-item-tag-spec:
+    ( 'w<fs-item-tag-flags>', word-list, 'tag-label' )
+    ( 't<fs-item-tag-flags>', 'tag-text', 'tag-label' ) 
+fs-item-tag-flags: {b|s|u}{n|t|g|l|d}
     b: BOUND, s: SUGGESTED, u: UNBOUND
     n: NONE, t: TAG, g: GLOBAL, l: LOCAL, d: DIRECT
 '''
@@ -58,24 +69,25 @@ class Ctx:
         self.fs_source = None           # FsSource, set by '!source'
         self.local_tag_source = None    # FsTagSource
         self.db_folders = {}            # folder-name => DbFolder
-        self.fs_folders = {}            # folder-name => FsFolder
+        self.fs_folders = {}            # (fs_source, folder-name) => FsFolder
         self.db_images = {}             # image-name => DbImage
         self.fs_images = {}             # image-name => FsImage
 
     def execute(self, cfg_op):
         dispatch = {
-            '+tag':         self.add_tag,
-            '-tag':         self.del_tag,
-            '+mapping':     self.add_mapping,
-            '-mapping':     self.del_mapping,
-            '!source':      self.set_fs_source,
-            '?folder-tag':  self.check_folder_tags
-            #'+binding':     self.add_binding,
-            #'-binding':     self.del_binding,
-            #'+folder':      self.add_folder,
-            #'-folder':      self.del_folder,
-            #'!f-grouping':  self.set_folder_grouping,
-            #'!i-grouping':  self.set_image_grouping
+            '+tag':             self.add_tag,
+            '-tag':             self.del_tag,
+            '+mapping':         self.add_mapping,
+            '-mapping':         self.del_mapping,
+            '!source':          self.set_fs_source,
+            '?fs-folder-tag':   self.check_fs_folder_tags,
+            '+db_folder':       self.add_db_folder,
+            '+fs_folder':       self.add_fs_folder,
+            #'+binding':        self.add_binding,
+            #'-binding':        self.del_binding,
+            #'-folder':         self.del_folder,
+            #'!f-grouping':     self.set_folder_grouping,
+            #'!i-grouping':     self.set_image_grouping
         }
         def map_op_tree(op):
             if type(op) is list:
@@ -159,7 +171,7 @@ class Ctx:
     def set_fs_source(self, source):
         self.fs_source = source
 
-    def _check_item_tags(self, item, item_tag_specs):
+    def _check_fs_item_tags(self, item, item_tag_specs):
         def find_item_tag(text):
             for item_tag in item.item_tags:
                 if item_tag.text.lower() == text.lower():
@@ -220,7 +232,7 @@ class Ctx:
                     check_item_tag(self, item_tag)
             pass
 
-    def check_folder_tags(self, folder_tag_spec):
+    def check_fs_folder_tags(self, folder_tag_spec):
         # unpack the folder-tag-spec
         folder_name = folder_tag_spec[0]
         folder_item_tag_specs = folder_tag_spec[1]
@@ -229,7 +241,7 @@ class Ctx:
 
         folder = db.FsFolder.find(self.session, self.fs_source, folder_name)
         assert folder is not None
-        self._check_item_tags(folder, folder_item_tag_specs)
+        self._check_fs_item_tags(folder, folder_item_tag_specs)
         for image_tag_spec in image_tag_specs:
             # unpack the image_tag_spec
             image_name = image_tag_spec[0]
@@ -237,5 +249,26 @@ class Ctx:
 
             image = db.FsImage.find(self.session, folder, image_name)
             assert image is not None
-            self._check_item_tags(image, image_item_tag_specs)
+            self._check_fs_item_tags(image, image_item_tag_specs)
         pass
+
+    def add_db_folder(self, folder_name):
+        db_folder = db.DbFolder.add(self.session, date.today(), folder_name)
+        self.db_folders[folder_name] = db_folder
+        return db_folder
+
+    def add_fs_folder(self, folder_spec):
+        # unpack the folder-spec
+        folder_name = folder_spec[0]
+        folder_item_specs = folder_spec[1]
+        image_specs = [] if len(folder_spec) < 3 else folder_spec[2]
+
+        try:
+            db_folder = self.db_folders[folder_name]
+        except:
+            db_folder = None
+        fs_folder = db.FsFolder.add(
+            session, self.fs_source, folder_name,
+            date.today(), folder_name, db_folder)
+        self.fs_folders[(self.fs_source, folder_name)] = fs_folder
+        return fs_folder

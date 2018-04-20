@@ -192,63 +192,6 @@ def test_get_worklist_file_sel_corbett_tiffs():
     session.commit()
 
 
-def _check_item_tags(item_tags, tags, checks):
-    for c in checks:
-
-        def find_item_tag(text):
-            for item_tag in item_tags:
-                if item_tag.text.lower() == text.lower():
-                    return item_tag
-            else:
-                assert False
-
-        def check_item_tag(item_tag):
-            type = FsTagType.WORD if c[0][0] == 'w' else FsTagType.TAG
-            binding = {
-                'u': FsTagBinding.UNBOUND,
-                's': FsTagBinding.SUGGESTED,
-                'b': FsTagBinding.BOUND
-            }[c[0][1]]
-            source = {
-                'n': FsItemTagSource.NONE,
-                't': FsItemTagSource.DBTAG,
-                'g': FsItemTagSource.GLOBTS,
-                'f': FsItemTagSource.FSTS
-            }[c[0][2]]
-            assert item_tag.type == type
-            if item_tag.binding != binding:
-                pass
-            assert item_tag.binding == binding
-            if item_tag.source != source:
-                pass
-            assert item_tag.source == source
-            if binding != FsTagBinding.UNBOUND:
-                if len(c) > 2:
-                    if item_tag.db_tag is not tags[c[2]]:
-                        pass
-                    assert item_tag.db_tag is tags[c[2]]
-
-        if c[0][0] == 't':
-            item_tag = find_item_tag(c[1])
-            check_item_tag(item_tag)
-        else:  # w
-            item_tag0 = find_item_tag(c[1][0])
-            check_item_tag(item_tag0)
-            for x in range(1, len(c[1])):
-                item_tag = find_item_tag(c[1][x])
-                assert item_tag.idx == item_tag0.idx + x
-                assert item_tag.first_idx == item_tag0.idx
-                check_item_tag(item_tag)
-
-
-def _check_image(fs_image, tags, checks):
-    _check_item_tags(fs_image.item_tags, tags, checks)
-
-
-def _check_folder(fs_folder, tags, checks):
-    _check_item_tags(fs_folder.item_tags, tags, checks)
-
-
 def _test_cmd(volume, dir_name, source_type, cfg):
     session = open_mem_db()
     ctx = check_tags.Ctx(session)
@@ -268,17 +211,15 @@ def _test_cmd(volume, dir_name, source_type, cfg):
             import_mode = ImportMode.SET
             paths = [path]
 
+    # add specified DbTags and FsTagMappings
     ctx.execute(('+tag', cfg['tags']))
-    tags = ctx.tags
-    all_tags = session.query(DbTag).all()
-
     ctx.execute(('+mapping', cfg['mappings']))
-    all_mappings = session.query(FsTagMapping).all()
 
     fs_source = FsSource.add(
         session, volume, path, source_type,
         readonly=True, tag_source=tag_source)
 
+    # import and autotag the specified folders
     slicer = MockSlicer(suspended=True)
     task = IETask2(
         slicer=slicer, session=session, ie_cfg=ie_cfg, fs_source=fs_source,
@@ -292,9 +233,10 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     worklist = task.worklist
     session.commit()
 
+    # check the FsFolder/Image FsItemTag autobindings
     if 'checks' in cfg:
         ctx.execute(('!source', fs_source))
-        ctx.execute(('?folder-tag', cfg['checks']))
+        ctx.execute(('?fs-folder-tag', cfg['checks']))
         pass
 
 def test_my_cmd():
