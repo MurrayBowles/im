@@ -114,10 +114,15 @@ class Item(Base):
         self.notes[old_idx], self.notes[new_idx] = \
             self.notes[new_idx], self.notes[old_idx]
 
-    def mod_tag_flags(self, session, tag, add_flags=0, del_flags=0):
+    def find_item_tag(self, session, db_tag):
+        return session.query(ItemTag).filter_by(
+            item=self, tag=db_tag).first()
+
+    def mod_tag_flags(self, session, db_tag, add_flags=0, del_flags=0):
+        # TODD: mod_item_tag_flags?
         def mod_flags(old_flags):
             return (old_flags | add_flags) & ~del_flags
-        item_tag = session.query(ItemTag).filter_by(item=self, tag=tag).first()
+        item_tag = self.find_item_tag(session, db_tag)
         if item_tag is not None:
             item_tag.flags = mod_flags(item_tag.flags)
             if item_tag.flags == 0:
@@ -125,7 +130,7 @@ class Item(Base):
         else:
             flags = mod_flags(0)
             if flags != 0:
-                session.add(ItemTag(item=self, tag=tag, flags=flags))
+                session.add(ItemTag(item=self, tag=db_tag, flags=flags))
 
     def get_tags(self, session):
         return session.query(ItemTag).filter_by(item=self).all()

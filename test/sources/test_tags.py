@@ -6,30 +6,30 @@ import check_tags
 from db import *
 from test_db import _mk_date, _mk_name
 
+
 def test_tags():
     session = open_mem_db()
+    ctx = check_tags.Ctx(session)
 
-    db_folder = DbFolder.add(session, _mk_date(), _mk_name('db_folder'))
-    db_tag = DbTag.add(session, _mk_name('db_tag'))
+    ops = [
+        ('+db-folder', 'db_folder'),
+        ('+tag', ('t', ' db_tag')),
 
-    db_folder.mod_tag_flags(session, db_tag, add_flags=TagFlags.DIRECT)
-    item_tags = db_folder.get_tags(session)
-    assert len(item_tags) == 1
-    assert item_tags[0].flags == TagFlags.DIRECT
+        ('!db-folder-tag', [('db_folder', [('+d', 't')])]),
+        ('?db-folder-tag', [('db_folder', [('=d', 't')])]),
 
-    db_folder.mod_tag_flags(session, db_tag, add_flags=TagFlags.EXTERNAL)
-    item_tags = db_folder.get_tags(session)
-    assert len(item_tags) == 1
-    assert item_tags[0].flags == TagFlags.DIRECT | TagFlags.EXTERNAL
+        ('!db-folder-tag', [('db_folder', [('+e', 't')])]),
+        ('?db-folder-tag', [('db_folder', [('=de', 't')])]),
 
-    db_folder.mod_tag_flags(session, db_tag, del_flags=TagFlags.DIRECT)
-    item_tags = db_folder.get_tags(session)
-    assert len(item_tags) == 1
-    assert item_tags[0].flags == TagFlags.EXTERNAL
+        ('!db-folder-tag', [('db_folder', [('-e', 't')])]),
+        ('?db-folder-tag', [('db_folder', [('=d', 't')])]),
 
-    db_folder.mod_tag_flags(session, db_tag, del_flags=TagFlags.EXTERNAL)
-    item_tags = db_folder.get_tags(session)
-    assert len(item_tags) == 0
+        ('!db-folder-tag', [('db_folder', [('-d', 't')])]),
+        ('?db-folder-tag', [('db_folder', [('0', 't')])])
+    ]
+    ctx.execute(ops)
+    pass
+
 
 tag_source_data = [
     (   'global', [
@@ -46,6 +46,7 @@ tag_source_data = [
 ]
 # source-data: ( source-description-string, mapping-data-list )
 # mapping-data: ( text, [ db-tag-text ] )
+
 
 def test_tag_mappings():
     session = open_mem_db()
@@ -83,6 +84,7 @@ def test_tag_mappings():
         pass
 
     pass
+
 
 def test_chack_tags():
     session = open_mem_db()

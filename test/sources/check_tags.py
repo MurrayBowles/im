@@ -13,10 +13,11 @@ op:
     ('{+-}mapping',     mapping-spec)
     ('{+-}binding',     binding-spec)
     ('{+-}db-folder',   folder-name)
-    ('?db-folder-tags', db-folder-tag-spec)
+    ('!db-folder-tag',  db-folder-tag-spec)
+    ('?db-folder-tag',  db-folder-tag-pattern)
     ('!source,          source-obj)
     ('{+-}fs-folder',   fs-folder-spec)
-    ('?fs-folder-tags', fs-folder-tag-spec)
+    ('?fs-folder-tag',  fs-folder-tag-pattern)
     '[' op,... ']'
     
 tag-spec:
@@ -31,13 +32,31 @@ mapping-flags: {b|s}{g|l}
     b: BOUND, s: SUGGESTED
     g: GLOBAL, l: LOCAL
         e.g. ('bg', 'C.O.P.', 'cop') 
-    
+        
 db-folder-tag-spec:
-    ( 'db-folder-name', list of db-tag-spec [, list of db-image-tag-spec )
+    ( 'db-folder-name', '[' db-item-tag-spec,... ']'
+        [, '[' db-image-tag-spec ,... ']' ] )
 db-image-tag-spec:
-    ( 'db-image-name', list of db-tag-spec )    
-db_tag_spec:
-    
+    ( 'db-image-name', '[' db-item-tag-spec,... ']' )
+db-item-tag-spec:
+    ( db-item-tag-flag-spec, 'tag-label' )
+db-item-tag-flag-spec: {+-deb}+
+    +: add, -: delete
+    d: DIRECT, e: EXTERNAL, b: BLOCKED
+   
+db-folder-tag-pattern:
+    ( 'db-folder-name', '[' db-item-tag-pattern,... ']'
+        [, '[' db-image-tag-pattern,... ']' )
+db-image-tag-pattern:
+    ( 'db-image-name', '[' db-item-tag-pattern,... ']' )    
+db-item-tag-pattern:
+    ( db-item-tag-flag-pattern, 'tag-label' )
+db-item-tag-flag-pattern: {0} | {=&~}{deb}+
+    0: tag must NOT be present
+    =: flags must exactly match
+    &: flags must all be present
+    ~: flags must all be absent
+    d: DIRECT, e: EXTERNAL, b: BLOCKED
     
 fs-folder-spec:
     ('folder-name', '[' item-spec,... ']' [, fs-image-spec])
@@ -48,12 +67,12 @@ item-spec:
     ('w', word-list)    e.g. ['green', 'day']
     ('t', 'tag-text')   e.g. 'band|Green Day'
     
-fs-folder-tag-spec:
-    ( 'fs-folder-name', list of fs-item-tag-spec [, list of fs-image-tag-spec )
-fs-image-tag-spec:
-    ( 'fs-image-name', list of fs-item-tag-spec )
-    
-fs-item-tag-spec:
+fs-folder-tag-pattern:
+    ( 'fs-folder-name', '[' fs-item-tag-pattern,... ']'
+        [, '[' fs-image-tag-pattern,... ']' ] )
+fs-image-tag-pattern:
+    ( 'fs-image-name', '[' fs-item-tag-pattern,... ']' )
+fs-item-tag-pattern:
     ( 'w<fs-item-tag-flags>', word-list, 'tag-label' )
     ( 't<fs-item-tag-flags>', 'tag-text', 'tag-label' ) 
 fs-item-tag-flags: {b|s|u}{n|t|g|l|d}
@@ -68,6 +87,7 @@ class Ctx:
         self.mappings = {}              # ('g|l', 'tag-text') => FsTagMapping
         self.fs_source = None           # FsSource, set by '!source'
         self.local_tag_source = None    # FsTagSource
+        self.date = date.today()        # used for DbFolder.date
         self.db_folders = {}            # folder-name => DbFolder
         self.fs_folders = {}            # (fs_source, folder-name) => FsFolder
         self.db_images = {}             # image-name => DbImage
@@ -77,12 +97,14 @@ class Ctx:
         dispatch = {
             '+tag':             self.add_tag,
             '-tag':             self.del_tag,
+            '+db-folder':       self.add_db_folder,
+            '!db-folder-tag':   self.mod_db_folder_tags,
+            '?db-folder-tag':   self.check_db_folder_tags,
             '+mapping':         self.add_mapping,
             '-mapping':         self.del_mapping,
             '!source':          self.set_fs_source,
+            '+fs-folder':       self.add_fs_folder,
             '?fs-folder-tag':   self.check_fs_folder_tags,
-            '+db_folder':       self.add_db_folder,
-            '+fs_folder':       self.add_fs_folder,
             #'+binding':        self.add_binding,
             #'-binding':        self.del_binding,
             #'-folder':         self.del_folder,
@@ -100,7 +122,10 @@ class Ctx:
                 for s in spec:
                     map_spec_tree(fn, s)
             else:
-                fn(spec)
+                try:
+                    fn(spec)
+                except:
+                    raise
         map_op_tree(cfg_op)
 
     def _sql_cleanup(self, obj_list):
@@ -133,6 +158,100 @@ class Ctx:
 
         db_tag = self.tags[tag_label]
         self.session.delete(db_tag)
+
+    def add_db_folder(self, folder_name):
+        db_folder = db.DbFolder.add(self.session, self.date, folder_name)
+        self.db_folders[folder_name] = db_folder
+        return db_folder
+
+    def mod_db_folder_tags(self, folder_tag_spec):
+        def mod_db_item_tags(item, item_tag_specs):
+            for item_tag_spec in item_tag_specs:
+                # unpack the db-image-item-tag-spec
+                flags_spec = item_tag_spec[0]
+                tag_label = item_tag_spec[1]
+
+                db_tag = self.tags[tag_label]
+                flags = [0, 0]  # [ add-flags, delete-flags ]
+                idx = 0
+                for f in flags_spec:
+                    if f == '+':
+                        idx = 0
+                    elif f == '-':
+                        idx = 1
+                    elif f == 'd':
+                        flags[idx] |= db.TagFlags.DIRECT
+                    elif f == 'e':
+                        flags[idx] |= db.TagFlags.EXTERNAL
+                    elif f == 'b':
+                        flags[idx] |= db.TagFlags.BLOCKED
+                item.mod_tag_flags(self.session, db_tag, flags[0], flags[1])
+
+        # unpack the db-folder-tag-spec
+        folder_name = folder_tag_spec[0]
+        folder_item_tag_specs = folder_tag_spec[1]
+        image_tag_specs = [] if len(folder_tag_spec) < 3 else folder_tag_spec[2]
+
+        folder = db.DbFolder.find(self.session, self.date, folder_name)
+        assert folder is not None
+        mod_db_item_tags(folder, folder_item_tag_specs)
+
+        for image_tag_spec in image_tag_specs:
+            # unpack the db-image-tag_spec
+            image_name = image_tag_spec[0]
+            image_item_tag_specs = image_tag_spec[1]
+
+            image = db.DbImage.find(self.session, folder, image_name)
+            assert image is not None
+            mod_db_item_tags(image, image_item_tag_specs)
+
+    def check_db_folder_tags(self, folder_tag_pattern):
+        def check_db_item_tags(item, item_tag_patterns):
+            for item_tag_pattern in item_tag_patterns:
+                # unpack the db-item-tag-pattern
+                flag_spec = item_tag_pattern[0]
+                tag_label = item_tag_pattern[1]
+
+                db_tag = self.tags[tag_label]
+                item_tag = item.find_item_tag(self.session, db_tag)
+
+                if flag_spec[0] == '0':
+                    assert item_tag is None
+                else:
+                    assert item_tag is not None
+                    op = flag_spec[0]
+                    flags = 0
+                    for f in flag_spec[1:]:
+                        flags |= {
+                            'd':    db.TagFlags.DIRECT,
+                            'e':    db.TagFlags.EXTERNAL,
+                            'b':    db.TagFlags.BLOCKED
+                        }[f]
+                    if op == '=':
+                        assert item_tag,flags == flags
+                    elif op == '&':
+                        assert (item_tag.flags & flags) == flags
+                    elif op == '~':
+                        assert (item_tag.flags) == 0
+
+        # unpack the db-folder-tag-pattern
+        folder_name = folder_tag_pattern[0]
+        folder_item_tag_patterns = folder_tag_pattern[1]
+        image_tag_patterns = (
+            [] if len(folder_tag_pattern) < 3 else folder_tag_pattern[2])
+
+        folder = db.DbFolder.find(self.session, self.date, folder_name)
+        assert folder is not None
+        check_db_item_tags(folder, folder_item_tag_patterns)
+
+        for image_tag_pattern in image_tag_patterns:
+            # unpack the db-image-tag_pattern
+            image_name = image_tag_pattern[0]
+            image_item_tag_patterns = image_tag_pattern[1]
+
+            image = db.DbImage.find(self.session, folder, image_name)
+            assert image is not None
+            check_db_item_tags(image, image_item_tag_patterns)
 
     def get_tag_source(self, scope_char):
         if scope_char == 'g':
@@ -252,10 +371,6 @@ class Ctx:
             self._check_fs_item_tags(image, image_item_tag_specs)
         pass
 
-    def add_db_folder(self, folder_name):
-        db_folder = db.DbFolder.add(self.session, date.today(), folder_name)
-        self.db_folders[folder_name] = db_folder
-        return db_folder
 
     def add_fs_folder(self, folder_spec):
         # unpack the folder-spec
@@ -269,6 +384,6 @@ class Ctx:
             db_folder = None
         fs_folder = db.FsFolder.add(
             session, self.fs_source, folder_name,
-            date.today(), folder_name, db_folder)
+            self.date, folder_name, db_folder)
         self.fs_folders[(self.fs_source, folder_name)] = fs_folder
         return fs_folder
