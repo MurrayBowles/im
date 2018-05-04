@@ -120,7 +120,7 @@ class IETag:
         self.type = type
         self.text = text
         self.bases = bases
-        self.url =  url
+        self.url = url
 
     def pname(self):
         s = self.type.name
@@ -154,6 +154,9 @@ class IEFolder(object):
         self.msgs = []          # list of IEMsg
         self.tags = []          # list of IETag
         self.image_insts = {}   # map: IEImageInst.fs_path => IEImageInst
+
+    def add_image(self, ie_image):
+        self.images[ie_image.name] = ie_image
 
     def add_tag(self, ie_tag):
         self.tags.append(ie_tag)

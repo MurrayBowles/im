@@ -143,10 +143,12 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
 
 def create_fs_folder(session, ie_folder, fs_source):
     """ create an FsFolder, and maybe a DbFolder, for <ie_folder> """
+
     # create an FsFolder
     fs_folder = db.FsFolder.get(
         session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
-    # also auto-create a DbFolder if ie_folder has a good name and date
+
+    # also create a DbFolder if ie_folder has a good name and date
     if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
                 IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
         db_folder = db.DbFolder.get(
@@ -196,6 +198,9 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
         # create an FsFolder and maybe its DbFolder
         fs_folder = create_fs_folder(session, ie_folder, fs_source)
         work_item.fs_folder = fs_folder
+    else:
+        # there was already an FsFolder for this IEFolder
+        pass
     db_folder = fs_folder.db_folder # this may be None
 
     if (import_mode == ImportMode.SEL
@@ -280,8 +285,8 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
         init_fs_item_tags(session,
             work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
         for image in work_item.existing_images:
-            init_fs_item_tags(
-                session, image[0], image[1].tags, fs_source.tag_source)
+            init_fs_item_tags(session,
+                image[0], image[1].tags, fs_source.tag_source)
             pass
 
     # for the WEB case, queue processing for child pages

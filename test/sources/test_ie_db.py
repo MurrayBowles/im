@@ -198,6 +198,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     tag_source = ctx.get_tag_source('l')
 
     if source_type == FsSourceType.WEB:
+        # import a subtree of web pages
         path = '//www.pbase.com/' + dir_name
         assert 'sel' not in cfg
         import_mode = ImportMode.SET
@@ -205,9 +206,11 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     else:
         path = os.path.join(base_path, dir_name)
         if 'sel' in cfg:
+            # import selected subdirectories in a directory
             import_mode = ImportMode.SEL
             paths = [util.path_plus_separator(path) + dir for dir in cfg['sel']]
         else:
+            # import all subdirectories in a directory
             import_mode = ImportMode.SET
             paths = [path]
 
@@ -215,11 +218,12 @@ def _test_cmd(volume, dir_name, source_type, cfg):
     ctx.execute(('+tag', cfg['tags']))
     ctx.execute(('+mapping', cfg['mappings']))
 
+    # create an FsSource for the test
     fs_source = FsSource.add(
         session, volume, path, source_type,
         readonly=True, tag_source=tag_source)
 
-    # import and autotag the specified folders
+    # perform the import/export task
     slicer = MockSlicer(suspended=True)
     task = IETask2(
         slicer=slicer, session=session, ie_cfg=ie_cfg, fs_source=fs_source,

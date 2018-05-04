@@ -1,8 +1,9 @@
 """ library to initialize and check DbTags, FsTagMappings, and FsItemTags """
 
-from datetime import date
+from datetime import date, datetime, time
 
 import db
+import ie_fs
 import tags
 
 '''
@@ -17,12 +18,16 @@ op:
     ('?db-folder-tag',  db-folder-tag-pattern)
     ('!source,          source-obj)
     ('{+-}fs-folder',   fs-folder-spec)
+    ('!ie-folder',      ie-folder-spec)
+    ('?ie-folder',      ie-folder-spec)
     ('?fs-folder-tag',  fs-folder-tag-pattern)
     '[' op,... ']'
     
 tag-spec:
     ('tag-label', 'tag-text')
         e.g. ('cop', 'band|Christ On Parade')
+    'tag-text'
+        tag-label == tag-text
     '[' tag-spec,... ']'
     
 mapping-spec:
@@ -67,6 +72,15 @@ item-spec:
     ('w', word-list)    e.g. ['green', 'day']
     ('t', 'tag-text')   e.g. 'band|Green Day'
     
+ie-folder-spec:
+    ( 'ie-folder-name', 'folder-tag-bases', '[' ie-item-tag-spec,... ']'
+        [, 'image-tag-bases', '[' ie-image-spec,... ']' ] )
+ie-image-spec:
+    ( 'ie-image-name', '[' ie-item-tag-spec,... ']' )
+ie-item-tag-spec:
+    ( '{a|b|u|w|n}', 'tag-text' )    
+    a: AUTO, b: BASED, u: UNBASED, w: WORD, n: NOTE
+ 
 fs-folder-tag-pattern:
     ( 'fs-folder-name', '[' fs-item-tag-pattern,... ']'
         [, '[' fs-image-tag-pattern,... ']' ] )
@@ -88,8 +102,10 @@ class Ctx:
         self.fs_source = None           # FsSource, set by '!source'
         self.local_tag_source = None    # FsTagSource
         self.date = date.today()        # used for DbFolder.date
+        self.datetime = datetime.combine(self.date, time())
         self.db_folders = {}            # folder-name => DbFolder
         self.fs_folders = {}            # (fs_source, folder-name) => FsFolder
+        self.ie_folders = {}            # folder-name => IEFolder
         self.db_images = {}             # image-name => DbImage
         self.fs_images = {}             # image-name => FsImage
 
@@ -105,6 +121,8 @@ class Ctx:
             '!source':          self.set_fs_source,
             '+fs-folder':       self.add_fs_folder,
             '?fs-folder-tag':   self.check_fs_folder_tags,
+            '+ie-folder':       self.add_ie_folder,
+            '?ie-folder':       self.check_ie_folder
             #'+binding':        self.add_binding,
             #'-binding':        self.del_binding,
             #'-folder':         self.del_folder,
@@ -124,7 +142,7 @@ class Ctx:
             else:
                 try:
                     fn(spec)
-                except:
+                except Exception as ed:
                     raise
         map_op_tree(cfg_op)
 
@@ -142,21 +160,33 @@ class Ctx:
         ])
         if self.local_tag_source is not None:
             self.session.delete(self.local_tag_source)
+        self.ie_folders = {}
 
     def add_tag(self, tag_spec):
         # unpack the tag-spec
-        tag_label = tag_spec[0]
-        tag_text = tag_spec[1]
+        if type(tag_spec) is tuple:
+            tag_label = tag_spec[0]
+            tag_text = tag_spec[1]
+        else:
+            tag_label = tag_spec
+            tag_text = tag_spec
 
         db_tag = db.DbTag.get_expr(self.session, tag_text)
         self.tags[tag_label] = db_tag
+        return db_tag
+
+    def _get_tag(self, tag_label):
+        try:
+            db_tag = self.tags[tag_label]
+        except:
+            db_tag = None
         return db_tag
 
     def del_tag(self, op):
         # unpack the tag-spec
         tag_label = tag_spec[0]
 
-        db_tag = self.tags[tag_label]
+        db_tag = self.get_tag(tag_label)
         self.session.delete(db_tag)
 
     def add_db_folder(self, folder_name):
@@ -171,7 +201,7 @@ class Ctx:
                 flags_spec = item_tag_spec[0]
                 tag_label = item_tag_spec[1]
 
-                db_tag = self.tags[tag_label]
+                db_tag = self._get_tag(tag_label)
                 flags = [0, 0]  # [ add-flags, delete-flags ]
                 idx = 0
                 for f in flags_spec:
@@ -212,7 +242,7 @@ class Ctx:
                 flag_spec = item_tag_pattern[0]
                 tag_label = item_tag_pattern[1]
 
-                db_tag = self.tags[tag_label]
+                db_tag = self._get_tag(tag_label)
                 item_tag = item.find_item_tag(self.session, db_tag)
 
                 if flag_spec[0] == '0':
@@ -273,7 +303,7 @@ class Ctx:
         binding = (
             db.FsTagBinding.SUGGESTION if binding_char == 's'
             else db.FsTagBinding.BOUND)
-        db_tag = None if tag_label is None else self.tags[tag_label]
+        db_tag = None if tag_label is None else self._get_tag(tag_label)
         mapping = db.FsTagMapping.add(
             self.session, tag_source, tag_text, binding, db_tag)
         self.mappings[(scope_char, tag_text)] = mapping
@@ -387,3 +417,96 @@ class Ctx:
             self.date, folder_name, db_folder)
         self.fs_folders[(self.fs_source, folder_name)] = fs_folder
         return fs_folder
+
+    def add_ie_folder(self, folder_spec):
+        def item_tag(spec, bases):
+            # unpack the tag-spec
+            flag = spec[0]
+            text = spec[1]
+
+            # unpack the flags
+            tag_type = {
+                'a':    ie_fs.IETagType.AUTO,
+                'b':    ie_fs.IETagType.BASED,
+                'u':    ie_fs.IETagType.UNBASED,
+                'w':    ie_fs.IETagType.WORD,
+                'n':    ie_fs.IETagType.NOTE
+            }[flag[0]]
+
+            # TODO: URL?
+            return ie_fs.IETag(tag_type, text, bases)
+
+        # unpack the folder-spec
+        folder_name = folder_spec[0]
+        folder_tag_bases = folder_spec[1]
+        folder_tag_specs = folder_spec[2]
+        if len(folder_spec) > 4:
+            image_tag_bases = folder_spec[3]
+            image_specs = folder_spec[4]
+        else:
+            image_tag_bases = ""
+            image_specs = []
+
+        folder = ie_fs.IEFolder(
+            'test-path', self.date, folder_name, self.datetime)
+        for folder_tag_spec in folder_tag_specs:
+            folder.add_tag(item_tag(folder_tag_spec, folder_tag_bases))
+
+        for image_spec in image_specs:
+            # unpack the image-spec
+            image_name = image_spec[0]
+            image_tag_specs = image_spec[1]
+
+            image = ie_fs.IEImage(folder, image_name)
+            for image_tag_spec in image_tag_specs:
+                image.add_tag(item_tag(image_tag_spec, image_tag_bases))
+            folder.add_image(image)
+
+        self.ie_folders[folder_name] = folder
+
+    def check_ie_folder(self, folder_spec):
+        def check_item_tag(tag, spec, bases):
+            # unpack the tag-spec
+            flag = spec[0]
+            text = spec[1]
+
+            # unpack the flags
+            tag_type = {
+                'a':    ie_fs.IETagType.AUTO,
+                'b':    ie_fs.IETagType.BASED,
+                'u':    ie_fs.IETagType.UNBASED,
+                'w':    ie_fs.IETagType.WORD,
+                'n':    ie_fs.IETagType.NOTE
+            }[flag[0]]
+
+            # TODO: URL?
+            assert tag.type == tag_type
+            assert tag.bases == bases
+            assert tag.text == text
+
+        # unpack the folder-spec
+        folder_name = folder_spec[0]
+        folder_tag_bases = folder_spec[1]
+        folder_tag_specs = folder_spec[2]
+        if len(folder_spec) > 4:
+            image_tag_bases = folder_spec[3]
+            image_specs = folder_spec[4]
+        else:
+            image_tag_bases = ""
+            image_specs = []
+
+        assert folder_name in self.ie_folders
+        folder = self.ie_folders[folder_name]
+        for folder_tag_spec, tag in zip(folder_tag_specs, folder.tags):
+            check_item_tag(tag, folder_tag_spec, folder_tag_bases)
+
+        for image_spec in image_specs:
+            # unpack the image-spec
+            image_name = image_spec[0]
+            image_tag_specs = image_spec[1]
+
+            assert image_name in folder.images
+            image = folder.images[image_name]
+            for image_tag_spec, tag in zip(image_tag_specs, image.tags):
+                check_item_tag(tag, image_tag_spec, image_tag_bases)
+

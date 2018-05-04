@@ -86,7 +86,32 @@ def test_tag_mappings():
     pass
 
 
-def test_chack_tags():
+def test_tag_mappings2():
+    ops = [
+        ('+tag', [
+            'global-shadowed', 'global-unique',
+            'local-shadow', 'local-unique',
+            'a b', 'b', 'b c'
+        ]),
+        ('+mapping', [
+            ('bg', 'b', 'b'),
+            ('bg', 'shadow', 'global-shadowed'),
+            ('bg', 'global-unique', 'global-unique')
+        ]),
+        ('+mapping', [
+            ('bl', 'a b', 'a b'),
+            ('bl', 'b c', 'b c'),
+            ('bl', 'shadow', 'local-shadow'),
+            ('bl', 'local-unique', 'local-unique')
+        ])
+    ]
+    session = open_mem_db()
+    ctx = check_tags.Ctx(session)
+    ctx.execute(ops)
+    pass
+
+
+def test_check_tags():
     session = open_mem_db()
     ctx = check_tags.Ctx(session)
     ctx.execute([
@@ -100,5 +125,28 @@ def test_chack_tags():
             ('bg', 'band|Neglected Truth', 'nt'),
             ('bl', 'band|Dysphoric', 'dys')
         ])
+    ])
+    pass
+
+def test_check_ie_folder():
+    session = open_mem_db()
+    ctx = check_tags.Ctx(session)
+    spec = (
+        'ie-folder', '', [
+            ('w', 'word1'),
+            ('w', 'word2'),
+            ('u', 'cool|shot')
+        ], 'band', [
+            ('image1', [
+                ('b', 'grimple')
+            ]),
+            ('image2', [
+                ('w', 'op'),
+                ('w', 'ivy')
+            ])
+        ])
+    ctx.execute([
+        ('+ie-folder', [spec]),
+        ('?ie-folder', [spec])
     ])
     pass
