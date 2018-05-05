@@ -10,17 +10,18 @@ import tags
 execute(op)
 
 op:
-    ('{+-}tag',         tag-spec)
-    ('{+-}mapping',     mapping-spec)
-    ('{+-}binding',     binding-spec)
-    ('{+-}db-folder',   folder-name)
-    ('!db-folder-tag',  db-folder-tag-spec)
-    ('?db-folder-tag',  db-folder-tag-pattern)
-    ('!source,          source-obj)
-    ('{+-}fs-folder',   fs-folder-spec)
-    ('!ie-folder',      ie-folder-spec)
-    ('?ie-folder',      ie-folder-spec)
-    ('?fs-folder-tag',  fs-folder-tag-pattern)
+    ('{+-}tag',             tag-spec)
+    ('{+-}mapping',         mapping-spec)
+    ('{+-}binding',         binding-spec)
+    ('{+-}db-folder',       folder-name)
+    ('!db-folder-tag',      db-folder-tag-spec)
+    ('?db-folder-tag',      db-folder-tag-pattern)
+    ('!source,              fs-source-spec)
+    ('{+-}fs-folder',       fs-folder-spec)
+    ('!ie-folder',          ie-folder-spec)
+    ('?ie-folder',          ie-folder-spec)
+    ('init-fs-folder_tags', (fs-folder-name, ie-folder-name))
+    ('?fs-folder-tag',      fs-folder-tag-pattern)
     '[' op,... ']'
     
 tag-spec:
@@ -63,14 +64,16 @@ db-item-tag-flag-pattern: {0} | {=&~}{deb}+
     ~: flags must all be absent
     d: DIRECT, e: EXTERNAL, b: BLOCKED
     
+fs-source-spec:
+    fs-source-obj
+    ( fs-source-flags, 'volume-name', 'path' )
+    '[' fs-source-spec,... ']'
+fs-source-flags: {d|f|w|r}
+    d: DIR, f:se FILE, w: WEB, r: read-only
+    
 fs-folder-spec:
-    ('folder-name', '[' item-spec,... ']' [, fs-image-spec])
-    '[' folder-spec,... ']'
-fs-image-spec:
-    ('image-name', '[' item-spec,... ']')
-item-spec:
-    ('w', word-list)    e.g. ['green', 'day']
-    ('t', 'tag-text')   e.g. 'band|Green Day'
+    ('folder-name', '[' 'image-name' ,... ']')
+    '[' fs-folder-spec,... ']'
     
 ie-folder-spec:
     ( 'ie-folder-name', 'folder-tag-bases', '[' ie-item-tag-spec,... ']'
@@ -103,6 +106,7 @@ class Ctx:
         self.local_tag_source = None    # FsTagSource
         self.date = date.today()        # used for DbFolder.date
         self.datetime = datetime.combine(self.date, time())
+        self.fs_sources = []            # list of sources we created
         self.db_folders = {}            # folder-name => DbFolder
         self.fs_folders = {}            # (fs_source, folder-name) => FsFolder
         self.ie_folders = {}            # folder-name => IEFolder
@@ -111,23 +115,24 @@ class Ctx:
 
     def execute(self, cfg_op):
         dispatch = {
-            '+tag':             self.add_tag,
-            '-tag':             self.del_tag,
-            '+db-folder':       self.add_db_folder,
-            '!db-folder-tag':   self.mod_db_folder_tags,
-            '?db-folder-tag':   self.check_db_folder_tags,
-            '+mapping':         self.add_mapping,
-            '-mapping':         self.del_mapping,
-            '!source':          self.set_fs_source,
-            '+fs-folder':       self.add_fs_folder,
-            '?fs-folder-tag':   self.check_fs_folder_tags,
-            '+ie-folder':       self.add_ie_folder,
-            '?ie-folder':       self.check_ie_folder
-            #'+binding':        self.add_binding,
-            #'-binding':        self.del_binding,
-            #'-folder':         self.del_folder,
-            #'!f-grouping':     self.set_folder_grouping,
-            #'!i-grouping':     self.set_image_grouping
+            '+tag':                 self.add_tag,
+            '-tag':                 self.del_tag,
+            '+db-folder':           self.add_db_folder,
+            '!db-folder-tag':       self.mod_db_folder_tags,
+            '?db-folder-tag':       self.check_db_folder_tags,
+            '+mapping':             self.add_mapping,
+            '-mapping':             self.del_mapping,
+            '!fs-source':           self.set_fs_source,
+            '+fs-folder':           self.add_fs_folder,
+            'init-fs-folder-tags':  self.init_fs_folder_tags,
+            '?fs-folder-tag':       self.check_fs_folder_tags,
+            '+ie-folder':           self.add_ie_folder,
+            '?ie-folder':           self.check_ie_folder
+            #'+binding':             self.add_binding,
+            #'-binding':             self.del_binding,
+            #'-folder':              self.del_folder,
+            #'!f-grouping':          self.set_folder_grouping,
+            #'!i-grouping':          self.set_image_grouping
         }
         def map_op_tree(op):
             if type(op) is list:
@@ -151,11 +156,12 @@ class Ctx:
 
     def cleanup(self):
         map(self._sql_cleanup, [
-            self.fs_images,
-            self.db_images,
-            self.fs_folders,
-            self.db_folders,
-            self.mappings,
+            self.fs_images.values(),
+            self.db_images.values(),
+            self.fs_sources,
+            self.fs_folders.values(),
+            self.db_folders.values(),
+            self.mappings.values(),
             self.tags.values()
         ])
         if self.local_tag_source is not None:
@@ -318,6 +324,22 @@ class Ctx:
         self.session.delete(mapping)
 
     def set_fs_source(self, source):
+        if type(source) is not db.FsSource:
+            # unpack the fs-source-spec
+            flags = source[0]
+            volume = source[1]
+            path = source[2]
+            read_only = False
+            source_type = db.FsSourceType.DIR
+            for f in flags:
+                if f == 'd':    source_type = db.FsSourceType.DIR
+                elif f == 'f':  source_type = db.FsSourceType.FILE
+                elif f == 'w':  source_type = db.FsSourceType.WEB
+                elif f == 'r':  read_only = True
+
+            source = db.FsSource.add(self.session,
+                volume, path, source_type, read_only, self.local_tag_source)
+            self.fs_sources.append(source)
         self.fs_source = source
 
     def _check_fs_item_tags(self, item, item_tag_specs):
@@ -405,16 +427,21 @@ class Ctx:
     def add_fs_folder(self, folder_spec):
         # unpack the folder-spec
         folder_name = folder_spec[0]
-        folder_item_specs = folder_spec[1]
-        image_specs = [] if len(folder_spec) < 3 else folder_spec[2]
+        image_names = folder_spec[1]
 
         try:
             db_folder = self.db_folders[folder_name]
         except:
             db_folder = None
         fs_folder = db.FsFolder.add(
-            session, self.fs_source, folder_name,
+            self.session, self.fs_source, folder_name,
             self.date, folder_name, db_folder)
+
+        for image_name in image_names:
+            # TODO: db_image
+            fs_image = db.FsImage.add(
+                self.session, fs_folder, image_name, None)
+
         self.fs_folders[(self.fs_source, folder_name)] = fs_folder
         return fs_folder
 
@@ -463,6 +490,7 @@ class Ctx:
             folder.add_image(image)
 
         self.ie_folders[folder_name] = folder
+        return folder
 
     def check_ie_folder(self, folder_spec):
         def check_item_tag(tag, spec, bases):
@@ -510,3 +538,20 @@ class Ctx:
             for image_tag_spec, tag in zip(image_tag_specs, image.tags):
                 check_item_tag(tag, image_tag_spec, image_tag_bases)
 
+    def init_fs_folder_tags(self, spec):
+        # unpack the spec
+        fs_folder_name = spec[0]
+        ie_folder_name = spec[1]
+
+        fs_folder = self.fs_folders[(self.fs_source, fs_folder_name)]
+        ie_folder = self.ie_folders[ie_folder_name]
+        fs_tag_source = self.local_tag_source # FIXME
+        tags.init_fs_item_tags(self.session,
+            fs_folder, ie_folder.tags, fs_tag_source)
+
+        for fs_image, ie_image in zip(
+            fs_folder.images, ie_folder.images.values()
+        ):
+            tags.init_fs_item_tags(self.session,
+                fs_image, ie_image.tags, fs_tag_source)
+        pass

@@ -7,6 +7,10 @@ from mock_task import MockSlicer
 from task import *
 from wx_task import WxSlicer
 
+
+wx.App(False) # need a wxPython app so CallAfter works
+
+
 def _run_mock_task_test(task_class):
     slicer = MockSlicer(suspended=True)
     task = task_class(slicer=slicer)
@@ -16,7 +20,10 @@ def _run_mock_task_test(task_class):
     task.check()
 
 def _run_wx_task_test(task_class):
-    app = wx.App()
+    try:
+        app = wx.App()
+    except Exception as ed:
+        pass
     frame = wx.Frame(
         None, -1, 'TOTO: why do i need this Frame to make MainLoop work?')
     slicer = WxSlicer(suspended=True)

@@ -239,7 +239,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
 
     # check the FsFolder/Image FsItemTag autobindings
     if 'checks' in cfg:
-        ctx.execute(('!source', fs_source))
+        ctx.execute(('!fs-source', fs_source))
         ctx.execute(('?fs-folder-tag', cfg['checks']))
         pass
 

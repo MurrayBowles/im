@@ -131,7 +131,7 @@ def test_check_tags():
 def test_check_ie_folder():
     session = open_mem_db()
     ctx = check_tags.Ctx(session)
-    spec = (
+    ie_folder_spec = (
         'ie-folder', '', [
             ('w', 'word1'),
             ('w', 'word2'),
@@ -146,7 +146,10 @@ def test_check_ie_folder():
             ])
         ])
     ctx.execute([
-        ('+ie-folder', [spec]),
-        ('?ie-folder', [spec])
+        ('!fs-source', ('d', 'e:', '/photos')),
+        ('+fs-folder', ('fs-folder', ['image1', 'image2'])),
+        ('+ie-folder', [ie_folder_spec]),
+        ('?ie-folder', [ie_folder_spec]),
+        ('init-fs-folder-tags', ('fs-folder', 'ie-folder'))
     ])
     pass
