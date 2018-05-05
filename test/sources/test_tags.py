@@ -150,6 +150,21 @@ def test_check_ie_folder():
         ('+fs-folder', ('fs-folder', ['image1', 'image2'])),
         ('+ie-folder', [ie_folder_spec]),
         ('?ie-folder', [ie_folder_spec]),
-        ('init-fs-folder-tags', ('fs-folder', 'ie-folder'))
+        ('init-fs-folder-tags', ('fs-folder', 'ie-folder')),
+        ('check-fs-folder-tags', [
+            ('fs-folder', [
+                ('wun', ['word1']),
+                ('wun', ['word2']),
+                ('tun', 'cool|shot')
+            ], [
+                ('image1', [
+                    ('tun', 'grimple')
+                ]),
+                ('image2', [
+                    ('wun', ['op']),
+                    ('wun', ['ivy'])
+                ])
+            ])
+        ])
     ])
     pass

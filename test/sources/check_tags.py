@@ -92,7 +92,7 @@ fs-image-tag-pattern:
 fs-item-tag-pattern:
     ( 'w<fs-item-tag-flags>', word-list, 'tag-label' )
     ( 't<fs-item-tag-flags>', 'tag-text', 'tag-label' ) 
-fs-item-tag-flags: {b|s|u}{n|t|g|l|d}
+fs-item-tag-flags: {b                   |s|u}{n|t|g|l|d}
     b: BOUND, s: SUGGESTED, u: UNBOUND
     n: NONE, t: TAG, g: GLOBAL, l: LOCAL, d: DIRECT
 '''
@@ -126,6 +126,7 @@ class Ctx:
             '+fs-folder':           self.add_fs_folder,
             'init-fs-folder-tags':  self.init_fs_folder_tags,
             '?fs-folder-tag':       self.check_fs_folder_tags,
+            'check-fs-folder-tags': self.check_fs_folder_tags,
             '+ie-folder':           self.add_ie_folder,
             '?ie-folder':           self.check_ie_folder
             #'+binding':             self.add_binding,
@@ -549,9 +550,8 @@ class Ctx:
         tags.init_fs_item_tags(self.session,
             fs_folder, ie_folder.tags, fs_tag_source)
 
-        for fs_image, ie_image in zip(
-            fs_folder.images, ie_folder.images.values()
-        ):
+        for fs_image in fs_folder.images:
+            ie_image = ie_folder.images[fs_image.name]
             tags.init_fs_item_tags(self.session,
                 fs_image, ie_image.tags, fs_tag_source)
         pass
