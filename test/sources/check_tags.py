@@ -352,6 +352,8 @@ class Ctx:
                 assert False
 
         def check_item_tag(self, item_tag):
+            if item_tag.type != tag_type:
+                pass
             assert item_tag.type == tag_type
             if item_tag.binding != binding:
                 pass

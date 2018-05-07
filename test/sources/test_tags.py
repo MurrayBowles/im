@@ -128,24 +128,40 @@ def test_check_tags():
     ])
     pass
 
-def test_check_ie_folder():
+def test_check_init_folder_tags():
     session = open_mem_db()
     ctx = check_tags.Ctx(session)
     ie_folder_spec = (
         'ie-folder', '', [
-            ('w', 'word1'),
-            ('w', 'word2'),
-            ('u', 'cool|shot')
+            ('w', 'b'),
+            ('w', 'c'),
+            ('u', 'shadow')
         ], 'band', [
             ('image1', [
-                ('b', 'grimple')
+                ('u', 'global-unique')
             ]),
             ('image2', [
-                ('w', 'op'),
-                ('w', 'ivy')
+                ('w', 'b'),
+                ('w', 'd')
             ])
         ])
     ctx.execute([
+        ('+tag', [
+            'global-shadowed', 'global-unique',
+            'local-shadow', 'local-unique',
+            'a b', 'b', 'b c'
+        ]),
+        ('+mapping', [
+            ('bg', 'b', 'b'),
+            ('bg', 'shadow', 'global-shadowed'),
+            ('bg', 'global-unique', 'global-unique')
+        ]),
+        ('+mapping', [
+            ('bl', 'a b', 'a b'),
+            ('bl', 'b c', 'b c'),
+            ('bl', 'shadow', 'local-shadow'),
+            ('bl', 'local-unique', 'local-unique')
+        ]),
         ('!fs-source', ('d', 'e:', '/photos')),
         ('+fs-folder', ('fs-folder', ['image1', 'image2'])),
         ('+ie-folder', [ie_folder_spec]),
@@ -153,16 +169,15 @@ def test_check_ie_folder():
         ('init-fs-folder-tags', ('fs-folder', 'ie-folder')),
         ('check-fs-folder-tags', [
             ('fs-folder', [
-                ('wun', ['word1']),
-                ('wun', ['word2']),
-                ('tun', 'cool|shot')
+                ('wbl', ['b', 'c']),
+                ('tbl', 'shadow')
             ], [
                 ('image1', [
-                    ('tun', 'grimple')
+                    ('tbg', 'global-unique')
                 ]),
                 ('image2', [
-                    ('wun', ['op']),
-                    ('wun', ['ivy'])
+                    ('wbg', ['b']),
+                    ('wun', ['d'])
                 ])
             ])
         ])
