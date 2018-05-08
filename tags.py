@@ -133,18 +133,6 @@ def _bind_fs_item_tags(session, item, fs_tag_source):
             pass
 
 
-def update_fs_item_tags(session, item, fs_tag_source):
-    """ Update item.item_tags based on fs_tag_source.
-
-        (1) leaves source==DIRECT tags untouched
-        (2) rebinds all other tags, ignoring their current binding
-    """
-    old_db_tag_set = item.db_tag_set()
-    _bind_fs_item_tags(session, item, fs_tag_source)
-    new_db_tag_set = item.db_tag_set()
-    pass
-
-
 def add_fs_item_note(session, item, ie_tag):
     """ Add a Note to <item>. """
     pass
@@ -176,6 +164,40 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
             idx += 1
     _bind_fs_item_tags(session, item, fs_tag_source)
     new_db_item_tag_set = item.db_tag_set()
+    pass
+
+
+def update_fs_item_tags(session, item, ie_tags, fs_tag_source):
+    """ Update item.item_tags from ie_tags based on fs_tag_source.
+
+        Called when an external item is re-scanned to re-evaluate its tags:
+        1) compare the ie_tags against the FsItemTags to see if there are changes
+        2) if so, deal with them (TODO: gracefully if possible)
+    """
+    old_db_tag_set = item.db_tag_set()
+    old_diff_strs = [
+        fs_t.diff_str() for fs_t in item.item_tags if fs_t.diff_str()[0] != 'n']
+    new_diff_strs = [
+        ie_t.diff_str() for ie_t in ie_tags]
+    if old_diff_strs == new_diff_strs:
+        # no change in external tags
+        return
+    pass
+
+    new_db_tag_set = item.db_tag_set()
+    pass
+
+
+def rebind_fs_item_tags(session, item, fs_tag_source):
+    """ Update item.item_tags based on fs_tag_source.
+
+        Called when a tag or tag mapping is added/deleted/modified:
+        (1) leaves source==DIRECT tags untouched
+        (2) rebinds all other tags, ignoring their current binding
+    """
+    old_db_tag_set = item.db_tag_set()
+    _bind_fs_item_tags(session, item, fs_tag_source)
+    new_db_tag_set = item.db_tag_set()
     pass
 
 

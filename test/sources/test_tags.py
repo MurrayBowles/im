@@ -169,17 +169,33 @@ def test_check_init_folder_tags():
         ('init-fs-folder-tags', ('fs-folder', 'ie-folder')),
         ('check-fs-folder-tags', [
             ('fs-folder', [
-                ('wbl', ['b', 'c']),
-                ('tbl', 'shadow')
+                ('wbl', ['b', 'c'], 'b c'),
+                ('tbl', 'shadow', 'local-shadow')
             ], [
                 ('image1', [
-                    ('tbg', 'global-unique')
+                    ('tbg', 'global-unique', 'global-unique')
                 ]),
                 ('image2', [
-                    ('wbg', ['b']),
+                    ('wbg', ['b'], 'b'),
                     ('wun', ['d'])
                 ])
             ])
-        ])
+        ]),
+        ('-mapping', ('bl', 'shadow')),
+        ('rebind-fs-folder-tags', 'fs-folder'),
+        ('check-fs-folder-tags', [
+            ('fs-folder', [
+                ('wbl', ['b', 'c'], 'b c'),
+                ('tbg', 'shadow', 'global-shadowed')
+            ], [
+                 ('image1', [
+                     ('tbg', 'global-unique', 'global-unique')
+                 ]),
+                 ('image2', [
+                     ('wbg', ['b'], 'b'),
+                     ('wun', ['d'])
+                 ])
+             ])
+        ]),
     ])
     pass

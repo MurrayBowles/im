@@ -739,6 +739,12 @@ class FsItemTag(Base):
     def find_text(cls, session, type, text):
         return session.query(FsItemTag).filter_by(type=type, text=text).all()
 
+
+    def diff_str(self):
+        # the string for reconciliation in update_fs_item_tags
+        return ('w' if self.type == FsTagType.WORD else 't') + self.text
+
+    
     def __repr__(self):
         if self.type == FsTagType.WORD:
             idx = 'w%s/%s..%s' % (self.idx, self.first_idx, self.last_idx)

@@ -10,18 +10,20 @@ import tags
 execute(op)
 
 op:
-    ('{+-}tag',             tag-spec)
-    ('{+-}mapping',         mapping-spec)
-    ('{+-}binding',         binding-spec)
-    ('{+-}db-folder',       folder-name)
-    ('!db-folder-tag',      db-folder-tag-spec)
-    ('?db-folder-tag',      db-folder-tag-pattern)
-    ('!source,              fs-source-spec)
-    ('{+-}fs-folder',       fs-folder-spec)
-    ('!ie-folder',          ie-folder-spec)
-    ('?ie-folder',          ie-folder-spec)
-    ('init-fs-folder_tags', (fs-folder-name, ie-folder-name))
-    ('?fs-folder-tag',      fs-folder-tag-pattern)
+    ('{+-}tag',                 tag-spec)
+    ('{+-}mapping',             mapping-spec)
+    ('{+-}binding',             binding-spec)
+    ('{+-}db-folder',           folder-name)
+    ('!db-folder-tag',          db-folder-tag-spec)
+    ('?db-folder-tag',          db-folder-tag-pattern)
+    ('!source,                  fs-source-spec)
+    ('{+-}fs-folder',           fs-folder-spec)
+    ('!ie-folder',              ie-folder-spec)
+    ('?ie-folder',              ie-folder-spec)
+    ('init-fs-folder_tags',     (fs-folder-name, ie-folder-name))
+    ('update-fs-folder_tags',   (fs-folder-name, ie-folder-name))
+    ('rebind-fs-folder_tags',   fs-folder-name)
+    ('?fs-folder-tag',          fs-folder-tag-pattern)
     '[' op,... ']'
     
 tag-spec:
@@ -125,6 +127,8 @@ class Ctx:
             '!fs-source':           self.set_fs_source,
             '+fs-folder':           self.add_fs_folder,
             'init-fs-folder-tags':  self.init_fs_folder_tags,
+            'update-fs-folder-tags':self.update_fs_folder_tags,
+            'rebind-fs-folder-tags':self.rebind_fs_folder_tags,
             '?fs-folder-tag':       self.check_fs_folder_tags,
             'check-fs-folder-tags': self.check_fs_folder_tags,
             '+ie-folder':           self.add_ie_folder,
@@ -556,4 +560,25 @@ class Ctx:
             ie_image = ie_folder.images[fs_image.name]
             tags.init_fs_item_tags(self.session,
                 fs_image, ie_image.tags, fs_tag_source)
+        pass
+
+    def update_fs_folder_tags(self, spec):
+        # unpack the spec
+        fs_folder_name = spec[0]
+        ie_folder_name = spec[1]
+
+        fs_folder = self.fs_folders[(self.fs_source, fs_folder_name)]
+        ie_folder = self.ie_folders[ie_folder_name]
+        fs_tag_source = self.local_tag_source # FIXME
+        tags.update_fs_item_tags(self.session,
+            fs_folder, ie_folder.tags, fs_tag_source)
+        pass
+
+    def rebind_fs_folder_tags(self, fs_folder_name):
+        fs_folder = self.fs_folders[(self.fs_source, fs_folder_name)]
+        fs_tag_source = self.local_tag_source
+        tags.rebind_fs_item_tags(self.session, fs_folder, fs_tag_source)
+
+        for fs_image in fs_folder.images:
+            tags.rebind_fs_item_tags(self.session, fs_folder, fs_tag_source)
         pass
