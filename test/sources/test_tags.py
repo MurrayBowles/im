@@ -162,13 +162,14 @@ def test_check_init_folder_tags():
             ('bl', 'shadow', 'local-shadow'),
             ('bl', 'local-unique', 'local-unique')
         ]),
+        ('+db-folder', 'fff'),
         ('!fs-source', ('d', 'e:', '/photos')),
-        ('+fs-folder', ('fs-folder', ['image1', 'image2'])),
+        ('+fs-folder', ('fff', ['image1', 'image2'])),
         ('+ie-folder', [ie_folder_spec]),
         ('?ie-folder', [ie_folder_spec]),
-        ('init-fs-folder-tags', ('fs-folder', 'ie-folder')),
+        ('init-fs-folder-tags', ('fff', 'ie-folder')),
         ('check-fs-folder-tags', [
-            ('fs-folder', [
+            ('fff', [
                 ('wbl', ['b', 'c'], 'b c'),
                 ('tbl', 'shadow', 'local-shadow')
             ], [
@@ -182,9 +183,9 @@ def test_check_init_folder_tags():
             ])
         ]),
         ('-mapping', ('bl', 'shadow')),
-        ('rebind-fs-folder-tags', 'fs-folder'),
+        ('rebind-fs-folder-tags', 'fff'),
         ('check-fs-folder-tags', [
-            ('fs-folder', [
+            ('fff', [
                 ('wbl', ['b', 'c'], 'b c'),
                 ('tbg', 'shadow', 'global-shadowed')
             ], [

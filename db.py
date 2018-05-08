@@ -41,9 +41,9 @@ class TagFlags(PyIntEnum):
     def __repr__(self):
         if self.value == 0: return TagFlags.NONE
         s = ''
-        if TagFlags.DIRECT in self.value: s += 'D'
-        if TagFlags.EXTERNAL in self.value: s += 'E'
-        if TagFlags.BLOCKED in self.value: s += 'B'
+        if (TagFlags.DIRECT & self.value) != 0: s += 'D'
+        if (TagFlags.EXTERNAL & self.value) != 0: s += 'E'
+        if (TagFlags.BLOCKED & self.value) != 0: s += 'B'
         return s
 
 
@@ -56,6 +56,13 @@ class ItemTag(Base):
     tag_id = Column(Integer, ForeignKey('db-tag.id'))
     item_id = Column(Integer, ForeignKey('item.id'))
     flags = Column(Enum(TagFlags))
+
+    def __repr__(self):
+        return "<ItemTag %s {%s} %s>" %(
+            self.tag.pname(),
+            self.flags.__repr__(),  # FIXME why does str() not work?
+            str(self.item)
+        )
 
 
 # DbImage <<->> DbCollection
@@ -78,7 +85,7 @@ class Item(Base):
 
     name = Column(String(100))
 
-    # Item <<->> DbTag
+    # Item <<-(ItemTag)->> DbTag
     tags = relationship(
         'ItemTag', backref='item', primaryjoin = id == ItemTag.item_id)
 
@@ -126,7 +133,8 @@ class Item(Base):
         if item_tag is not None:
             item_tag.flags = mod_flags(item_tag.flags)
             if item_tag.flags == 0:
-                session.delete(item_tag)
+                # session.delete(item_tag) this should work, but doesn't
+                self.tags.remove(item_tag)
         else:
             flags = mod_flags(0)
             if flags != 0:
@@ -183,6 +191,9 @@ class DbFolder(Item):
             return cls.add(session, date, name), True
         else:
             return db_folder, False
+
+    def fs_items(self):
+        return self.fs_folders
 
     def __repr__(self):
         return '<DbFolder %s %s>' % (str(self.date), self.name)
@@ -268,6 +279,9 @@ class DbImage(Item):
             return cls.add(session, folder, name), True
         else:
             return db_image, False
+
+    def fs_items(self):
+        return self.fs_images
 
     def __repr__(self):
         return '<Image %s-%s>' % (

@@ -138,6 +138,36 @@ def add_fs_item_note(session, item, ie_tag):
     pass
 
 
+def _adjust_db_item_tags(session, fs_item, old_tag_set, new_tag_set):
+    """ Adjust fs_item's DbItem's tags based on the changes from old to new """
+    db_item = fs_item.db_item()
+    if db_item is None:
+        return
+    deleted_tags = old_tag_set - new_tag_set
+    added_tags = new_tag_set - old_tag_set
+    if len(deleted_tags) > 0:
+        # recalculate db_item's EXTERNAL tags by ORing the tags of its FsItems
+        new_tags = set()
+        for fsi in db_item.fs_items():
+            for it in fsi.item_tags:
+                if it.db_tag is not None:
+                    new_tags.add(it.db_tag)
+        pass
+        for it in db_item.tags:
+            if ((db.TagFlags.EXTERNAL & it.flags) != 0
+            and it.tag not in new_tags):
+                db_item.mod_tag_flags(
+                    session, it.tag, del_flags=db.TagFlags.EXTERNAL)
+        for t in new_tags:
+            db_item.mod_tag_flags(
+                session, t, add_flags=db.TagFlags.EXTERNAL)
+    else:
+        # add added_tags to db_item's tags
+        for db_tag in added_tags:
+            db_item.mod_tag_flags(
+                session, db_tag, add_flags=db.TagFlags.EXTERNAL)
+
+
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
     """ Initialize item.item_tags from ie_tags based on fs_tag_source. """
     idx = 0
@@ -163,8 +193,10 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
                 db_tag=None)
             idx += 1
     _bind_fs_item_tags(session, item, fs_tag_source)
-    new_db_item_tag_set = item.db_tag_set()
+    new_db_tag_set = item.db_tag_set()
+    _adjust_db_item_tags(session, item, set(), new_db_tag_set)
     pass
+
 
 
 def update_fs_item_tags(session, item, ie_tags, fs_tag_source):
@@ -185,6 +217,7 @@ def update_fs_item_tags(session, item, ie_tags, fs_tag_source):
     pass
 
     new_db_tag_set = item.db_tag_set()
+    _adjust_db_item_tags(session, item, old_db_tag_set, new_db_tag_set)
     pass
 
 
@@ -198,6 +231,7 @@ def rebind_fs_item_tags(session, item, fs_tag_source):
     old_db_tag_set = item.db_tag_set()
     _bind_fs_item_tags(session, item, fs_tag_source)
     new_db_tag_set = item.db_tag_set()
+    _adjust_db_item_tags(session, item, old_db_tag_set, new_db_tag_set)
     pass
 
 
