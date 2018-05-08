@@ -168,6 +168,10 @@ def test_check_init_folder_tags():
         ('+ie-folder', [ie_folder_spec]),
         ('?ie-folder', [ie_folder_spec]),
         ('init-fs-folder-tags', ('fff', 'ie-folder')),
+        ('?db-folder-tag', ('fff', [
+            ('=e', 'local-shadow'),
+            ('=e', 'b c')
+        ])),
         ('check-fs-folder-tags', [
             ('fff', [
                 ('wbl', ['b', 'c'], 'b c'),
@@ -184,6 +188,10 @@ def test_check_init_folder_tags():
         ]),
         ('-mapping', ('bl', 'shadow')),
         ('rebind-fs-folder-tags', 'fff'),
+        ('?db-folder-tag', ('fff', [
+            ('=e', 'global-shadowed'),
+            ('=e', 'b c')
+        ])),
         ('check-fs-folder-tags', [
             ('fff', [
                 ('wbl', ['b', 'c'], 'b c'),
