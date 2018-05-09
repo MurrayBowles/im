@@ -8,9 +8,6 @@ from task import *
 from wx_task import WxSlicer
 
 
-wx.App(False) # need a wxPython app so CallAfter works
-
-
 def _run_mock_task_test(task_class):
     slicer = MockSlicer(suspended=True)
     task = task_class(slicer=slicer)

@@ -32,8 +32,8 @@ class GuiApp(wx.App):
         handler = logging.FileHandler(
             wx.StandardPaths.Get().GetUserDataDir() + '\\im-log', 'w')
         handler.setLevel(logging.DEBUG)
-        format = '%(thread)5d  %(module)-8s %(levelname)-8s %(message)s'
-        formatter = logging.Formatter(format)
+        log_format = '%(thread)5d  %(module)-8s %(levelname)-8s %(message)s'
+        formatter = logging.Formatter(log_format)
         handler.setFormatter(formatter)
         logging.getLogger().addHandler(handler)
         logging.info('log file started')
