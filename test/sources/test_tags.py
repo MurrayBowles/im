@@ -145,10 +145,25 @@ def test_check_init_folder_tags():
                 ('w', 'd')
             ])
         ])
+    ie_folder_spec2 = (
+        'ie-folder', '', [
+            ('w', 'b'),
+            ('w', 'c'),
+            ('u', 'shadow'),
+            ('u', 'local-unique'),
+        ], 'band', [
+            ('image1', [
+                ('u', 'global-unique')
+            ]),
+            ('image2', [
+                ('w', 'c'),
+                ('w', 'd')
+            ])
+        ])
     ctx.execute([
         ('+tag', [
-            'global-shadowed', 'global-unique',
-            'local-shadow', 'local-unique',
+            'global-unique', 'local-unique',
+            'global-shadowed', 'local-shadow',
             'a b', 'b', 'b c'
         ]),
         ('+mapping', [
@@ -165,7 +180,7 @@ def test_check_init_folder_tags():
         ('+db-folder', 'fff'),
         ('!fs-source', ('d', 'e:', '/photos')),
         ('+fs-folder', ('fff', ['image1', 'image2'])),
-        ('+ie-folder', [ie_folder_spec]),
+        ('!ie-folder', [ie_folder_spec]),
         ('?ie-folder', [ie_folder_spec]),
         ('init-fs-folder-tags', ('fff', 'ie-folder')),
         ('?db-folder-tag', ('fff', [
@@ -206,5 +221,7 @@ def test_check_init_folder_tags():
                  ])
              ])
         ]),
+        ('!ie-folder', [ie_folder_spec2]),
+        ('update-fs-folder-tags', ('fff', 'ie-folder')),
     ])
     pass

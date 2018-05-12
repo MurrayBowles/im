@@ -131,7 +131,7 @@ class Ctx:
             'rebind-fs-folder-tags':self.rebind_fs_folder_tags,
             '?fs-folder-tag':       self.check_fs_folder_tags,
             'check-fs-folder-tags': self.check_fs_folder_tags,
-            '+ie-folder':           self.add_ie_folder,
+            '!ie-folder':           self.set_ie_folder,
             '?ie-folder':           self.check_ie_folder
             #'+binding':             self.add_binding,
             #'-binding':             self.del_binding,
@@ -452,7 +452,7 @@ class Ctx:
         self.fs_folders[(self.fs_source, folder_name)] = fs_folder
         return fs_folder
 
-    def add_ie_folder(self, folder_spec):
+    def set_ie_folder(self, folder_spec):
         def item_tag(spec, bases):
             # unpack the tag-spec
             flag = spec[0]

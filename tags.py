@@ -1,6 +1,7 @@
 """ tag operations """
 
 import db
+import difflib
 from ie_fs import IETagType
 
 
@@ -186,11 +187,7 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
                 type = db.FsTagType.WORD
                 text = ie_tag.text
             item_tag = db.FsItemTag.add(session,
-                item, idx, (idx, idx + 1),
-                type=type, text=text,
-                bases=ie_tag.bases,
-                binding=db.FsTagBinding.UNBOUND, source=db.FsItemTagSource.NONE,
-                db_tag=None)
+                item, idx, type=type, text=text, bases=ie_tag.bases)
             idx += 1
     _bind_fs_item_tags(session, item, fs_tag_source)
     new_db_tag_set = item.db_tag_set()
@@ -199,25 +196,39 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
 
 
 
-def update_fs_item_tags(session, item, ie_tags, fs_tag_source):
-    """ Update item.item_tags from ie_tags based on fs_tag_source.
+def update_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
+    """ Update fs_item.item_tags from ie_tags based on fs_tag_source.
 
-        Called when an external item is re-scanned to re-evaluate its tags:
+        Called when an external fs_item is re-scanned to re-evaluate its tags:
         1) compare the ie_tags against the FsItemTags to see if there are changes
         2) if so, deal with them (TODO: gracefully if possible)
     """
-    old_db_tag_set = item.db_tag_set()
+    old_db_tag_set = fs_item.db_tag_set()
     old_diff_strs = [
-        fs_t.diff_str() for fs_t in item.item_tags if fs_t.diff_str()[0] != 'n']
+        fs_t.diff_str()
+        for fs_t in fs_item.item_tags if fs_t.diff_str()[0] != 'n']
     new_diff_strs = [
         ie_t.diff_str() for ie_t in ie_tags]
     if old_diff_strs == new_diff_strs:
         # no change in external tags
         return
-    pass
 
-    new_db_tag_set = item.db_tag_set()
-    _adjust_db_item_tags(session, item, old_db_tag_set, new_db_tag_set)
+    s = difflib.SequenceMatcher(None, old_diff_strs, new_diff_strs)
+    item_tags = fs_item.item_tags
+    opcodes = s.get_opcodes()
+    opcodes.reverse()
+    for op in opcodes:
+        if op[0] == 'replace':
+            pass
+        elif op[0] == 'insert':
+            pass
+        elif op[0] == 'delete':
+            pass
+        elif op[0] == 'equal':
+            pass
+
+    new_db_tag_set = fs_item.db_tag_set()
+    _adjust_db_item_tags(session, fs_item, old_db_tag_set, new_db_tag_set)
     pass
 
 

@@ -485,13 +485,8 @@ class FsFolderTag_Tester(_Tester):
         return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
 
     def create(self, session, key, key2):
-        item_tag = FsItemTag.add(
-            session,
-            item=key2[0], idx=0,idx_range=(0,0),
-            type=key2[1], text=key2[2], bases=None,
-            binding=FsTagBinding.BOUND, source=FsItemTagSource.FSTS,
-            db_tag = self.dep_objs[1]
-        )
+        item_tag = FsItemTag.add(session,
+            item=key2[0], idx=0, type=key2[1], text=key2[2], bases=None)
         return item_tag
 
     def get_key(self, obj):
@@ -508,8 +503,6 @@ class FsFolderTag_Tester(_Tester):
     def test_deps(self, obj):
         assert obj.item is self.dep_objs[0]
         assert self.dep_objs[0].item_tags[0] is obj
-        assert obj.db_tag is self.dep_objs[1]
-
 
 class FsImage_Tester(_Tester):
 

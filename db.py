@@ -711,8 +711,8 @@ class FsItemTag(Base):
         # FIXME: this should just be an integer enum:
         # the possible lists are fixed by the code
 
-    binding = Column(Enum(FsTagBinding))
     source = Column(Enum(FsItemTagSource))
+    binding = Column(Enum(FsTagBinding))
 
     # if .binding.has_db_tag()
     db_tag_id = Column(Integer,ForeignKey('db-tag.id'))
@@ -721,22 +721,19 @@ class FsItemTag(Base):
     Index('fs-item-tag', 'type', 'text', unique=False)
 
     @classmethod
-    def add(cls, session, item, idx, idx_range,
-        type, text, bases,
-        binding, source, db_tag
-    ):
-        # TODO: maybe remove the last three parameters, and idx_range
-        if source == FsItemTagSource.DBTAG and binding == FsTagBinding.UNBOUND:
-            raise ValueError
+    def add(cls, session, item, idx, type, text, bases):
         tag = FsItemTag(
             item=item,
-            idx=idx, first_idx = idx_range[0], last_idx = idx_range[1] - 1,
+            idx=idx, first_idx=idx, last_idx=idx,
             type=type, text=text, bases=bases,
-            binding=binding, source=source, db_tag=db_tag)
+            source=FsItemTagSource.NONE,
+            binding=FsTagBinding.UNBOUND, db_tag=None)
         if tag is not None: session.add(tag)
         return tag
 
     def bind(self, binding, source, db_tag, idx_range=None):
+        if source == FsItemTagSource.DBTAG and binding == FsTagBinding.UNBOUND:
+            raise ValueError
         self.binding = binding
         self.source = source
         self.db_tag = db_tag
