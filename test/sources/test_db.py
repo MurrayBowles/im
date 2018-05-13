@@ -485,7 +485,7 @@ class FsFolderTag_Tester(_Tester):
         return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
 
     def create(self, session, key, key2):
-        item_tag = FsItemTag.add(session,
+        item_tag = FsItemTag.insert(session,
             item=key2[0], idx=0, type=key2[1], text=key2[2], bases=None)
         return item_tag
 

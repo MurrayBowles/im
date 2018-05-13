@@ -721,7 +721,15 @@ class FsItemTag(Base):
     Index('fs-item-tag', 'type', 'text', unique=False)
 
     @classmethod
-    def add(cls, session, item, idx, type, text, bases):
+    def insert(cls, session, item, idx, type, text, bases):
+        # renumber the tags at and above idx
+        for x in range(idx, len(item.item_tags)):
+            it = item.item_tags[x]
+            it.idx += 1
+            if it.first_idx >= idx:
+                it.first_idx += 1
+            it.last_idx += 1
+        # create and insert
         tag = FsItemTag(
             item=item,
             idx=idx, first_idx=idx, last_idx=idx,
@@ -731,16 +739,41 @@ class FsItemTag(Base):
         if tag is not None: session.add(tag)
         return tag
 
-    def bind(self, binding, source, db_tag, idx_range=None):
+    def delete(self, session):
+        item = self.item
+        idx = self.idx
+        #ungroup
+        self.del_grouping()
+        # delete (hmmm...)
+        item.item_tags.remove(idx)
+        # session.delete(self)
+        # renumber the tags above idx
+        for x in range(idx + 1, len(item.item_tags)):
+            it = item.item_tags[x]
+            it.idx -= 1
+            if it.first_idx >= idx:
+                it.first_idx -= 1
+            it.last_idx -= 1
+
+    def set_binding(self, binding, source, db_tag):
         if source == FsItemTagSource.DBTAG and binding == FsTagBinding.UNBOUND:
             raise ValueError
         self.binding = binding
         self.source = source
         self.db_tag = db_tag
-        if idx_range is not None:
-            self.first_idx = idx_range.start
-            self.last_idx = idx_range.stop - 1
         pass
+
+    @classmethod
+    def add_grouping(cls, item, idx_range):
+        for idx in idx_range:
+            item.item_tags[idx].first_idx = idx_range.start
+            item.item_tags[idx].last_idx = idx_range.stop - 1
+
+    def del_grouping(self):
+        item = self.item
+        for idx in range(self.first_idx, self.last_idx + 1):
+            item.item_tags[idx].first_idx = idx
+            item.item_tags[idx].last_idx = idx
 
     @classmethod
     def find_idx(cls, session, item, idx):

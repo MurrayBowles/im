@@ -102,6 +102,7 @@ def _bind_fs_item_tags(session, item, fs_tag_source):
 
         (1) leaves source==DIRECT tags untouched
         (2) binds all other tags, ignoring their current binding
+        (3) assumes that there are no auto-groupings, only user-assigned ones
     """
     if item.name.find("01_03_92_15_GILMAN-001") != -1:
         pass
@@ -111,8 +112,8 @@ def _bind_fs_item_tags(session, item, fs_tag_source):
         if fs_tag.type == db.FsTagType.TAG:
             binding = tag_text_binding(
                 session, fs_tag.text, fs_tag.bases, fs_tag_source)
-            fs_tag.bind(
-                binding=binding[1], source=binding[2], db_tag=binding[3])
+            fs_tag.set_binding(
+                source=binding[2], binding=binding[1], db_tag=binding[3])
             idx += 1
         else: # db.FsTagType.WORD
             word_list = [fs_tag.text]
@@ -128,9 +129,10 @@ def _bind_fs_item_tags(session, item, fs_tag_source):
             for range, binding in results:
                 for offset in range:
                     fs_tag = item.item_tags[base_idx + offset]
-                    fs_tag.bind(
-                        binding=binding[1], source=binding[2],
-                        db_tag=binding[3], idx_range=range)
+                    fs_tag.set_binding(
+                        source=binding[2],
+                        binding=binding[1], db_tag=binding[3])
+                db.FsItemTag.add_grouping(item, range)
             pass
 
 
@@ -186,14 +188,13 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
                 assert ie_tag.type == IETagType.WORD
                 type = db.FsTagType.WORD
                 text = ie_tag.text
-            item_tag = db.FsItemTag.add(session,
+            item_tag = db.FsItemTag.insert(session,
                 item, idx, type=type, text=text, bases=ie_tag.bases)
             idx += 1
     _bind_fs_item_tags(session, item, fs_tag_source)
     new_db_tag_set = item.db_tag_set()
     _adjust_db_item_tags(session, item, set(), new_db_tag_set)
     pass
-
 
 
 def update_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
@@ -213,6 +214,8 @@ def update_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
         # no change in external tags
         return
 
+    # diff the imported tags with the current ones
+    # TODO: flag when user-defined groupings are destroyed
     s = difflib.SequenceMatcher(None, old_diff_strs, new_diff_strs)
     item_tags = fs_item.item_tags
     opcodes = s.get_opcodes()
