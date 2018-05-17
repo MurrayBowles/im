@@ -132,14 +132,15 @@ class IETag:
             s += ' @' + self.url
         return s
 
-    def diff_str(self):
-        # the string for reconciliation in update_fs_item_tags
+    def diff_tup(self):
+        # (n|w|t, text, bases)
         if self.type == IETagType.NOTE:
-            return 'n'
+            t = 'n'
         elif self.type == IETagType.WORD:
-            return 'w' + self.text
+            t = 'w'
         else:
-            return 't' + self.text
+            t = 't'
+        return t, self.text, self.bases
 
     def __repr__(self):
         return '<IETag %s>' % self.pname()

@@ -205,29 +205,63 @@ def update_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
         2) if so, deal with them (TODO: gracefully if possible)
     """
     old_db_tag_set = fs_item.db_tag_set()
-    old_diff_strs = [
-        fs_t.diff_str()
-        for fs_t in fs_item.item_tags if fs_t.diff_str()[0] != 'n']
-    new_diff_strs = [
-        ie_t.diff_str() for ie_t in ie_tags]
-    if old_diff_strs == new_diff_strs:
+    old_diff_tups = [
+        fs_t.diff_tup()
+        for fs_t in fs_item.item_tags if fs_t.diff_tup()[0] != 'n']
+    new_diff_tups = [
+        ie_t.diff_tup() for ie_t in ie_tags]
+    if old_diff_tups == new_diff_tups:
         # no change in external tags
         return
 
     # diff the imported tags with the current ones
     # TODO: flag when user-defined groupings are destroyed
-    s = difflib.SequenceMatcher(None, old_diff_strs, new_diff_strs)
+    s = difflib.SequenceMatcher(None, old_diff_tups, new_diff_tups)
     item_tags = fs_item.item_tags
     opcodes = s.get_opcodes()
     opcodes.reverse()
+    got_changes = False
     for op in opcodes:
-        if op[0] == 'replace':
+        act, old_start, old_stop, new_start, new_stop = op
+        if act == 'equal':
+            continue
+        if not got_changes:
+            got_changes = True
+            # remove any auto-assigned word groupings
+            for item_tag in item_tags:
+                if not item_tag.user_grouping:
+                    item_tag.del_grouping()
+
+        # a user-assigned word-grouping spans or extends into the change
+        if (
+            old_start > 0
+            and item_tags[old_start - 1].user_grouping
+            and old_diff_tups[old_start - 1][0] == 'w'
+            and item_tags[old_start - 1].last_idx >= old_start
+        ):
+            db.FsItemTag.del_grouping(item_tags[old_start - 1])
+        if (
+            old_stop < len(item_tags)
+            and item_tags[old_stop].user_grouping
+            and old_diff_tups[old_stop][0] == 'w'
+            and item_tags[old_stop].first_idx < old_stop
+        ):
+            db.FsItemTag.del_grouping(item_tags[old_stop])
+
+        # TODO a user-assigned word-grouping abuts the change
+        # and the affected region will start(end) with a word after the change
+
+        if act != 'insert':
+            # delete old_start:old_stop
+            for idx in range(old_start, old_stop):
+                item_tags[idx].delete(session)
             pass
-        elif op[0] == 'insert':
-            pass
-        elif op[0] == 'delete':
-            pass
-        elif op[0] == 'equal':
+        if act != 'delete':
+            # insert new_start:new_stop at old_start
+            offset = 0
+            for t in new_diff_tups[new_start:new_stop]:
+                db.FsItemTag.insert(session,
+                    fs_item, old_start + offset, t[0], t[1], t[2])
             pass
 
     new_db_tag_set = fs_item.db_tag_set()

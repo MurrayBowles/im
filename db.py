@@ -702,6 +702,7 @@ class FsItemTag(Base):
     # value
     first_idx = Column(Integer) # index of the first FsItemTag in the binding
     last_idx =  Column(Integer) # index of the last FsItemTag in the binding
+    user_grouping = Column(Boolean)
         # first_idx <= idx <= last_idx
         # when type == TAG, first_idx == last_idx
 
@@ -732,7 +733,7 @@ class FsItemTag(Base):
         # create and insert
         tag = FsItemTag(
             item=item,
-            idx=idx, first_idx=idx, last_idx=idx,
+            idx=idx, first_idx=idx, last_idx=idx, user_grouping=False,
             type=type, text=text, bases=bases,
             source=FsItemTagSource.NONE,
             binding=FsTagBinding.UNBOUND, db_tag=None)
@@ -784,9 +785,10 @@ class FsItemTag(Base):
         return session.query(FsItemTag).filter_by(type=type, text=text).all()
 
 
-    def diff_str(self):
-        # the string for reconciliation in update_fs_item_tags
-        return ('w' if self.type == FsTagType.WORD else 't') + self.text
+    def diff_tup(self):
+        # (w|t, text, bases)
+        t = 'w' if self.type == FsTagType.WORD else 't'
+        return t, self.text, self.bases
 
     
     def __repr__(self):
