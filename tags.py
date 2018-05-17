@@ -261,11 +261,18 @@ def update_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
             offset = 0
             for t in new_diff_tups[new_start:new_stop]:
                 db.FsItemTag.insert(session,
-                    fs_item, old_start + offset, t[0], t[1], t[2])
+                    fs_item, old_start + offset,
+                    db.FsTagType.WORD if t[0] == 'w' else db.FsTagType.TAG,
+                    t[1], t[2])
             pass
 
-    new_db_tag_set = fs_item.db_tag_set()
-    _adjust_db_item_tags(session, fs_item, old_db_tag_set, new_db_tag_set)
+    if got_changes:
+        try:
+            _bind_fs_item_tags(session, fs_item, fs_tag_source)
+        except Exception as ed:
+            pass
+        new_db_tag_set = fs_item.db_tag_set()
+        _adjust_db_item_tags(session, fs_item, old_db_tag_set, new_db_tag_set)
     pass
 
 
