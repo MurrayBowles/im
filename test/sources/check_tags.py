@@ -572,6 +572,15 @@ class Ctx:
         fs_tag_source = self.local_tag_source # FIXME
         tags.update_fs_item_tags(self.session,
             fs_folder, ie_folder.tags, fs_tag_source)
+
+        for ie_image in ie_folder.images.values():
+            ie_image_name = ie_image.name
+            fs_image = db.FsImage.find(self.session, fs_folder, ie_image_name)
+            assert fs_image is not None
+            tags.update_fs_item_tags(self.session,
+                fs_image, ie_image.tags, fs_tag_source)
+            pass
+
         pass
 
     def rebind_fs_folder_tags(self, fs_folder_name):

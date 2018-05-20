@@ -223,5 +223,20 @@ def test_check_init_folder_tags():
         ]),
         ('!ie-folder', [ie_folder_spec2]),
         ('update-fs-folder-tags', ('fff', 'ie-folder')),
+        ('check-fs-folder-tags', [
+            ('fff', [
+                ('wbl', ['b', 'c'], 'b c'),
+                ('tbg', 'shadow', 'global-shadowed'),
+                ('tbl', 'local-unique', 'local-unique')
+            ], [
+                 ('image1', [
+                     ('tbg', 'global-unique', 'global-unique')
+                 ]),
+                 ('image2', [
+                     ('wun', ['c']),
+                     ('wun', ['d'])
+                 ])
+             ])
+        ]),
     ])
     pass

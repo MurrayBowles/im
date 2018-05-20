@@ -641,8 +641,8 @@ class FsItem(Item):
     __mapper_args__ = {'polymorphic_identity': 'FsItem'}
 
     # FsItem ->> FsItemTag
-    item_tags = relationship(
-        'FsItemTag', foreign_keys='[FsItemTag.item_id, FsItemTag.idx]')
+    item_tags = relationship('FsItemTag',
+        order_by='FsItemTag.idx', collection_class=ordering_list('idx'))
 
     def db_item(self):
         raise NotImplementedError
@@ -688,11 +688,11 @@ class FsItemTag(Base):
     __tablename__ = 'fs-item-tag'
 
     # primary key
+    id = Column(Integer, primary_key=True)
 
-    item_id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
+    item_id = Column(Integer, ForeignKey('fs-item.id'))
     item = relationship(
         'FsItem', foreign_keys=[item_id], back_populates='item_tags')
-    idx = Column(Integer, primary_key=True)
 
     # secondary key
 
@@ -700,11 +700,13 @@ class FsItemTag(Base):
     text = Column(String(collation='NOCASE'))
 
     # value
+    idx = Column(Integer)       # index of this ItemTag in item.item_tags[]
+    user_grouping = Column(Boolean)
+        # first/last_ids were assigned by the user, not by _bind_fs_item_tags()
     first_idx = Column(Integer) # index of the first FsItemTag in the binding
     last_idx =  Column(Integer) # index of the last FsItemTag in the binding
-    user_grouping = Column(Boolean)
         # first_idx <= idx <= last_idx
-        # when type == TAG, first_idx == last_idx
+        # when type == TAG, first_idx == last_idx, user_grouping=False
 
     bases = Column(String)
         # ,-separated list of suggested tag bases,
@@ -723,35 +725,43 @@ class FsItemTag(Base):
 
     @classmethod
     def insert(cls, session, item, idx, type, text, bases):
-        # renumber the tags at and above idx
+        # TODO: test in test_db
+        # renumber the grouping indexes at and above idx
         for x in range(idx, len(item.item_tags)):
             it = item.item_tags[x]
-            it.idx += 1
             if it.first_idx >= idx:
                 it.first_idx += 1
             it.last_idx += 1
-        # create and insert
-        tag = FsItemTag(
+        # create and insert the new item_tag
+        item_tag = FsItemTag(
             item=item,
-            idx=idx, first_idx=idx, last_idx=idx, user_grouping=False,
+            first_idx=idx, last_idx=idx, user_grouping=False,
             type=type, text=text, bases=bases,
             source=FsItemTagSource.NONE,
             binding=FsTagBinding.UNBOUND, db_tag=None)
-        if tag is not None: session.add(tag)
-        return tag
+        if item_tag is not None:
+            session.add(item_tag)
+        return item_tag
 
     def delete(self, session):
+        # TODO: test in test_db
         item = self.item
         idx = self.idx
+
         #ungroup
         self.del_grouping()
+
         # delete (hmmm...)
-        item.item_tags.remove(idx)
-        # session.delete(self)
-        # renumber the tags above idx
-        for x in range(idx + 1, len(item.item_tags)):
+        item.item_tags.pop(idx)
+        # session.delete(self) this ought to work too
+        try:
+            session.flush()
+        except Exception as ed:
+            pass
+
+        # renumber the grouping indexes above idx
+        for x in range(idx, len(item.item_tags)):
             it = item.item_tags[x]
-            it.idx -= 1
             if it.first_idx >= idx:
                 it.first_idx -= 1
             it.last_idx -= 1

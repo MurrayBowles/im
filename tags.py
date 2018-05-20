@@ -253,6 +253,7 @@ def update_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
 
         if act != 'insert':
             # delete old_start:old_stop
+            pass
             for idx in range(old_start, old_stop):
                 item_tags[idx].delete(session)
             pass
