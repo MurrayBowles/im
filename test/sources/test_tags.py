@@ -146,8 +146,8 @@ def test_check_init_folder_tags():
             ])
         ])
     ie_folder_spec2 = (
+        # add local-unique to folder, remove 'b'
         'ie-folder', '', [
-            ('w', 'b'),
             ('w', 'c'),
             ('u', 'shadow'),
             ('u', 'local-unique'),
@@ -156,6 +156,7 @@ def test_check_init_folder_tags():
                 ('u', 'global-unique')
             ]),
             ('image2', [
+                # replace 'b' with 'c' on image2
                 ('w', 'c'),
                 ('w', 'd')
             ])
@@ -221,11 +222,11 @@ def test_check_init_folder_tags():
                  ])
              ])
         ]),
+        # replace folder-spec w/ folder-spec2
         ('!ie-folder', [ie_folder_spec2]),
         ('update-fs-folder-tags', ('fff', 'ie-folder')),
         ('check-fs-folder-tags', [
             ('fff', [
-                ('wbl', ['b', 'c'], 'b c'),
                 ('tbg', 'shadow', 'global-shadowed'),
                 ('tbl', 'local-unique', 'local-unique')
             ], [
@@ -238,5 +239,10 @@ def test_check_init_folder_tags():
                  ])
              ])
         ]),
+        ('?db-folder-tag', ('fff', [
+            ('=e', 'global-shadowed'),
+            ('=e', 'local-unique'),
+            ('0', 'b c')
+        ])),
     ])
     pass

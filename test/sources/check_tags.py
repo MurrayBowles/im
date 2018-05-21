@@ -257,8 +257,12 @@ class Ctx:
                 item_tag = item.find_item_tag(self.session, db_tag)
 
                 if flag_spec[0] == '0':
+                    if item_tag is not None:
+                        pass
                     assert item_tag is None
                 else:
+                    if item_tag is None:
+                        pass
                     assert item_tag is not None
                     op = flag_spec[0]
                     flags = 0
@@ -405,7 +409,11 @@ class Ctx:
                 check_item_tag(self, item_tag0)
                 for x in range(1, len(key)):
                     item_tag = find_item_tag(key[x])
+                    if item_tag.idx != item_tag0.idx + x:
+                        pass
                     assert item_tag.idx == item_tag0.idx + x
+                    if item_tag.first_idx != item_tag0.idx:
+                        pass
                     assert item_tag.first_idx == item_tag0.idx
                     check_item_tag(self, item_tag)
             pass
@@ -515,8 +523,14 @@ class Ctx:
             }[flag[0]]
 
             # TODO: URL?
+            if tag.type != tag_type:
+                pass
             assert tag.type == tag_type
+            if tag.bases !=  bases:
+                pass
             assert tag.bases == bases
+            if tag.text != text:
+                pass
             assert tag.text == text
 
         # unpack the folder-spec
