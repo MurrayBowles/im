@@ -754,10 +754,6 @@ class FsItemTag(Base):
         # delete (hmmm...)
         item.item_tags.pop(idx)
         # session.delete(self) this ought to work too
-        try:
-            session.flush()
-        except Exception as ed:
-            pass
 
         # renumber the grouping indexes above idx
         for x in range(idx, len(item.item_tags)):

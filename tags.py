@@ -173,32 +173,35 @@ def _adjust_db_item_tags(session, fs_item, old_tag_set, new_tag_set):
 
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
     """ Initialize item.item_tags from ie_tags based on fs_tag_source. """
-    idx = 0
-    for ie_tag in ie_tags:
-        if ie_tag.type == IETagType.NOTE:
-            add_fs_item_note(session, item, ie_tag)
-        else:
-            if ie_tag.is_tag():
-                type = db.FsTagType.TAG
-                text = ie_tag.text.replace('/', '|')
-                # 'meta/misc/cool' => 'meta|misc|cool'
-                # FIXME: this fix is specific to Corbett image tags,
-                # so it should be done in ie_fs.py
+    if True:
+        set_fs_item_tags(session, item, ie_tags, fs_tag_source)
+    else:
+        idx = 0
+        for ie_tag in ie_tags:
+            if ie_tag.type == IETagType.NOTE:
+                add_fs_item_note(session, item, ie_tag)
             else:
-                assert ie_tag.type == IETagType.WORD
-                type = db.FsTagType.WORD
-                text = ie_tag.text
-            item_tag = db.FsItemTag.insert(session,
-                item, idx, type=type, text=text, bases=ie_tag.bases)
-            idx += 1
-    _bind_fs_item_tags(session, item, fs_tag_source)
-    new_db_tag_set = item.db_tag_set()
-    _adjust_db_item_tags(session, item, set(), new_db_tag_set)
-    pass
+                if ie_tag.is_tag():
+                    type = db.FsTagType.TAG
+                    text = ie_tag.text.replace('/', '|')
+                    # 'meta/misc/cool' => 'meta|misc|cool'
+                    # FIXME: this fix is specific to Corbett image tags,
+                    # so it should be done in ie_fs.py
+                else:
+                    assert ie_tag.type == IETagType.WORD
+                    type = db.FsTagType.WORD
+                    text = ie_tag.text
+                item_tag = db.FsItemTag.insert(session,
+                    item, idx, type=type, text=text, bases=ie_tag.bases)
+                idx += 1
+        _bind_fs_item_tags(session, item, fs_tag_source)
+        new_db_tag_set = item.db_tag_set()
+        _adjust_db_item_tags(session, item, set(), new_db_tag_set)
+        pass
 
 
-def update_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
-    """ Update fs_item.item_tags from ie_tags based on fs_tag_source.
+def set_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
+    """ Initialize or update fs_item.item_tags from ie_tags.
 
         Called when an external fs_item is re-scanned to re-evaluate its tags:
         1) compare the ie_tags against the FsItemTags to see if there are changes

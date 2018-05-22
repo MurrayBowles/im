@@ -7,7 +7,7 @@ import db
 import web_ie_db
 from ie_cfg import *
 from ie_fs import *
-from tags import init_fs_item_tags
+from tags import set_fs_item_tags
 from wx_task import WxTask2
 
 
@@ -282,10 +282,10 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
 
     if True: # TODO work_item.fs_folder.db_folder is not None:
         # create FsItemTags from any imported tags
-        init_fs_item_tags(session,
+        set_fs_item_tags(session,
             work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
         for image in work_item.existing_images:
-            init_fs_item_tags(session,
+            set_fs_item_tags(session,
                 image[0], image[1].tags, fs_source.tag_source)
             pass
 

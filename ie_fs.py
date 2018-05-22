@@ -135,12 +135,18 @@ class IETag:
     def diff_tup(self):
         # (n|w|t, text, bases)
         if self.type == IETagType.NOTE:
-            t = 'n'
+            type = 'n'
+            text = self.text
         elif self.type == IETagType.WORD:
-            t = 'w'
-        else:
-            t = 't'
-        return t, self.text, self.bases
+            type = 'w'
+            text = self.text
+        else: # IETagType.TAG
+            type = 't'
+            text = self.text.replace('/', '|')
+            # 'meta/misc/cool' => 'meta|misc|cool'
+            # FIXME: this fix is specific to Corbett image tags,
+            # so it should be done in ie_fs.py
+        return type, text, self.bases
 
     def __repr__(self):
         return '<IETag %s>' % self.pname()

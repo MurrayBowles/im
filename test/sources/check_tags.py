@@ -20,8 +20,7 @@ op:
     ('{+-}fs-folder',           fs-folder-spec)
     ('!ie-folder',              ie-folder-spec)
     ('?ie-folder',              ie-folder-spec)
-    ('init-fs-folder_tags',     (fs-folder-name, ie-folder-name))
-    ('update-fs-folder_tags',   (fs-folder-name, ie-folder-name))
+    ('set-fs-folder_tags',      (fs-folder-name, ie-folder-name))
     ('rebind-fs-folder_tags',   fs-folder-name)
     ('?fs-folder-tag',          fs-folder-tag-pattern)
     '[' op,... ']'
@@ -126,8 +125,7 @@ class Ctx:
             '-mapping':             self.del_mapping,
             '!fs-source':           self.set_fs_source,
             '+fs-folder':           self.add_fs_folder,
-            'init-fs-folder-tags':  self.init_fs_folder_tags,
-            'update-fs-folder-tags':self.update_fs_folder_tags,
+            'set-fs-folder-tags':   self.set_fs_folder_tags,
             'rebind-fs-folder-tags':self.rebind_fs_folder_tags,
             '?fs-folder-tag':       self.check_fs_folder_tags,
             'check-fs-folder-tags': self.check_fs_folder_tags,
@@ -559,7 +557,8 @@ class Ctx:
             for image_tag_spec, tag in zip(image_tag_specs, image.tags):
                 check_item_tag(tag, image_tag_spec, image_tag_bases)
 
-    def init_fs_folder_tags(self, spec):
+
+    def set_fs_folder_tags(self, spec):
         # unpack the spec
         fs_folder_name = spec[0]
         ie_folder_name = spec[1]
@@ -567,32 +566,15 @@ class Ctx:
         fs_folder = self.fs_folders[(self.fs_source, fs_folder_name)]
         ie_folder = self.ie_folders[ie_folder_name]
         fs_tag_source = self.local_tag_source # FIXME
-        tags.init_fs_item_tags(self.session,
-            fs_folder, ie_folder.tags, fs_tag_source)
-
-        for fs_image in fs_folder.images:
-            ie_image = ie_folder.images[fs_image.name]
-            tags.init_fs_item_tags(self.session,
-                fs_image, ie_image.tags, fs_tag_source)
-        pass
-
-    def update_fs_folder_tags(self, spec):
-        # unpack the spec
-        fs_folder_name = spec[0]
-        ie_folder_name = spec[1]
-
-        fs_folder = self.fs_folders[(self.fs_source, fs_folder_name)]
-        ie_folder = self.ie_folders[ie_folder_name]
-        fs_tag_source = self.local_tag_source # FIXME
-        tags.update_fs_item_tags(self.session,
-            fs_folder, ie_folder.tags, fs_tag_source)
+        tags.set_fs_item_tags(self.session,
+                              fs_folder, ie_folder.tags, fs_tag_source)
 
         for ie_image in ie_folder.images.values():
             ie_image_name = ie_image.name
             fs_image = db.FsImage.find(self.session, fs_folder, ie_image_name)
             assert fs_image is not None
-            tags.update_fs_item_tags(self.session,
-                fs_image, ie_image.tags, fs_tag_source)
+            tags.set_fs_item_tags(self.session,
+                                  fs_image, ie_image.tags, fs_tag_source)
             pass
 
         pass

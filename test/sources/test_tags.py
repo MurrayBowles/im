@@ -183,7 +183,7 @@ def test_check_init_folder_tags():
         ('+fs-folder', ('fff', ['image1', 'image2'])),
         ('!ie-folder', [ie_folder_spec]),
         ('?ie-folder', [ie_folder_spec]),
-        ('init-fs-folder-tags', ('fff', 'ie-folder')),
+        ('set-fs-folder-tags', ('fff', 'ie-folder')),
         ('?db-folder-tag', ('fff', [
             ('=e', 'local-shadow'),
             ('=e', 'b c')
@@ -224,7 +224,7 @@ def test_check_init_folder_tags():
         ]),
         # replace folder-spec w/ folder-spec2
         ('!ie-folder', [ie_folder_spec2]),
-        ('update-fs-folder-tags', ('fff', 'ie-folder')),
+        ('set-fs-folder-tags', ('fff', 'ie-folder')),
         ('check-fs-folder-tags', [
             ('fff', [
                 ('tbg', 'shadow', 'global-shadowed'),
