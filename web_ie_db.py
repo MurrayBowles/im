@@ -12,7 +12,7 @@ from ie_fs import IEMsg, IEMsgType, IETag, IETagType
 use_test_pages = True
 save_test_pages = True  # ignored if use_test_pages
 test_dir_path = \
-'c:\\\\Users\\User\\PycharmProjects\\im\\test\\import-export sources\\web pages'
+'c:\\\\Users\\Murray\\PycharmProjects\\im\\test\\import-export sources\\web pages'
 
 # tag map: ( [ <base> list ], { <line type str>: [ <template list> ] )
 # template: +<base digit> | -<base digit> | ? | N  (see IETagType)

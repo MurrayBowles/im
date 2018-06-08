@@ -6,7 +6,7 @@ import pytest
 from ie_fs import *
 import re
 
-base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
+base_path = '\\users\\murray\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
 def touch_file(path):

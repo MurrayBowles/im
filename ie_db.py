@@ -259,6 +259,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
         if len(work_item.get_exif) > 0:
             pub_fn('ie.sts.import tags', data=len(work_item.get_exif))
             get_ie_image_exifs(work_item.get_exif, pub_fn)
+            pass
 
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     """ do auto-tagging, move thumbnails to db.DbImage """

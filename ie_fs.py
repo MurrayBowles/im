@@ -268,7 +268,10 @@ _exiftool_args = [
 
 def _get_exiftool_json(argv):
     """ Run exiftool on <argv> and return a list of dictionariess. """
-    outb = subprocess.check_output(argv)
+    try:
+        outb = subprocess.check_output(argv)
+    except Exception as ed:
+        pass
     outs = str(outb)[2:-5]\
         .replace(r'\n', '').replace(r'\r', '').replace(r"\'", "'")
     try:

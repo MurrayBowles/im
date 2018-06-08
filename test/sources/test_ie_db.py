@@ -25,7 +25,7 @@ from test_ie_fs import test_scan_file_sel_corbett_tiffs_selected_list
 from test_ie_fs import test_scan_file_sel_corbett_tiffs_expected_list
 from mock_task import MockSlicer
 from task import Task, TaskState
-base_path = '\\users\\user\\PycharmProjects\\im\\test\\import-export sources'
+base_path = '\\users\\murray\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
 ie_cfg = IECfg()

@@ -1092,7 +1092,7 @@ def open_preloaded_mem_db():
         session, 'main1234', '\\photos',
         FsSourceType.DIR, True, std_ts)
     s2 = FsSource.add(
-        session, 'C:', '\\photos',
+        session, 'D:', '\\photos',
         FsSourceType.DIR, False, std_ts)
     s3 = FsSource.add(
         session, 'HD2', '\\corbett-psds',
