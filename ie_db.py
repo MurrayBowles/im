@@ -252,12 +252,13 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
             pub_fn('ie.sts.imported webpage', data=1)
     else:
         if len(work_item.get_thumbnail) > 0:
-            pub_fn('ie.sts.import thumbnails',
-                data=len(work_item.get_thumbnail))
+            pub_fn(
+                'ie.sts.import thumbnails', data=len(work_item.get_thumbnail))
             get_ie_image_thumbnails(work_item.get_thumbnail, pub_fn)
             pass
         if len(work_item.get_exif) > 0:
-            pub_fn('ie.sts.import tags', data=len(work_item.get_exif))
+            pub_fn(
+                'ie.sts.import tags', data=len(work_item.get_exif))
             get_ie_image_exifs(work_item.get_exif, pub_fn)
             pass
 
