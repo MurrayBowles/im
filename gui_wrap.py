@@ -475,6 +475,9 @@ class TextCtrl:
         else:
             self.text_ctrl.Show()
 
+    def clear(self):
+        self.text_ctrl.Clear()
+
 
 class AttrTextCtrl(TextCtrl):
 
