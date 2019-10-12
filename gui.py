@@ -31,6 +31,7 @@ class GuiApp(wx.App):
         # logging
         handler = logging.FileHandler(
             wx.StandardPaths.Get().GetUserDataDir() + '\\im-log', 'w')
+        #FIXME: this fails if the ImageManagement directory doesn't already exist
         handler.setLevel(logging.DEBUG)
         log_format = '%(thread)5d  %(module)-8s %(levelname)-8s %(message)s'
         formatter = logging.Formatter(log_format)

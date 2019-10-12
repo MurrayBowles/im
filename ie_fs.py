@@ -270,6 +270,7 @@ def _get_exiftool_json(argv):
     """ Run exiftool on <argv> and return a list of dictionariess. """
     try:
         outb = subprocess.check_output(argv)
+        #FIXME: diagnostic if no exiftool
     except Exception as ed:
         pass
     outs = str(outb)[2:-5]\
