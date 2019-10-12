@@ -208,6 +208,7 @@ class Task:
             if self.on_done is not None:
                 self.on_done(None)
         except Exception as exc_data:
+            # NOTE: one of the test_task steps deliberately raises an exception, so a BP may not be a good idea
             self.state = TaskState.EXCEPTION
             self.exc_data = exc_data
             if self.on_done is not None:

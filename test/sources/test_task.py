@@ -17,10 +17,8 @@ def _run_mock_task_test(task_class):
     task.check()
 
 def _run_wx_task_test(task_class):
-    try:
-        app = wx.App()
-    except Exception as ed:
-        pass
+    app = wx.App()
+    assert app is not None
     frame = wx.Frame(
         None, -1, 'TOTO: why do i need this Frame to make MainLoop work?')
     slicer = WxSlicer(suspended=True)
@@ -28,10 +26,14 @@ def _run_wx_task_test(task_class):
         app.ExitMainLoop()
     task = task_class(slicer=slicer, on_done=on_done)
     task.start()
+    if wx.GetApp() == None:
+        pass
     slicer.resume()
     app.MainLoop()
     assert task.state == TaskState.DONE or task.state == TaskState.EXCEPTION
     task.check()
+    del app
+    pass
 
 def _run_task_tests(test):
     _run_mock_task_test(test)
