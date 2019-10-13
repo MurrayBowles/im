@@ -39,8 +39,6 @@ class GuiApp(wx.App):
         logging.getLogger().addHandler(handler)
         logging.info('log file started')
 
-        # WxMyTask() # TODO: move to test_task
-
         return True
 
 class GuiTop(wx.Frame):
@@ -92,7 +90,6 @@ class GuiTop(wx.Frame):
         self.Close()
 
 def gui_test():
-    # TestMyTask() # TODO: move to test_task
     app = GuiApp(False)
     app.MainLoop()
     cfg.save()

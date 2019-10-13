@@ -1,5 +1,7 @@
 """ Test Slicer and Task implementations """
 
+# FIXME: this fails sometimes when it's the last test -- find out why
+
 import pytest
 import wx
 
