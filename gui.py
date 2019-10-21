@@ -94,6 +94,6 @@ def gui_test():
     app.MainLoop()
     cfg.save()
 
-if __name__=='__main__':
+if __name__== '__main__':
     db.open_preloaded_mem_db()
     gui_test()

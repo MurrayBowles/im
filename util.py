@@ -55,3 +55,9 @@ def last_url_component(url):
     right_slash = url.rfind('/')
     assert right_slash != -1
     return url[right_slash + 1:]
+
+def force_list(singleton_or_list):
+    if type(singleton_or_list) == list:
+        return singleton_or_list
+    else:
+        return [singleton_or_list]
