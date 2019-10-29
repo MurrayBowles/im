@@ -412,7 +412,7 @@ class FsSource_Tester(_Tester):
         self.dep_classes = [FsTagSource_Tester]
 
     def mk_key2(self):
-        return (_mk_name('label'), _mk_name('path'))
+        return (_mk_name('label'), _mk_name('db_name'))
 
     def create(self, session, key, key2):
         source = FsSource.add(
@@ -442,7 +442,7 @@ class FsFolder_Tester(_Tester):
         ]
 
     def mk_key2(self):
-        return (self.dep_objs[0], _mk_name('name'))
+        return (self.dep_objs[0], _mk_name('db_name'))
 
     def create(self, session, key, key2):
         source = FsFolder.add(

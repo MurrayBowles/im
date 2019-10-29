@@ -127,7 +127,7 @@ class DirCtrl:
         size = default_box,
         label = None,
         init_path = '',
-        select_fn = None,   # (path) called whenever the selection changes
+        select_fn = None,   # (db_name) called whenever the selection changes
         style = 0,
         sizer_idx = -1     # insertion index in sizer
     ):
@@ -163,7 +163,7 @@ class DirCtrl:
                         break
                     item = tree_ctrl.GetItemParent(item)
                     sep = '/'
-                # <label> (<drive letter>:)<path> => <drive letter>:<path>
+                # <label> (<drive letter>:)<db_name> => <drive letter>:<db_name>
                 # FIXME: what if the label contains a paren?
                 # searching from the right won't help
                 # -- filenames CAN contain parens

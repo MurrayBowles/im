@@ -31,7 +31,7 @@ def volume_label(path):
     return vl
 
 def path_plus_separator(path):
-    # return <path> plus the host separator (e.g. / or \)
+    # return <db_name> plus the host separator (e.g. / or \)
     return os.path.join(path, 'a')[0:-1]
 
 def win_path(volume, path):
@@ -40,7 +40,7 @@ def win_path(volume, path):
     drives = drives.split('\000')
 
     if volume.endswith(':'):
-        # no volume name: <volume> is the drive letter
+        # no volume db_name: <volume> is the drive letter
         for d in drives:
             if volume == d[0:2]:
                 return volume + path
@@ -61,3 +61,14 @@ def force_list(singleton_or_list):
         return singleton_or_list
     else:
         return [singleton_or_list]
+
+def all_descendent_classes(cls):
+    return set(cls.__subclasses__()).union(
+        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
+def find_descendent_class(cls, name):
+    adc = all_descendent_classes(cls)
+    for c in all_descendent_classes(cls):
+        if c.__name__ == name:
+            return c
+    raise ValueError('%s is not a descendent of %s', name, cls.__name__)

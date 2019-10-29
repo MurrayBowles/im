@@ -10,7 +10,7 @@ base_path = '\\users\\murray\\PycharmProjects\\im\\test\\import-export sources'
 # TODO: get PyCharm/pytest to provide this, up to the last directory
 
 def touch_file(path):
-    """ update the modification date of the file at <path> """
+    """ update the modification date of the file at <db_name> """
     Path(path).touch()
 
 _ext_map = {

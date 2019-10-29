@@ -369,7 +369,7 @@ class FsSourceCtrl:
 
 class FsSourceAEDialog(wx.Dialog):
     """ dialog for adding or editing an import/export source
-        collects source_name, readonly, volume, path
+        collects source_name, readonly, volume, db_name
     """
 
     def __init__(self, *args, **kw):
@@ -434,8 +434,8 @@ class FsSourceAEDialog(wx.Dialog):
                 self, box, 'source type: ' + types[self.obj.source_type])
             gui_wrap.StaticText(self, box, 'source: ' + self.obj.pname())
 
-        # name
-        gui_wrap.AttrTextCtrl(self, box, 'name', self, 'source_name')
+        # db_name
+        gui_wrap.AttrTextCtrl(self, box, 'db_name', self, 'source_name')
 
         # tag source
         FsTagSourceCtrl(

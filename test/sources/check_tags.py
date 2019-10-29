@@ -13,15 +13,15 @@ op:
     ('{+-}tag',                 tag-spec)
     ('{+-}mapping',             mapping-spec)
     ('{+-}binding',             binding-spec)
-    ('{+-}db-folder',           folder-name)
+    ('{+-}db-folder',           folder-db_name)
     ('!db-folder-tag',          db-folder-tag-spec)
     ('?db-folder-tag',          db-folder-tag-pattern)
     ('!source,                  fs-source-spec)
     ('{+-}fs-folder',           fs-folder-spec)
     ('!ie-folder',              ie-folder-spec)
     ('?ie-folder',              ie-folder-spec)
-    ('set-fs-folder_tags',      (fs-folder-name, ie-folder-name))
-    ('rebind-fs-folder_tags',   fs-folder-name)
+    ('set-fs-folder_tags',      (fs-folder-db_name, ie-folder-db_name))
+    ('rebind-fs-folder_tags',   fs-folder-db_name)
     ('?fs-folder-tag',          fs-folder-tag-pattern)
     '[' op,... ']'
     
@@ -41,10 +41,10 @@ mapping-flags: {b|s}{g|l}
         e.g. ('bg', 'C.O.P.', 'cop') 
         
 db-folder-tag-spec:
-    ( 'db-folder-name', '[' db-item-tag-spec,... ']'
+    ( 'db-folder-db_name', '[' db-item-tag-spec,... ']'
         [, '[' db-image-tag-spec ,... ']' ] )
 db-image-tag-spec:
-    ( 'db-image-name', '[' db-item-tag-spec,... ']' )
+    ( 'db-image-db_name', '[' db-item-tag-spec,... ']' )
 db-item-tag-spec:
     ( db-item-tag-flag-spec, 'tag-label' )
 db-item-tag-flag-spec: {+-deb}+
@@ -52,10 +52,10 @@ db-item-tag-flag-spec: {+-deb}+
     d: DIRECT, e: EXTERNAL, b: BLOCKED
    
 db-folder-tag-pattern:
-    ( 'db-folder-name', '[' db-item-tag-pattern,... ']'
+    ( 'db-folder-db_name', '[' db-item-tag-pattern,... ']'
         [, '[' db-image-tag-pattern,... ']' )
 db-image-tag-pattern:
-    ( 'db-image-name', '[' db-item-tag-pattern,... ']' )    
+    ( 'db-image-db_name', '[' db-item-tag-pattern,... ']' )    
 db-item-tag-pattern:
     ( db-item-tag-flag-pattern, 'tag-label' )
 db-item-tag-flag-pattern: {0} | {=&~}{deb}+
@@ -67,29 +67,29 @@ db-item-tag-flag-pattern: {0} | {=&~}{deb}+
     
 fs-source-spec:
     fs-source-obj
-    ( fs-source-flags, 'volume-name', 'path' )
+    ( fs-source-flags, 'volume-db_name', 'db_name' )
     '[' fs-source-spec,... ']'
 fs-source-flags: {d|f|w|r}
     d: DIR, f:se FILE, w: WEB, r: read-only
     
 fs-folder-spec:
-    ('folder-name', '[' 'image-name' ,... ']')
+    ('folder-db_name', '[' 'image-db_name' ,... ']')
     '[' fs-folder-spec,... ']'
     
 ie-folder-spec:
-    ( 'ie-folder-name', 'folder-tag-bases', '[' ie-item-tag-spec,... ']'
+    ( 'ie-folder-db_name', 'folder-tag-bases', '[' ie-item-tag-spec,... ']'
         [, 'image-tag-bases', '[' ie-image-spec,... ']' ] )
 ie-image-spec:
-    ( 'ie-image-name', '[' ie-item-tag-spec,... ']' )
+    ( 'ie-image-db_name', '[' ie-item-tag-spec,... ']' )
 ie-item-tag-spec:
     ( '{a|b|u|w|n}', 'tag-text' )    
     a: AUTO, b: BASED, u: UNBASED, w: WORD, n: NOTE
  
 fs-folder-tag-pattern:
-    ( 'fs-folder-name', '[' fs-item-tag-pattern,... ']'
+    ( 'fs-folder-db_name', '[' fs-item-tag-pattern,... ']'
         [, '[' fs-image-tag-pattern,... ']' ] )
 fs-image-tag-pattern:
-    ( 'fs-image-name', '[' fs-item-tag-pattern,... ']' )
+    ( 'fs-image-db_name', '[' fs-item-tag-pattern,... ']' )
 fs-item-tag-pattern:
     ( 'w<fs-item-tag-flags>', word-list, 'tag-label' )
     ( 't<fs-item-tag-flags>', 'tag-text', 'tag-label' ) 
@@ -108,11 +108,11 @@ class Ctx:
         self.date = date.today()        # used for DbFolder.date
         self.datetime = datetime.combine(self.date, time())
         self.fs_sources = []            # list of sources we created
-        self.db_folders = {}            # folder-name => DbFolder
-        self.fs_folders = {}            # (fs_source, folder-name) => FsFolder
-        self.ie_folders = {}            # folder-name => IEFolder
-        self.db_images = {}             # image-name => DbImage
-        self.fs_images = {}             # image-name => FsImage
+        self.db_folders = {}            # folder-db_name => DbFolder
+        self.fs_folders = {}            # (fs_source, folder-db_name) => FsFolder
+        self.ie_folders = {}            # folder-db_name => IEFolder
+        self.db_images = {}             # image-db_name => DbImage
+        self.fs_images = {}             # image-db_name => FsImage
 
     def execute(self, cfg_op):
         dispatch = {
@@ -488,7 +488,7 @@ class Ctx:
             image_specs = []
 
         folder = ie_fs.IEFolder(
-            'test-path', self.date, folder_name, self.datetime)
+            'test-db_name', self.date, folder_name, self.datetime)
         for folder_tag_spec in folder_tag_specs:
             folder.add_tag(item_tag(folder_tag_spec, folder_tag_bases))
 

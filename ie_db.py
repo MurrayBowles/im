@@ -148,7 +148,7 @@ def create_fs_folder(session, ie_folder, fs_source):
     fs_folder = db.FsFolder.get(
         session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
 
-    # also create a DbFolder if ie_folder has a good name and date
+    # also create a DbFolder if ie_folder has a good db_name and date
     if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
                 IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
         db_folder = db.DbFolder.get(
@@ -225,7 +225,7 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
                     import_ie_image(fs_image, ie_image, False)
                 elif fs_image.name < ie_image.name:
                     work_item.deleted_images.append(fs_image)
-                else: # ie_image.name < fs_image.name
+                else: # ie_image.db_name < fs_image.db_name
                     fs_image = db.FsImage.add(session, fs_folder, ie_image.name)
                     import_ie_image(fs_image, ie_image, True)
             elif len(fs_images) != 0:

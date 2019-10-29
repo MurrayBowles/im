@@ -73,14 +73,15 @@ image_collections = Table('image-collections', Base.metadata,
 
 
 class Item(Base):
-    """ something which has a name and can be tagged:
+    """ something which has a db_name and can be tagged:
         a Folder, Collection, Image, or Tag
     """
     __tablename__ = 'item'
     id = Column(Integer, primary_key=True)
 
     type = Column(String(12))
-        # 'DbCollection' | 'DbFolder' | 'DbImage' | 'FsFolder'
+    # 'DbCollection' | 'DbFolder' | 'DbImage' | 'FsFolder'
+    # this must be the actual table class db_name
     __mapper_args__ = {'polymorphic_identity': 'Item', 'polymorphic_on': type}
 
     name = Column(String(100))
@@ -171,7 +172,7 @@ class DbFolder(Item):
     thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
-    Index('db-folder-index', 'date', 'name', unique=True)
+    Index('db-folder-index', 'date', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, date, name):
@@ -216,7 +217,7 @@ class DbCollection(Item):
     thumbnail = relationship(
         "DbImage", foreign_keys='[DbCollection.thumbnail_id]')
 
-    Index('db-collection-index', 'name', unique=True)
+    Index('db-collection-index', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, name):
@@ -236,7 +237,7 @@ class DbImage(Item):
     """ a single image (usually with multiple files: NEF/TIFF/PSD/JPEG) """
     __tablename__ = 'db-image'
 
-    # isa Item (name is <seq>[<suffix>], as with FsImage and IEImage)
+    # isa Item (db_name is <seq>[<suffix>], as with FsImage and IEImage)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'DbImage'}
 
@@ -257,8 +258,8 @@ class DbImage(Item):
         'FsImage', foreign_keys='[FsImage.db_image_id]',
         back_populates='db_image')
 
-    Index('db-folder-image-index', 'folder_id', 'name', unique=True)
-    Index('db-date-image-index', 'folder.date', 'name')
+    Index('db-folder-image-index', 'folder_id', 'db_name', unique=True)
+    Index('db-date-image-index', 'folder.date', 'db_name')
 
     @classmethod
     def add(cls, session, folder, name):
@@ -403,7 +404,7 @@ class DbTag(Item):
                 on_db_tag_added(session, self)
                 
     def set_name(self, session, new_name):
-        # TODO: change parent too, or just name?
+        # TODO: change parent too, or just db_name?
         if new_name != self.name:
             on_db_tag_removed(session, self)
             self.name = new_name
@@ -431,7 +432,7 @@ class DbTextType(PyIntEnum):
 
 
 class DbNoteType(Base):
-    """ the type of a DbNote (e.g. name, location, PBase page,...) """
+    """ the type of a DbNote (e.g. db_name, location, PBase page,...) """
     __tablename__ = 'db-note-type'
     id = Column(Integer, primary_key=True)
 
@@ -529,7 +530,7 @@ class FsSource(Item):
     """ external source from which a set of FsFolders/Images was imported """
     __tablename__ = 'fs-source'
 
-    # isa Item (.name is the user-assigned name, or None)
+    # isa Item (.db_name is the user-assigned db_name, or None)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsSource'}
 
@@ -538,7 +539,7 @@ class FsSource(Item):
         # source volume: '<volume letter>:' or '<volume label>'
     path = Column(String(260))
         # source pathname
-        # for WEB, volume is 'http[s]:' and path is the rest of the URL
+        # for WEB, volume is 'http[s]:' and db_name is the rest of the URL
 
     source_type = Column(Enum(FsSourceType))
     readonly = Column(Boolean)
@@ -926,15 +927,15 @@ class TagChange(Base):
 class FsFolder(FsItem):
     """ a filesystem source from which DbFolder were imported
         if source.type is dir_set, a filesystem directory
-        if source.type is file_set, a group of files with a common name prefix
+        if source.type is file_set, a group of files with a common db_name prefix
     """
     __tablename__ = 'fs-folder'
 
-    # isa FsItem (.name is relative path from FsSource.path to IEFolder.fs_path)
+    # isa FsItem (.db_name is relative db_name from FsSource.db_name to IEFolder.fs_path)
     id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
 
-    # DbFolder date and name suggested by import/export code (e.g scan_dir_set)
+    # DbFolder date and db_name suggested by import/export code (e.g scan_dir_set)
     # may each be None
     # copied from the corresponding members in IEFolder
     db_date = Column(Date)
@@ -958,7 +959,7 @@ class FsFolder(FsItem):
     images = relationship(
         'FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
 
-    Index('fs-folder-index', 'source', 'name', unique=True)
+    Index('fs-folder-index', 'source', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, source, name,
@@ -1005,7 +1006,7 @@ class FsImage(FsItem):
     """
     __tablename__ = 'fs-image'
 
-    # isa Item (name is <seq>[<suffix>], as with DbImage and FsImage)
+    # isa Item (db_name is <seq>[<suffix>], as with DbImage and FsImage)
     id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsImage'}
 

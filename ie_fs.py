@@ -44,7 +44,7 @@ class IEMsgType(Enum):
         # (IEFolder)
     CANT_FIND_IMAGE     = ("internal error: can't find folder image", 'Ep')
         # (IEFolder)
-    NAME_NEEDS_EDIT     = ('IEFolder.name needs editing', 'is')
+    NAME_NEEDS_EDIT     = ('IEFolder.db_name needs editing', 'is')
         # (IEFolder)
 
 class IEMsg(object):
@@ -159,14 +159,14 @@ class IETag:
 class IEFolder(object):
 
     def __init__(self, fs_path, db_date, db_name, mod_datetime):
-        self.fs_path = fs_path  # filesystem absolute path
+        self.fs_path = fs_path  # filesystem absolute db_name
 
-        # DbFolder date and name suggested by import code
+        # DbFolder date and db_name suggested by import code
         self.db_date = db_date  # folder date, e.g. 10/07/2017, may be None
-        self.db_name = db_name  # the name, e.g. 'virginia'
+        self.db_name = db_name  # the db_name, e.g. 'virginia'
 
         self.mod_datetime = mod_datetime
-        self.images = {}        # IEImage.name -> IEImage
+        self.images = {}        # IEImage.db_name -> IEImage
         self.msgs = []          # list of IEMsg
         self.tags = []          # list of IETag
         self.image_insts = {}   # map: IEImageInst.fs_path => IEImageInst
@@ -358,7 +358,7 @@ def get_ie_image_thumbnails(ie_image_set, pub):
         pub('ie.sts imported thumbnails', data=1)
     # clear(ie_image_set) FIXME: why does this fail?
 
-# a std_dirname has the form 'yymmdd name'
+# a std_dirname has the form 'yymmdd db_name'
 leading_date_space = re.compile(r'^\d{6,6} ')
 leading_date_underscore = re.compile(r'^\d{6,6}_')
 leading_date = re.compile(r'^\d{6,6}')
@@ -453,13 +453,13 @@ def add_ie_folder_image_inst(ie_folder, file_path, file_name, high_res, mtime):
         ie_folder.msgs.append(IEMsg(IEMsgType.UNEXPECTED_FILE, 'file_path'))
 
 def add_ie_folder_name_word_tags(ie_folder, bases):
-    """ add tags based on th ewords of the folder's name """
+    """ add tags based on th ewords of the folder's db_name """
     for word in ie_folder.db_name.split(' '):
         ie_folder.add_tag(
             IETag(IETagType.WORD, text=word, bases=bases))
 
 def add_ie_folder_name_tag(ie_folder, bases):
-    """ add a tag based on the folder's name """
+    """ add a tag based on the folder's db_name """
     ie_folder.add_tag(IETag(
         IETagType.BASED, text=ie_folder.db_name, bases=bases))
 
@@ -503,7 +503,7 @@ def scan_std_dir_files(ie_folder):
     got_folder_tags = acquire_dir(ie_folder.fs_path, high_res=False)
     if got_folder_tags:
         # the standard case, where there's a text file with band names
-        # and the folder name is the venue
+        # and the folder db_name is the venue
         add_ie_folder_name_tag(ie_folder, 'venue')
     else:
         # who knows?

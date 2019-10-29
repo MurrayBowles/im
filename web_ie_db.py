@@ -37,7 +37,7 @@ people_tag_map = (
     }
 )
 
-# top-level gallery name => header line interpretation
+# top-level gallery db_name => header line interpretation
 gallery_tag_map = {
     'shows':        show_tag_map,
     'old shows':    show_tag_map,
@@ -149,13 +149,13 @@ def scan_pbase_gallery_bytes(
     path, bytes, top_gallery,
     proc_gallery_link, proc_gallery_tag,  proc_image_link
 ):
-    """ scrape date from the gallery page at <path>
+    """ scrape date from the gallery page at <db_name>
         for each item in the gallery description area,
             call proc_gallery_tag(IETag)
         for each image thumbnail,
             call proc_image_link(url, image_name)
         for each gallery thumbnail,
-            call proc_gallery_link(path)
+            call proc_gallery_link(db_name)
     """
 
     tree = html.fromstring(bytes)
@@ -263,7 +263,7 @@ def scan_web_page_children(ie_folder, top_gallery, child_paths):
         on_gallery_link, on_gallery_tag, on_image_link)
     if got_gallery_tags[0]:
         # the standard case: there's a header with band tags,
-        # and the folder name is a venue
+        # and the folder db_name is a venue
         add_ie_folder_name_tag(ie_folder, 'venue')
     else:
         # who knows?
