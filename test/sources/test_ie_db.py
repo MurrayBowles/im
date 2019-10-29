@@ -1,17 +1,12 @@
 """ test ie_db (import/export folders/images to/from the database) """
 
-from collections import deque
-import os
-import pytest
-
-from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 import check_tags
 from db import *
 
-from base_path import base_path
+from base_path import base_ie_source_path, dev_base_ie_source_path
 from ie_db import *
 from test_ie_fs import test_scan_dir_set_expected_list
 from test_ie_fs import test_scan_dir_sel_selected_list
@@ -84,7 +79,7 @@ def test_get_workist_dir_set_my_dirs():
     session = open_mem_db()
     ie_cfg.import_mode = ImportMode.SET
 
-    path = os.path.join(base_path, 'my format')
+    path = os.path.join(base_ie_source_path, 'my format')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
@@ -101,7 +96,7 @@ def test_get_workist_dir_sel_my_dirs():
     session = open_mem_db()
     ie_cfg.import_mode = ImportMode.SEL
 
-    path = os.path.join(base_path, 'my format')
+    path = os.path.join(base_ie_source_path, 'my format')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.DIR, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
@@ -120,7 +115,7 @@ def test_get_worklist_file_set_corbett_psds():
     session = open_mem_db()
     ie_cfg.import_mode = ImportMode.SET
 
-    path = os.path.join(base_path, 'main1415 corbett psds')
+    path = os.path.join(base_ie_source_path, 'main1415 corbett psds')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
@@ -137,7 +132,7 @@ def test_get_worklist_file_sel_corbett_psds():
     session = open_mem_db()
     ie_cfg.import_mode = ImportMode.SEL
 
-    path = os.path.join(base_path, 'main1415 corbett psds')
+    path = os.path.join(base_ie_source_path, 'main1415 corbett psds')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
@@ -156,7 +151,7 @@ def test_get_worklist_file_set_corbett_tiffs():
     session = open_mem_db()
     ie_cfg.import_mode = ImportMode.SET
 
-    path = os.path.join(base_path, 'corbett drive')
+    path = os.path.join(base_ie_source_path, 'corbett drive')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
@@ -173,7 +168,7 @@ def test_get_worklist_file_sel_corbett_tiffs():
     session = open_mem_db()
     ie_cfg.import_mode = ImportMode.SEL
 
-    path = os.path.join(base_path, 'corbett drive')
+    path = os.path.join(base_ie_source_path, 'corbett drive')
     fs_source = FsSource.add(
         session, 'c:', path, FsSourceType.FILE, readonly=True, tag_source=None)
     check_worklist_no_fs_folders(
@@ -188,9 +183,7 @@ def test_get_worklist_file_sel_corbett_tiffs():
     )
     session.commit()
 
-
-def _test_cmd(volume, dir_name, source_type, cfg):
-    session = open_mem_db()
+def do_cmd(volume, dir_name, source_type, cfg, session):
     ctx = check_tags.Ctx(session)
     tag_source = ctx.get_tag_source('l')
 
@@ -201,7 +194,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
         import_mode = ImportMode.SET
         paths = [path.replace('\\', '/')]
     else:
-        path = os.path.join(base_path, dir_name)
+        path = os.path.join(base_ie_source_path, dir_name)
         if 'sel' in cfg:
             # import selected subdirectories in a directory
             import_mode = ImportMode.SEL
@@ -240,7 +233,7 @@ def _test_cmd(volume, dir_name, source_type, cfg):
         ctx.execute(('?fs-folder-tag', cfg['checks']))
         pass
 
-def test_my_cmd():
+def do_my_cmd(session):
     cfg = {
         'tags': [
             ('scythe',  'band|Scythe'),
@@ -262,9 +255,12 @@ def test_my_cmd():
             ])
         ]
     }
-    _test_cmd('c:', 'my format', FsSourceType.DIR, cfg)
+    do_cmd('c:', 'my format', FsSourceType.DIR, cfg, session)
 
-def test_main_cmd():
+def test_my_cmd():
+    do_my_cmd(open_mem_db())
+
+def do_main_cmd(session):
     cfg = {
         'tags': [
             ('bk',      'band|Bikini Kill'),
@@ -307,9 +303,12 @@ def test_main_cmd():
             ])
         ]
     }
-    _test_cmd('main1415', 'main1415 corbett psds', FsSourceType.FILE, cfg)
+    do_cmd('main1415', 'main1415 corbett psds', FsSourceType.FILE, cfg, session)
 
-def test_corbett_cmd():
+def test_main_cmd():
+    do_main_cmd(open_mem_db())
+
+def do_corbett_cmd(session):
     cfg = {
         'tags': [
             ('nuisance', 'band|Nuisance'),
@@ -342,9 +341,12 @@ def test_corbett_cmd():
             ])
         ]
     }
-    _test_cmd('j:', 'corbett drive', FsSourceType.FILE, cfg)
+    do_cmd('j:', 'corbett drive', FsSourceType.FILE, cfg, session)
 
-def test_web_cmd():
+def test_corbett_cmd():
+    do_corbett_cmd(open_mem_db())
+
+def do_web_cmd(session):
     cfg = {
         'tags': [
             ('e7', 'venue|Empire Seven'),
@@ -367,4 +369,15 @@ def test_web_cmd():
             ])
         ]
     }
-    _test_cmd('http:', 'murraybowles', FsSourceType.WEB, cfg)
+    do_cmd('http:', 'murraybowles', FsSourceType.WEB, cfg, session)
+
+def test_web_cmd():
+    do_web_cmd(open_mem_db())
+
+def make_db():
+    session = open_file_db(dev_base_ie_source_path + '\\test.db', 'w')
+    do_my_cmd(session)
+    #do_main_cmd(session)
+    #do_corbett_cmd(session)
+    #do_web_cmd(session)
+    close_db()

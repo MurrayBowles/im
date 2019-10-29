@@ -3,7 +3,7 @@
 from pathlib import Path
 import pytest
 
-from base_path import base_path
+from base_path import base_ie_source_path
 from ie_fs import *
 
 def touch_file(path):
@@ -77,7 +77,7 @@ test_scan_dir_set_expected_list = [
 # my format
 def test_scan_dir_set_my_dirs():
     _test_scan_dir_set(
-        os.path.join(base_path, 'my format'),
+        os.path.join(base_ie_source_path, 'my format'),
         is_std_dirname, proc_std_dirname,
         test_scan_dir_set_expected_list)
 
@@ -88,8 +88,8 @@ def _test_scan_dir_sel(dir_pathname_list, expected_list):
     _check_dir_results(got_list, expected_list)
 
 test_scan_dir_sel_selected_list = [
-    os.path.join(base_path, 'my format', '171007 virginia'),
-    os.path.join(base_path, 'my format', 'ayers')
+    os.path.join(base_ie_source_path, 'my format', '171007 virginia'),
+    os.path.join(base_ie_source_path, 'my format', 'ayers')
 ]
 test_scan_dir_sel_expected_list = [
     ('171007 virginia',[
@@ -139,16 +139,16 @@ test_scan_file_set_corbett_psds_expected_list = [
 
 def test_scan_file_set_corbett_psds():
     _test_scan_file_set(
-        os.path.join(base_path, 'main1415 corbett psds'),
+        os.path.join(base_ie_source_path, 'main1415 corbett psds'),
         lambda x: True, proc_corbett_filename,
         test_scan_file_set_corbett_psds_expected_list)
 
 test_scan_file_sel_corbett_psds_selected_list = [
-    os.path.join(base_path, 'main1415 corbett psds',
+    os.path.join(base_ie_source_path, 'main1415 corbett psds',
         'BIKINI_KILL_GILMAN_10_10_92-9336.psd'),
-    os.path.join(base_path, 'main1415 corbett psds',
+    os.path.join(base_ie_source_path, 'main1415 corbett psds',
         'BLATZ_15_ASBESTOS_11_03_90-2744.psd'),
-    os.path.join(base_path, 'main1415 corbett psds',
+    os.path.join(base_ie_source_path, 'main1415 corbett psds',
         'BLATZ_15_ASBESTOS_11_03_90-2745.psd')
 ]
 test_scan_file_sel_corbett_psds_expected_list = [
@@ -184,18 +184,18 @@ test_scan_file_set_corbett_tiffs_expected_list = [
 
 def test_scan_file_set_corbett_tiffs():
     _test_scan_file_set(
-        os.path.join(base_path, 'corbett drive'),
+        os.path.join(base_ie_source_path, 'corbett drive'),
         lambda x: True, proc_corbett_filename,
         test_scan_file_set_corbett_tiffs_expected_list)
 
 test_scan_file_sel_corbett_tiffs_selected_list = [
-    os.path.join(base_path, 'corbett drive',
+    os.path.join(base_ie_source_path, 'corbett drive',
         '01_11_92_NUISANCE_MTX_PHOENIX-014.tif'),
-    os.path.join(base_path, 'corbett drive',
+    os.path.join(base_ie_source_path, 'corbett drive',
         '01_11_92_NUISANCE_MTX_PHOENIX-015.tif'),
-    os.path.join(base_path, 'corbett drive',
+    os.path.join(base_ie_source_path, 'corbett drive',
         '02_13&16_89_SOUNDGARDEN_MUDHONEY_IBEAM&BSQ-001.tif'),
-    os.path.join(base_path, 'corbett drive',
+    os.path.join(base_ie_source_path, 'corbett drive',
         '02_13&16_89_SOUNDGARDEN_MUDHONEY_IBEAM&BSQ-002.tif')
 ]
 test_scan_file_sel_corbett_tiffs_expected_list = [

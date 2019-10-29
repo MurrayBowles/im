@@ -1080,6 +1080,14 @@ def open_mem_db():
     """ open a memory database """
     return _open_db('sqlite:///:memory:')
 
+def open_file_db(full_path, mode):
+    if mode == 'w':
+        try:
+            os.remove(full_path)
+        except Exception:  # the path may not have existed in the first place
+            pass
+    return _open_db('sqlite:///' + full_path)
+
 def close_db():
     """ close the database """
     pass
