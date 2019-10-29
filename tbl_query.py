@@ -1,35 +1,47 @@
 ''' database queries: Filters, Sorters '''
 
+from typing import List
+
 from tbl_desc import TblDesc
-from col_desc import ColDesc
+from col_desc import ColDesc, DataColDesc
 
 
 class TblQuery(object):
 
-    cols: List[Union[TblDesc, ColDesc]]     # TD [, ref|parent-CD ...], data-CD
+    tbl_desc: TblDesc
+    col_descs: List[ColDesc]
     # filter: Filter
     # sorter: Sorter
 
-    def __init__(self, cols):
-        self.cols = cols
+    def __init__(self, tbl_desc, col_descs):
+        self.tbl_desc = tbl_desc
+        self.cols = col_descs
 
     def __repr__(self):
-        s = 'TblQuery(%r)' % (self.cols)
-        return s
+        return 'TblQuery(%r, %r)' % (self.tbl_desc, self.col_descs)
 
-    def get(self, session, limit=None, skip=0):
-        for col in self.cols:
+    @classmethod
+    def from_names(cls, tbl_db_name, col_db_names):
+        tbl_desc = TblDesc.lookup_tbl_desc(tbl_db_name)
+        col_descs = []
+        for col_db_name in col_db_names:
+            cd = tbl_desc.lookup_col_desc(col_db_name)
+            col_descs.append(cd)
+        return TblQuery(tbl_desc, col_descs)
 
-        base_td = self.cols[0]
-        q = session.Query(base_td.tbl_cls)  # the base table
-        leaf_cd = self.cols[-1]
+    def db_query(self, session, limit=None, skip=0):
+        cols = []
+        for cd in self.col_descs:
+            if isinstance(cd, DataColDesc):
+                cols.append(getattr(self.tbl_desc.db_tbl_cls, cd.db_name))
+            else:
+                raise ValueError('%s has unsupported type' % (cd.db_name))
+        q = session.Query(*cols)
+        pass
 
+from tbl_desc import DbFolder_td, DbImage_td
 
-class ColPath(object):
-    steps: List[Union[TblDesc, ColDesc]]  # TD [, ref|parent-CD ...], data-CD
-
-    def __init__(self, root_td: TblDesc, path_str: str):
-        self.steps = [root_td]
-        cur_td = root_td
-        for step_str in path_str.split('.')[0:-1]:
-            cur_cd = root_td.
+if __name__ == '__main__':
+    q = TblQuery.from_names('DbFolder', ['date', 'name'])
+    dbq = q.db_query(session, limit=10)
+    pass

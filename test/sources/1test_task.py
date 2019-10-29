@@ -1,6 +1,10 @@
 """ Test Slicer and Task implementations """
 
-# FIXME: this fails sometimes when it's the last test -- find out why
+''' FIXME: this fails sometimes when it's the last test
+    GetApp() returns None internally during _run_wx_task_test()
+    not clear why -- it always works when this test runs first,
+    and the other tests don't run wxPython
+'''
 
 import pytest
 import wx

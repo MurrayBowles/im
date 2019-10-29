@@ -10,9 +10,8 @@ Base = declarative_base()
 
 import check_tags
 from db import *
-#session = open_mem_db()
 
-from ie_cfg import IECfg
+from base_path import base_path
 from ie_db import *
 from test_ie_fs import test_scan_dir_set_expected_list
 from test_ie_fs import test_scan_dir_sel_selected_list
@@ -25,8 +24,6 @@ from test_ie_fs import test_scan_file_sel_corbett_tiffs_selected_list
 from test_ie_fs import test_scan_file_sel_corbett_tiffs_expected_list
 from mock_task import MockSlicer
 from task import Task, TaskState
-base_path = '\\users\\murray\\PycharmProjects\\im\\test\\import-export sources'
-# TODO: get PyCharm/pytest to provide this, up to the last directory
 
 ie_cfg = IECfg()
 ie_cfg.import_thumbnails = True

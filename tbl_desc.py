@@ -23,7 +23,7 @@ class TblDesc(object):
     db_tbl_cls: ImTblCls        # the Python database-table class
     disp_names: List[str]       # display names, in decreasing length
     col_descs: List[ColDesc]    # this table's predefined columns
-    def_viewed_cols: Mapping[Type[TblView], ColDesc]
+    def_viewed_cols: Mapping[Type[TblView], List[ColDesc]]
     # TODO: sorter: Sorter
     # TODO tag_field
 
@@ -38,13 +38,13 @@ class TblDesc(object):
         pass
 
     @classmethod
-    def _lookup_tbl_desc(cls, db_name):
+    def lookup_tbl_desc(cls, db_name):
         for td in cls.objs:
             if td.db_tbl_cls.__name__ == db_name:
                 return td
         raise KeyError('%s is not a known TblDesc' %s (db_name))
 
-    def _lookup_col_desc(self, db_name):
+    def lookup_col_desc(self, db_name):
         for cd in self.col_descs:
             if cd.db_name == db_name:
                 cd.db_attr = getattr(self.db_tbl_cls, db_name)
@@ -56,7 +56,7 @@ class TblDesc(object):
         if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
             col_desc.db_attr = getattr(self.db_tbl_cls, col_desc.db_name, None)
             if isinstance(col_desc, LinkColDesc):
-                col_desc.foreign_td = TblDesc._lookup_tbl_desc(col_desc.foreign_tbl_name)
+                col_desc.foreign_td = TblDesc.lookup_tbl_desc(col_desc.foreign_tbl_name)
                 pass
         elif isinstance(col_desc, ShortcutCD):
             tbl_desc = self
@@ -64,7 +64,7 @@ class TblDesc(object):
             for step_name in col_desc.path_str.split('.'):
                 if tbl_desc is None:
                     raise ValueError('no TblDesc to evaluate %s' % (step_name))
-                step_cd = tbl_desc._lookup_col_desc(step_name)
+                step_cd = tbl_desc.lookup_col_desc(step_name)
                 if isinstance(step_cd, ShortcutCD):
                     if step_cd.path_cds is None:
                         tbl_desc._complete_col_desc(step_cd)

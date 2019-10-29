@@ -3,11 +3,8 @@
 from pathlib import Path
 import pytest
 
+from base_path import base_path
 from ie_fs import *
-import re
-
-base_path = '\\users\\murray\\PycharmProjects\\im\\test\\import-export sources'
-# TODO: get PyCharm/pytest to provide this, up to the last directory
 
 def touch_file(path):
     """ update the modification date of the file at <db_name> """

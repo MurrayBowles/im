@@ -1,3 +1,5 @@
+''' Test db.py methods '''
+
 from datetime import date, datetime
 import pytest
 
