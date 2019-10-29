@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, List, Mapping, NewType, Tuple, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc
-from col_desc import DateCD, ParentCD, TextCD
+from col_desc import DateCD, ParentCD, ShortcutCD, TextCD
 from tbl_view import TblView, TblItemView, TblReportView
 from util import find_descendent_class, force_list
 
@@ -47,7 +47,7 @@ class TblDesc(object):
     def _lookup_col_desc(self, db_name):
         for cd in self.col_descs:
             if cd.db_name == db_name:
-                cd.db_attr = self.db_tbl_cls.getattr(db_name, None)
+                cd.db_attr = getattr(self.db_tbl_cls, db_name)
                 return cd
         raise KeyError('%s has no attribute %s' % (
             self.db_tbl_cls.__name__, db_name))
@@ -58,6 +58,30 @@ class TblDesc(object):
             if isinstance(col_desc, LinkColDesc):
                 col_desc.foreign_td = TblDesc._lookup_tbl_desc(col_desc.foreign_tbl_name)
                 pass
+        elif isinstance(col_desc, ShortcutCD):
+            tbl_desc = self
+            col_desc.path_cds = []
+            for step_name in col_desc.path_str.split('.'):
+                if tbl_desc is None:
+                    raise ValueError('no TblDesc to evaluate %s' % (step_name))
+                step_cd = tbl_desc._lookup_col_desc(step_name)
+                if isinstance(step_cd, ShortcutCD):
+                    if step_cd.path_cds is None:
+                        tbl_desc._complete_col_desc(step_cd)
+                    if isinstance(step_cd.path_cds[-1], LinkCD):
+                        tbl_desc = step_cd.path_cds[-1].foreign_td
+                    else:
+                        tbl_desc = None
+                    col_desc.path_cds.extend(step_cd.path_cds)
+                elif isinstance(step_cd, LinkColDesc):
+                    if step_cd.foreign_td is None:
+                        tbl_desc._complete_col_desc(step_cd)
+                    tbl_desc = step_cd.foreign_td
+                    col_desc.path_cds.append(step_cd)
+                elif isinstance(step_cd, DataColDesc):
+                    tbl_desc = None
+                    col_desc.path_cds.append(step_cd)
+
 
     @classmethod
     def complete_tbl_descs(cls):
@@ -95,13 +119,14 @@ Item_td = ItemTblDesc(db.Item, 'Item', [], {
 })
 
 DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
-    DateCD('date', 'Date')
+    DateCD('date', ['Date'])
 ], {
     TblReportView: ['name', 'date']
 })
 
 DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
-    ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder')
+    ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),
+    ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name')
 ], {
     TblReportView: ['name', 'parent_id']
 })

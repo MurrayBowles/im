@@ -86,6 +86,12 @@ class LinkColDesc(ColDesc):
             self.foreign_tbl_name = kwargs['foreign_tbl_name']
         else:
             raise KeyError('foreign_tbl_name not specified')
+        self.foreign_td = None
+
+    def base_repr(self):
+        s = super().base_repr()
+        s += ', foreign_tbl_name=%r' % (self.foreign_tbl_name)
+        return s
 
 
 class RefCD(LinkColDesc):
@@ -97,8 +103,30 @@ class ParentCD(LinkColDesc):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-if __name__ == '__9main__':
+
+class ShortcutCD(ColDesc):
+    path_str: str   # [shortcut-cd-name '.'] ref/parent-cd-name '.'... [data-cd-name]
+
+    # set by TblDesc._complete_col_desc()
+    path_cds = List[ColDesc]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'path_str' in kwargs:
+            self.path_str = kwargs['path_str']
+        else:
+            raise KeyError('path_str not specified')
+        self.path_cds = None
+
+    def base_repr(self):
+        s = super().base_repr()
+        s += ', path_str=%r' % (self.path_str)
+        return s
+
+
+if __name__ == '__main__':
     int_cd = IntCD('size', ['Size', 'Sz'])
     id_cd = IdCD('parent_id', 'Parent ID')
     ref_cd = RefCD('parent_id', 'Folder', foreign_tbl_name='DbFolder')
+    shortcut_cd = ShortcutCD('parent_name', 'Folder Name', path_str='parent_id.name')
     pass
