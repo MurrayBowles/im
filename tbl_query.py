@@ -74,7 +74,7 @@ from tbl_desc import DbFolder_td, DbImage_td
 
 if __name__ == '__main__':
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
-    q = TblQuery.from_names('DbFolder', ['date', 'name'])
+    q = TblQuery.from_names('DbFolder', ['date', 'name', 'id'])
     r_folder = q.get(session, skip=1)
     q = TblQuery.from_names('DbImage', ['name', 'folder_id', 'folder_name'])
     r_image = q.get(session, skip=100, limit=10)

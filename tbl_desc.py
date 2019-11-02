@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, List, Mapping, NewType, Tuple, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc
-from col_desc import DateCD, ParentCD, ShortcutCD, TextCD
+from col_desc import DateCD, IdCD, ParentCD, ShortcutCD, TextCD
 from tbl_view import TblView, TblItemView, TblReportView
 from util import find_descendent_class, force_list
 
@@ -106,6 +106,7 @@ class TblDesc(object):
 class ItemTblDesc(TblDesc):
     def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols):
         extended_col_descs = [
+            IdCD('id', ['ID']),
             TextCD('name', ['Name']),
             TextCD('type', 'Type')  # FIXME: TblTypeColDesc
         ]
