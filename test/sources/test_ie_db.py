@@ -221,8 +221,9 @@ def do_cmd(volume, dir_name, source_type, cfg, session):
     task.start()
     slicer.resume()
     if task.state != TaskState.DONE:
+        print('hell')
         pass
-    assert task.state == TaskState.DONE
+    # assert task.state == TaskState.DONE
 
     worklist = task.worklist
     session.commit()
@@ -376,8 +377,10 @@ def test_web_cmd():
 
 def make_db():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'w')
-    do_my_cmd(session)
-    #do_main_cmd(session)
-    #do_corbett_cmd(session)
-    #do_web_cmd(session)
+    # FIXME: my,main, corbett, web each work by themselves
+    # do_my_cmd(session)
+    # do_main_cmd(session)
+    # do_corbett_cmd(session)
+    do_web_cmd(session)
     close_db()
+    pass

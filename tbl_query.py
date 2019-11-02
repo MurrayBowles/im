@@ -2,11 +2,13 @@
 
 from typing import List
 
+from sqlalchemy.orm import aliased, with_polymorphic
+
 from base_path import dev_base_ie_source_path
 from db import DbFolder
 from db import open_file_db, close_db
 from tbl_desc import TblDesc
-from col_desc import ColDesc, DataColDesc
+from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD
 
 
 class TblQuery(object):
@@ -35,22 +37,46 @@ class TblQuery(object):
     def get(self, session, limit=None, skip=0):
         cols = []
         for cd in self.col_descs:
-            if isinstance(cd, DataColDesc):
-                cols.append(getattr(self.tbl_desc.db_tbl_cls, cd.db_name))
+            if isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
+                cols.append(getattr(self.tbl_desc.db_tbl_cls, cd.db_name).label(cd.db_name))
+            elif isinstance(cd, ShortcutCD):
+                td1 = self
+                x = 0
+                for pcd in cd.path_cds:
+                    if x == len(cd.path_cds) - 1:
+                        try:
+                            t1_name = td1.db_tbl_cls.__name__ + '_' + str(x + 1)
+                            t1_alias = aliased(td1.db_tbl_cls, name=t1_name)
+                            cols.append(getattr(t1_alias, pcd.db_name).label(cd.db_name))
+                        except Exception as ed:
+                            print('hi')
+                    else:
+                        # TODO: explicitly specify joins
+                        pass
+                        td1 = pcd.foreign_td
+                    x += 1
             else:
                 raise ValueError('%s has unsupported type' % (cd.db_name))
         try:
             q = session.query(*cols)
+            # TODO: explicitly suggest joins
         except Exception as ed:
+            print('hey')
             pass
-        return q[skip:] if limit is None else q[skip:skip+limit]
+        try:
+            r = q[skip:] if limit is None else q[skip:skip+limit]
+            return r
+        except Exception as ed:
+            print('hey')
+            pass
 
 from tbl_desc import DbFolder_td, DbImage_td
 
 if __name__ == '__main__':
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
     q = TblQuery.from_names('DbFolder', ['date', 'name'])
-    res = q.get(session, skip=1)
-    q = TblQuery.from_names('DbImage', ['name'])
-    req = q.get(session)
+    r_folder = q.get(session, skip=1)
+    q = TblQuery.from_names('DbImage', ['name', 'folder_id', 'folder_name'])
+    r_image = q.get(session, skip=100, limit=10)
+    # FIXME: results from my, web; no results from main, corbett
     pass

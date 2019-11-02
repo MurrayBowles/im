@@ -47,7 +47,7 @@ class TblDesc(object):
     def lookup_col_desc(self, db_name):
         for cd in self.col_descs:
             if cd.db_name == db_name:
-                cd.db_attr = getattr(self.db_tbl_cls, db_name)
+                cd.db_attr = getattr(self.db_tbl_cls, db_name, None)
                 return cd
         raise KeyError('%s has no attribute %s' % (
             self.db_tbl_cls.__name__, db_name))
@@ -131,10 +131,11 @@ DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
     TblReportView: ['name', 'parent_id']
 })
 
+TblDesc.complete_tbl_descs()
+
 if __name__== '__main__':
     Item_s = repr(Item_td)
-    report_vs = Item_td.viewed_cols(TblReportView)
-    item_vc = Item_td.viewed_cols(TblItemView)
+    report_vcs = Item_td.viewed_cols(TblReportView)
+    item_vcs = Item_td.viewed_cols(TblItemView)
     DbFolder_s = repr(DbFolder_td)
-    TblDesc.complete_tbl_descs()
     pass
