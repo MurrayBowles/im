@@ -1,6 +1,7 @@
 ''' database queries: Filters, Sorters '''
 
-from typing import List
+import copy
+from typing import List, Optional
 
 from sqlalchemy.orm import aliased, with_polymorphic
 
@@ -9,25 +10,52 @@ from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD
 from db import DbFolder, DbImage
 from db import open_file_db, close_db
 from row_buf import RowBuf
-from sorter import Sorter
+from tbl_key import Sorter
 from tbl_desc import TblDesc
 
 
 class TblQuery(object):
 
     tbl_desc: TblDesc
-    col_descs: List[ColDesc]
+    col_descs: List[Optional[ColDesc]]
+        # elements are never deleted, to keep TblColKey/SorterCol.idx stable:
+        # when "deleted", a column is replaced by None
     # filter: Filter
     sorter: Sorter
 
     def __init__(self, tbl_desc, col_descs, sorter=None):
         self.tbl_desc = tbl_desc
-        self.col_descs = col_descs
-        self.sorter = sorter if sorter is not None else tbl_desc.sorter
+        self.col_descs = copy.copy(col_descs)
+        self.sorter = copy.copy(sorter if sorter is not None else tbl_desc.sorter)
         self.db_query = None
 
     def __repr__(self):
-        return 'TblQuery(%r, %r)' % (self.tbl_desc, self.col_descs)
+        return 'TblQuery(%r, %r)' % (self.tbl_desc, self.col_descs, self.sorter)
+
+    def __getstate__(self):
+        col_descs = []
+        for cd in self.col_descs:
+            try:
+                self.tbl_desc.lookup_col_desc(cd.db_name)
+                col_descs.append(cd.db_name)    # the name string for builtin columns
+            except KeyError:
+                col_descs.append(cd)            # the ColDesc for user-defined columns
+        s = {
+            'tbl_cls_name': self.tbl_desc.db_tbl_cls.__name__,
+            'col_descs': col_descs,
+            'sorter': self.sorter.get_state()
+        }
+        return s
+
+    def __setstate__(self, state):
+        self.tbl_desc = TblDesc.lookup_tbl_desc(state.tbl_cls_name)
+        self.col_descs = []
+        for scd in state.col_descs:
+            if type(scd) is str:
+                self.col_descs.append(self.tbl_desc.lookup_col_desc(scd))
+            else:
+                self.col_descs.append(scd)
+        self.sorter = Sorter.from_state(state.sorter, self.col_descs)
 
     @classmethod
     def from_names(cls, tbl_db_name, col_db_names):
@@ -109,4 +137,5 @@ if __name__ == '__main__':
     r_image = q_image.get_rows(session, skip=126, limit=10)
     r_raw_image = session.query(DbImage)[:]
     # FIXME: results from my, web; no results from main, corbett
+    state = q_image.__getstate__()
     pass

@@ -426,8 +426,8 @@ class DbTag(Item):
 
 
 class DbTextType(PyIntEnum):
-    """ the syntax of a DbNote's text """
-    TEXT = 1        # simple text
+    """ the syntax of a DbNote's state """
+    TEXT = 1        # simple state
     URL = 2         # a URL
 
 
@@ -454,7 +454,7 @@ class DbNoteType(Base):
             self.name, DbTextType(self.text_type).name)
 
 class DbNote(Base):
-    """ a text note on a Item
+    """ a state note on a Item
         DbNotes are added/accessed/deleted by calling <Item>.add/get/del_note
     """
     __tablename__ = 'db-note'
@@ -722,7 +722,7 @@ class FsItemTag(Base):
     db_tag_id = Column(Integer,ForeignKey('db-tag.id'))
     db_tag = relationship('DbTag', foreign_keys=[db_tag_id], uselist=False)
 
-    Index('fs-item-tag', 'type', 'text', unique=False)
+    Index('fs-item-tag', 'type', 'state', unique=False)
 
     @classmethod
     def insert(cls, session, item, idx, type, text, bases):
@@ -793,7 +793,7 @@ class FsItemTag(Base):
 
 
     def diff_tup(self):
-        # (w|t, text, bases)
+        # (w|t, state, bases)
         t = 'w' if self.type == FsTagType.WORD else 't'
         return t, self.text, self.bases
 
@@ -809,7 +809,7 @@ class FsItemTag(Base):
 
 
 class FsTagMapping(Base):
-    """ a text -> DbTag map in an FsTagSource """
+    """ a state -> DbTag map in an FsTagSource """
     __tablename__ = 'fs-tag-mapping'
 
     # key
@@ -825,7 +825,7 @@ class FsTagMapping(Base):
     # value
 
     binding = Column(Enum(FsTagBinding))
-    # a text is marked to be ignored by setting binding=BOUND, db_tag=None
+    # a state is marked to be ignored by setting binding=BOUND, db_tag=None
 
     db_tag_id = Column(Integer, ForeignKey('db-tag.id'))
     db_tag = relationship(
@@ -870,7 +870,7 @@ class FsTagMapping(Base):
         if x == -1:
             return self.text
         else:
-            # TODO: strip spaces around '|' when storing .text
+            # TODO: strip spaces around '|' when storing .state
             return self.text[x + 1:].lstrip(' ')
 
     def pname(self):
@@ -902,7 +902,7 @@ class TagChange(Base):
 
     @classmethod
     def add(cls, session, text):
-        """ Add <text> to the global TagChange list """
+        """ Add <state> to the global TagChange list """
         obj = cls(timestamp=datetime.datetime.now(), text=text)
         if obj is not None: session.add(obj)
         return obj

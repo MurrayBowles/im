@@ -91,11 +91,11 @@ class IEMsg(object):
 
 
 class IETagType(IntEnum):
-    AUTO    = 1 # if not found, auto-add <base>|<text>
+    AUTO    = 1 # if not found, auto-add <base>|<state>
                 # flag tag as auto-added
-    BASED   = 2 # if not found, put <base>|<text> in the imported tags
+    BASED   = 2 # if not found, put <base>|<state> in the imported tags
                 # flag item as tag-needs-edit
-    UNBASED = 3 # if not found, put <text> in the imported tags
+    UNBASED = 3 # if not found, put <state> in the imported tags
                 # flag item as tag-needs-edit
     WORD    = 4 # multiple words may need to be concatenated to get a tag
                 # flag item as tags-are-words
@@ -133,7 +133,7 @@ class IETag:
         return s
 
     def diff_tup(self):
-        # (n|w|t, text, bases)
+        # (n|w|t, state, bases)
         if self.type == IETagType.NOTE:
             type = 'n'
             text = self.text
@@ -502,7 +502,7 @@ def scan_std_dir_files(ie_folder):
     assert ie_folder is not None
     got_folder_tags = acquire_dir(ie_folder.fs_path, high_res=False)
     if got_folder_tags:
-        # the standard case, where there's a text file with band names
+        # the standard case, where there's a state file with band names
         # and the folder db_name is the venue
         add_ie_folder_name_tag(ie_folder, 'venue')
     else:

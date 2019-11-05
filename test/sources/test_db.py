@@ -393,7 +393,7 @@ class FsTagMapping_Tester(_Tester):
         self.dep_classes = [FsTagSource_Tester, DbTag_Tester]
 
     def mk_key(self):
-        return (self.dep_objs[0], _mk_name('text'))
+        return (self.dep_objs[0], _mk_name('state'))
 
     def get_key(self, obj):
         return (obj.tag_source, obj.text)
@@ -484,7 +484,7 @@ class FsFolderTag_Tester(_Tester):
         self.dep_classes = [FsFolder_Tester, DbTag_Tester]
 
     def mk_key2(self):
-        return (self.dep_objs[0], FsTagType.TAG, _mk_name('text'))
+        return (self.dep_objs[0], FsTagType.TAG, _mk_name('state'))
 
     def create(self, session, key, key2):
         item_tag = FsItemTag.insert(session,

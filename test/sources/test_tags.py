@@ -45,7 +45,7 @@ tag_source_data = [
     ])
 ]
 # source-data: ( source-description-string, mapping-data-list )
-# mapping-data: ( text, [ db-tag-text ] )
+# mapping-data: ( state, [ db-tag-state ] )
 
 
 def test_tag_mappings():

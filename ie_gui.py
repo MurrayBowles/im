@@ -85,7 +85,7 @@ class ImportExportTab(wx.Panel):
         # progress string
         self.progress = gui_wrap.StaticText(
             self, self.gc_box, '', size=(200, 20))
-        # FIXME: should auto-resize with the text
+        # FIXME: should auto-resize with the state
 
         self.accessible_source_box.Add(self.gc_box)
         
@@ -479,7 +479,7 @@ class FsSourceAEDialog(wx.Dialog):
         self._fix_dialog_buttons()
 
     def on_text_changed(self, text):
-        # this happens on every keystroke, so text can always be an invalid URL
+        # this happens on every keystroke, so state can always be an invalid URL
         if text.find(':') != -1:
             self.volume, self.path = text.split(':', 1)
             self.volume += ':'

@@ -1,6 +1,6 @@
 """ database column descriptor, used by tbl_acc, tbl/row_buf, and tbl_xxx_view """
 
-from typing import Any, List, Mapping, NewType, Tuple, Type
+from typing import Any, List, TypeVar
 
 
 from util import force_list
@@ -41,6 +41,12 @@ class ColDesc(object):
     def __repr__(self):
         return self.__class__.__name__ + '(' + self.base_repr() + ')'
 
+    @classmethod
+    def find(cls, db_name, col_descs: List[Any]):   # FIXME: Any should be ColDesc
+        for col_desc in col_descs:
+            if col_desc.db_name == db_name:
+                return col_desc
+        raise KeyError('db_name %s not in col_descs' % db_name)
 
 class DataColDesc(ColDesc):
     def __init__(self, *args, **kwargs):

@@ -6,30 +6,30 @@ from ie_fs import IETagType
 
 
 def find_text_binding(session, text, fs_tag_source):
-    """ Return [text, FsTagBinding, FsItemTagSource, DbTag id]. """
+    """ Return [state, FsTagBinding, FsItemTagSource, DbTag id]. """
     mapping = db.FsTagMapping.find(session, fs_tag_source, text)
     if mapping is not None:
-        # <text> is mapped in <fs_tag_source>
+        # <state> is mapped in <fs_tag_source>
         return [
             text, mapping.binding, db.FsItemTagSource.FSTS, mapping.db_tag]
     mapping = db.FsTagMapping.find(session, db.global_tag_source, text)
     if mapping is not None:
-        # <text> is mapped in <global_tag_source>
+        # <state> is mapped in <global_tag_source>
         return [
             text, mapping.binding, db.FsItemTagSource.GLOBTS, mapping.db_tag]
     db_tag = db.DbTag.find_expr(session, text)
     if db_tag is not None:
-        # <text> occurs in the DbTag database
+        # <state> occurs in the DbTag database
         return [text, db.FsTagBinding.BOUND, db.FsItemTagSource.DBTAG, db_tag]
     return [text, db.FsTagBinding.UNBOUND, db.FsItemTagSource.NONE, None]
 
 
 def tag_text_binding(session, text, bases, fs_tag_source):
-    """ Return [text, FsTagBinding, FsItemTagSource, DbTag id]. """
+    """ Return [state, FsTagBinding, FsItemTagSource, DbTag id]. """
     results = []
     if text.find('|') == -1:
-        # <text> is a flat tag
-        # try <base>|<text> for each suggested base in ie_tag.bases
+        # <state> is a flat tag
+        # try <base>|<state> for each suggested base in ie_tag.bases
         if bases is not None:
             bases = bases.split(',')
             for base in bases:
@@ -37,7 +37,7 @@ def tag_text_binding(session, text, bases, fs_tag_source):
                 t = base + '|' + text
                 results.append(find_text_binding(session, t, fs_tag_source))
 
-        # try just <text>
+        # try just <state>
         flat_result = find_text_binding(session, text, fs_tag_source)
         if (flat_result[3] is not None and
             flat_result[3].parent is not None and
@@ -48,7 +48,7 @@ def tag_text_binding(session, text, bases, fs_tag_source):
             if flat_result[1] == db.FsTagBinding.BOUND:
                 flat_result[1] = db.FsTagBinding.SUGGESTED
     else:
-        # <text> is a hierarchical tag
+        # <state> is a hierarchical tag
         flat_result = find_text_binding(session, text, fs_tag_source)
     results.append(flat_result)
 
@@ -58,7 +58,7 @@ def tag_text_binding(session, text, bases, fs_tag_source):
 
 
 def word_list_bindings(session, word_list, bases, fs_tag_source):
-    """ Return [(relative idx range, [text, binding, source, db_tag])]. """
+    """ Return [(relative idx range, [state, binding, source, db_tag])]. """
     def partition_words(pfx, word_list, partitions):
         partitions.append(pfx + [word_list])
         if len(word_list) > 1:
@@ -295,10 +295,10 @@ def rebind_fs_item_tags(session, item, fs_tag_source):
 
 
 def _on_tag_change(session, text):
-    """ Schedule a task to recalculate all FsItemTag bindings involving <text>.
+    """ Schedule a task to recalculate all FsItemTag bindings involving <state>.
 
         called when a DbTag or FsTagMapping is changed
-        <text> is a leaf tag string,
+        <state> is a leaf tag string,
             e.g. 'Green Day' if the eDbTag 'band}Green Day' was changed
     """
     db.TagChange.add(session, text)

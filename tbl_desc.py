@@ -5,18 +5,12 @@ from typing import Any, List, Mapping, NewType, Tuple, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc
 from col_desc import DateCD, IdCD, ParentCD, ShortcutCD, TextCD
+from tbl_key import Sorter, SorterCol
 from tbl_view import TblView, TblItemView, TblReportView
 from util import find_descendent_class, force_list
 
 import db
 ImTblCls = Type[db.Base] # a database table class
-
-# TODO: put Sorters in their own file
-SorterElt = Tuple[ColDesc, bool]
-
-
-class Sorter(object):
-    elts: List[SorterElt]
 
 
 class TblDesc(object):
@@ -24,16 +18,18 @@ class TblDesc(object):
     disp_names: List[str]       # display names, in decreasing length
     col_descs: List[ColDesc]    # this table's predefined columns
     def_viewed_cols: Mapping[Type[TblView], List[ColDesc]]
-    # TODO: sorter: Sorter
+    sorter: Sorter
     # TODO tag_field
 
     objs = []  # List[TblDesc]
 
-    def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols):
+    def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols, sorter_str):
         self.db_tbl_cls = db_tbl_cls
         self.disp_names = force_list(disp_names)
         self.col_descs = col_descs
         self.def_viewed_cols = def_viewed_cols
+        self.sorter_str = sorter_str
+        self.sorter = None
         TblDesc.objs.append(self)
         pass
 
@@ -47,10 +43,36 @@ class TblDesc(object):
     def lookup_col_desc(self, db_name):
         for cd in self.col_descs:
             if cd.db_name == db_name:
-                cd.db_attr = getattr(self.db_tbl_cls, db_name, None)
+                if not hasattr(cd, 'db_attr'):
+                    cd.db_attr = getattr(self.db_tbl_cls, db_name, None)
                 return cd
         raise KeyError('%s has no attribute %s' % (
             self.db_tbl_cls.__name__, db_name))
+
+    def col_desc_idx(self, col_desc):
+        x = 0
+        for cd in self.col_descs:
+            if cd == col_desc:
+                return x
+            x += 1
+        raise KeyError('column %s not in table %s' % (cd.db_name, self.db_tbl_cls.__name__))
+
+    def set_sorter(self, sorter: Sorter):
+        self.sorter = sorter
+
+    def set_sorter_by_col_name(self, key_str):
+        ''' Set the Sorter for this table.
+            key_str is {{+-}col_name,...  (with no spaces)
+        '''
+        sorter_cols = []
+        col_names = key_str.split(',')
+        x = 0
+        for col_name in col_names:
+            cd = self.lookup_col_desc(col_name[1:])
+            sorter_cols.append(SorterCol(cd, col_name[0] == '-', idx=x))
+            x += 1
+        sorter = Sorter(sorter_cols)
+        self.set_sorter(sorter)
 
     def _complete_col_desc(self, col_desc: ColDesc):
         if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
@@ -82,12 +104,15 @@ class TblDesc(object):
                     tbl_desc = None
                     col_desc.path_cds.append(step_cd)
 
+    def _complete(self):
+        for col_desc in self.col_descs:
+            self._complete_col_desc(col_desc)
+        self.set_sorter_by_col_name(self.sorter_str)
 
     @classmethod
     def complete_tbl_descs(cls):
         for tbl_desc in cls.objs:
-            for col_desc in tbl_desc.col_descs:
-                tbl_desc._complete_col_desc(col_desc)
+            tbl_desc._complete()
 
     def viewed_cols(self, view_cls):
         # TODO: per-table[-per-user] cfg bindings
@@ -104,33 +129,34 @@ class TblDesc(object):
 
 
 class ItemTblDesc(TblDesc):
-    def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols):
+    def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols, sorter_str):
         extended_col_descs = [
             IdCD('id', ['ID']),
             TextCD('name', ['Name']),
             TextCD('type', 'Type')  # FIXME: TblTypeColDesc
         ]
         extended_col_descs.extend(col_descs)
-        super().__init__(db_tbl_cls, disp_names, extended_col_descs, def_viewed_cols)
+        super().__init__(db_tbl_cls, disp_names, extended_col_descs, def_viewed_cols, sorter_str)
     pass
 
 
 Item_td = ItemTblDesc(db.Item, 'Item', [], {
     TblReportView: ['name', 'type']
-})
+}, '+id')
 
 DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
     DateCD('date', ['Date'])
 ], {
     TblReportView: ['name', 'date']
-})
+}, '-date,+name')
 
 DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
     ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),
+    ShortcutCD('folder_date', 'Folder Date', path_str='folder_id.date'),
     ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name')
 ], {
     TblReportView: ['name', 'parent_id']
-})
+}, '-folder_date,+folder_name,+name')
 
 TblDesc.complete_tbl_descs()
 
@@ -139,4 +165,5 @@ if __name__== '__main__':
     report_vcs = Item_td.viewed_cols(TblReportView)
     item_vcs = Item_td.viewed_cols(TblItemView)
     DbFolder_s = repr(DbFolder_td)
+    TblDesc.complete_tbl_descs()
     pass

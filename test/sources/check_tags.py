@@ -26,14 +26,14 @@ op:
     '[' op,... ']'
     
 tag-spec:
-    ('tag-label', 'tag-text')
+    ('tag-label', 'tag-state')
         e.g. ('cop', 'band|Christ On Parade')
-    'tag-text'
-        tag-label == tag-text
+    'tag-state'
+        tag-label == tag-state
     '[' tag-spec,... ']'
     
 mapping-spec:
-    ('mapping-flags', 'tag-text', 'tag-label' | None)
+    ('mapping-flags', 'tag-state', 'tag-label' | None)
     '[' mapping-spec,... ']'
 mapping-flags: {b|s}{g|l}
     b: BOUND, s: SUGGESTED
@@ -82,7 +82,7 @@ ie-folder-spec:
 ie-image-spec:
     ( 'ie-image-db_name', '[' ie-item-tag-spec,... ']' )
 ie-item-tag-spec:
-    ( '{a|b|u|w|n}', 'tag-text' )    
+    ( '{a|b|u|w|n}', 'tag-state' )    
     a: AUTO, b: BASED, u: UNBASED, w: WORD, n: NOTE
  
 fs-folder-tag-pattern:
@@ -92,7 +92,7 @@ fs-image-tag-pattern:
     ( 'fs-image-db_name', '[' fs-item-tag-pattern,... ']' )
 fs-item-tag-pattern:
     ( 'w<fs-item-tag-flags>', word-list, 'tag-label' )
-    ( 't<fs-item-tag-flags>', 'tag-text', 'tag-label' ) 
+    ( 't<fs-item-tag-flags>', 'tag-state', 'tag-label' ) 
 fs-item-tag-flags: {b                   |s|u}{n|t|g|l|d}
     b: BOUND, s: SUGGESTED, u: UNBOUND
     n: NONE, t: TAG, g: GLOBAL, l: LOCAL, d: DIRECT
@@ -102,7 +102,7 @@ class Ctx:
     def __init__(self, session):
         self.session = session
         self.tags = {}                  # tag-label => DbTag
-        self.mappings = {}              # ('g|l', 'tag-text') => FsTagMapping
+        self.mappings = {}              # ('g|l', 'tag-state') => FsTagMapping
         self.fs_source = None           # FsSource, set by '!source'
         self.local_tag_source = None    # FsTagSource
         self.date = date.today()        # used for DbFolder.date
