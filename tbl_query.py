@@ -48,14 +48,16 @@ class TblQuery(object):
         return s
 
     def __setstate__(self, state):
-        self.tbl_desc = TblDesc.lookup_tbl_desc(state.tbl_cls_name)
+        self.tbl_desc = TblDesc.lookup_tbl_desc(state['tbl_cls_name'])
         self.col_descs = []
-        for scd in state.col_descs:
+        for scd in state['col_descs']:
             if type(scd) is str:
                 self.col_descs.append(self.tbl_desc.lookup_col_desc(scd))
             else:
                 self.col_descs.append(scd)
-        self.sorter = Sorter.from_state(state.sorter, self.col_descs)
+        self.sorter = Sorter.from_state(
+            state['sorter'], self.col_descs + self.tbl_desc.col_descs)
+        pass
 
     @classmethod
     def from_names(cls, tbl_db_name, col_db_names):
@@ -127,6 +129,7 @@ class TblQuery(object):
             pass
 
 from tbl_desc import DbFolder_td, DbImage_td
+import jsonpickle
 
 if __name__ == '__main__':
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
@@ -137,5 +140,9 @@ if __name__ == '__main__':
     r_image = q_image.get_rows(session, skip=126, limit=10)
     r_raw_image = session.query(DbImage)[:]
     # FIXME: results from my, web; no results from main, corbett
-    state = q_image.__getstate__()
+    json = jsonpickle.encode(q_image)
+    try:
+        q_image2 = jsonpickle.decode(json)
+    except Exception as ed:
+        print('hi')
     pass

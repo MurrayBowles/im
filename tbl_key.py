@@ -21,7 +21,7 @@ class TblKey(object):
 class SorterCol(object):
     col_desc: ColDesc
     descending: bool
-    idx: Optional[int]  # the index of col_desc in its query.col_descs
+    idx: Optional[int] = None  # the index of col_desc in its query.col_descs
 
     def get_state(self):
         return '%s%s' % ('-' if self.descending else '+', self.col_desc.db_name)

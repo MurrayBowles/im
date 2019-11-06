@@ -3,21 +3,25 @@
 from dataclasses import dataclass
 from typing import Int, List, Tuple
 
-from col_desc import ColDesc
 from row_buf import RowBuf
+from tbl_key import TblKey
 from tbl_query import TblQuery
 
 
 @dataclass
 class BlkBuf(object):
-    first: Any              # key of first element
-    last: Any               # key of last element
+    first: TblKey           # key of first element
+    last: TblKey            # key of last element
     rows: List[RowBuf]
 
     @classmethod
-    def from_row_buf_list(cls, row_buf_list: List[RowBuf]):
+    def from_row_buf_list(cls, row_buf_list: List[RowBuf], tbl_query: TblQuery):
         if len(row_buf_list) == 0:
             return BlkBuf(first=None, last=None, rows=[])
+        else:
+            rows = []
+            first =
+            for rb in row_buf_list:
 
 
 
