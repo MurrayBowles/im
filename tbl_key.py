@@ -7,17 +7,6 @@ from col_desc import ColDesc
 
 
 @dataclass
-class TblColKey(object):
-    col_desc: ColDesc
-    idx: Optional[int]  # the index of col_desc in its tbl_buf.query.col_descs
-
-
-@dataclass
-class TblKey(object):
-    col_keys: List[TblColKey]
-
-
-@dataclass
 class SorterCol(object):
     col_desc: ColDesc
     descending: bool

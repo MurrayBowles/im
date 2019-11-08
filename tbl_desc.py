@@ -5,6 +5,7 @@ from typing import Any, List, Mapping, NewType, Tuple, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc
 from col_desc import DateCD, IdCD, ParentCD, ShortcutCD, TextCD
+from row_desc import RowDesc
 from tbl_key import Sorter, SorterCol
 from tbl_view import TblView, TblItemView, TblReportView
 from util import find_descendent_class, force_list
@@ -16,18 +17,18 @@ ImTblCls = Type[db.Base] # a database table class
 class TblDesc(object):
     db_tbl_cls: ImTblCls        # the Python database-table class
     disp_names: List[str]       # display names, in decreasing length
-    col_descs: List[ColDesc]    # this table's predefined columns
-    def_viewed_cols: Mapping[Type[TblView], List[ColDesc]]
+    row_desc: RowDesc           # this table's predefined columns
+    def_viewed_row: Mapping[Type[TblView], RowDesc]
     sorter: Sorter
     # TODO tag_field
 
     objs = []  # List[TblDesc]
 
-    def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols, sorter_str):
+    def __init__(self, db_tbl_cls, disp_names, col_desc_list, def_viewed_cols, sorter_str):
         self.db_tbl_cls = db_tbl_cls
         self.disp_names = force_list(disp_names)
-        self.col_descs = col_descs
-        self.def_viewed_cols = def_viewed_cols
+        self.row_desc = RowDesc(col_desc_list)
+        self.def_viewed_row = def_viewed_cols
         self.sorter_str = sorter_str
         self.sorter = None
         TblDesc.objs.append(self)
@@ -41,7 +42,7 @@ class TblDesc(object):
         raise KeyError('%s is not a known TblDesc' %s (db_name))
 
     def lookup_col_desc(self, db_name):
-        for cd in self.col_descs:
+        for cd in self.row_desc.col_descs:
             if cd.db_name == db_name:
                 if not hasattr(cd, 'db_attr'):
                     cd.db_attr = getattr(self.db_tbl_cls, db_name, None)
@@ -49,27 +50,22 @@ class TblDesc(object):
         raise KeyError('%s has no attribute %s' % (
             self.db_tbl_cls.__name__, db_name))
 
-    def col_desc_idx(self, col_desc):
-        x = 0
-        for cd in self.col_descs:
-            if cd == col_desc:
-                return x
-            x += 1
-        raise KeyError('column %s not in table %s' % (cd.db_name, self.db_tbl_cls.__name__))
+    def col_idx(self, col_desc):
+        return self.row_desc.col_descs.index(cd)
 
     def set_sorter(self, sorter: Sorter):
         self.sorter = sorter
 
     def set_sorter_by_col_name(self, key_str):
         ''' Set the Sorter for this table.
-            key_str is {{+-}col_name,...  (with no spaces)
+            key_str is {{+-}col_spec,...  (with no spaces)
         '''
+        col_specs = key_str.split(',')
         sorter_cols = []
-        col_names = key_str.split(',')
         x = 0
-        for col_name in col_names:
-            cd = self.lookup_col_desc(col_name[1:])
-            sorter_cols.append(SorterCol(cd, col_name[0] == '-', idx=x))
+        for col_spec in col_specs:
+            cd = self.lookup_col_desc(col_spec[1:])
+            sorter_cols.append(SorterCol(cd, col_spec[0] == '-', idx=x))
             x += 1
         sorter = Sorter(sorter_cols)
         self.set_sorter(sorter)
@@ -105,7 +101,7 @@ class TblDesc(object):
                     col_desc.path_cds.append(step_cd)
 
     def _complete(self):
-        for col_desc in self.col_descs:
+        for col_desc in self.row_desc.col_descs:
             self._complete_col_desc(col_desc)
         self.set_sorter_by_col_name(self.sorter_str)
 
@@ -116,16 +112,17 @@ class TblDesc(object):
 
     def viewed_cols(self, view_cls):
         # TODO: per-table[-per-user] cfg bindings
-        if view_cls not in self.def_viewed_cols:
-            return self.def_viewed_cols[TblReportView]
+        if view_cls not in self.def_viewed_row:
+            return self.def_viewed_row[TblReportView]
         else:
-            return self.def_viewed_cols[view_cls]
+            return self.def_viewed_row[view_cls]
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r)' % (
             self.__class__.__name__,
             self.db_tbl_cls.__name__, self.disp_names,
-            self.col_descs, self.def_viewed_cols)
+            self.row_desc,
+            self.def_viewed_row)
 
 
 class ItemTblDesc(TblDesc):
