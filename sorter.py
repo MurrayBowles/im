@@ -1,10 +1,10 @@
-''' key and sort specifications '''
+''' sort specifications '''
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from col_desc import ColDesc
-
+from row_desc import RowDesc
 
 @dataclass
 class SorterCol(object):
@@ -23,6 +23,11 @@ class SorterCol(object):
 @dataclass
 class Sorter(object):
     cols: List[SorterCol]
+    row_desc: RowDesc
+
+    def __init__(self, cols: List[Any]):
+        self.cols = cols
+        self.row_desc = RowDesc([sc.col_desc for sc in self.cols])
 
     def get_state(self):
         return [ s.get_state() for s in self.cols ]
@@ -30,4 +35,3 @@ class Sorter(object):
     @classmethod
     def from_state(cls, state, col_descs: List[ColDesc]):
         return Sorter([SorterCol.from_state(col_state, col_descs) for col_state in state])
-

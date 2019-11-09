@@ -6,7 +6,7 @@ from typing import Any, List, Mapping, NewType, Tuple, Type
 from col_desc import ColDesc, DataColDesc, LinkColDesc
 from col_desc import DateCD, IdCD, ParentCD, ShortcutCD, TextCD
 from row_desc import RowDesc
-from tbl_key import Sorter, SorterCol
+from sorter import Sorter, SorterCol
 from tbl_view import TblView, TblItemView, TblReportView
 from util import find_descendent_class, force_list
 

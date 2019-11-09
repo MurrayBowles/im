@@ -9,7 +9,7 @@ from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD
 from db import DbFolder, DbImage
 from row_buf import RowBuf
 from row_desc import RowDesc
-from tbl_key import Sorter
+from sorter import Sorter
 from tbl_desc import TblDesc
 
 
@@ -21,9 +21,9 @@ class TblQuery(object):
     sorter: Sorter
         # the Sorter's ColDescs must be either from tbl_desc.col_descs or self.col_descs
 
-    def __init__(self, tbl_desc, row_desc, sorter=None):
+    def __init__(self, tbl_desc: TblDesc, row_desc:RowDesc, sorter:Sorter=None):
         self.tbl_desc = tbl_desc
-        self.row_desc = RowDesc(row_desc)
+        self.row_desc = row_desc
         self.set_sorter(sorter)
         self.db_query = None
 
@@ -74,7 +74,7 @@ class TblQuery(object):
         for col_db_name in col_db_names:
             cd = tbl_desc.lookup_col_desc(col_db_name)
             col_descs.append(cd)
-        return TblQuery(tbl_desc, col_descs)
+        return TblQuery(tbl_desc, RowDesc(col_descs))
 
     def add_col(self, col_desc: ColDesc, idx: int = -1):
         pass
@@ -84,6 +84,16 @@ class TblQuery(object):
 
     def move_col(self, fro: int, to: int):
         pass
+
+    def missing_key_col_descs(self):
+        ''' Return a list of any key fields not in the query's RowDesc '''
+        missing_key_col_descs = []
+        for key_col_desc in self.sorter.row_desc.col_descs:
+            try:
+                self.row_desc.col_descs.index(key_col_desc)
+            except ValueError:  # WTF: not KeyError!
+                missing_key_col_descs.append(key_col_desc)
+        return missing_key_col_descs
 
     def set_sorter(self, sorter: Sorter = None):
         self.db_query = None  # invalidate the compiled database query
@@ -95,24 +105,33 @@ class TblQuery(object):
     def get_db_query(self, session):
         if self.db_query is None:
             cols = []
+            self.debug = []
             join_set = set()    # Set of Tuples
             for cd in self.row_desc.col_descs:
                 try:
                     if isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
+                        self.debug.append(
+                            ('plain-getattr', self.tbl_desc.db_tbl_cls.__name__, cd.db_name)
+                        )
                         cols.append(getattr(self.tbl_desc.db_tbl_cls, cd.db_name).label(cd.db_name))
                     elif isinstance(cd, ShortcutCD):
                         join_list = []  # List of (child TD, parent/ref CD db_name, parent/ref TD)
-                        td1 = self
+                        td1 = self.tbl_desc
                         x = 0
                         for pcd in cd.path_cds:
                             if x == len(cd.path_cds) - 1:
                                 t1_name = td1.db_tbl_cls.__name__ + '_' + str(x + 1)
                                 t1_alias = aliased(td1.db_tbl_cls, name=t1_name)
+                                self.debug.append(
+                                    ('alias-getattr', td1.db_tbl_cls.__name__, t1_name, cd.db_name)
+                                )
                                 cols.append(getattr(t1_alias, pcd.db_name).label(cd.db_name))
                             else:
                                 td2 = pcd.foreign_td
+                                self.debug.append(
+                                    ('join', td1.db_tbl_cls.__name__, pcd.db_name, td2.db_tbl_cls.__name__)
+                                )
                                 join_list.append((td1, pcd.db_name, td2))
-                                # TODO: explicitly specify joins
                                 pass
                                 td1 = td2
                             x += 1
@@ -124,11 +143,16 @@ class TblQuery(object):
             try:
                 q = session.query(*cols)
                 # TODO: explicitly suggest joins
+                for join in join_set:
+                    join_chain = []
+                    for join_step in join:
+                        join_chain.append(join_step[2].db_tbl_cls)
+                    pass  # q = q.join(*join_chain)
                 for sc in self.sorter.cols:
+                    order_attr = getattr(self.tbl_desc.db_tbl_cls, sc.col_desc.db_name)
                     if sc.descending:
-                        q = q.order_by(getattr(self.tbl_desc.db_tbl_cls, sc.col_desc.db_name).desc())
-                    else:
-                        q = q.order_by(getattr(self.tbl_desc.db_tbl_cls, sc.col_desc.db_name))
+                        order_attr = order_attr.desc()
+                    q = q.order_by(order_attr)
                     pass
             except Exception as ed:
                 print('hey')
