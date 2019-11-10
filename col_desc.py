@@ -110,6 +110,11 @@ class ParentCD(LinkColDesc):
         super().__init__(*args, **kwargs)
 
 
+class SuperCD(LinkColDesc):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 class ShortcutCD(ColDesc):
     path_str: str   # [shortcut-cd-name '.'] ref/parent-cd-name '.'... [data-cd-name]
 

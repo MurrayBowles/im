@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, List, Mapping, NewType, Tuple, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc
-from col_desc import DateCD, IdCD, ParentCD, ShortcutCD, TextCD
+from col_desc import DateCD, IdCD, ParentCD, ShortcutCD, SuperCD, TextCD
 from row_desc import RowDesc
 from sorter import Sorter, SorterCol
 from tbl_view import TblView, TblItemView, TblReportView
@@ -39,7 +39,7 @@ class TblDesc(object):
         for td in cls.objs:
             if td.db_tbl_cls.__name__ == db_name:
                 return td
-        raise KeyError('%s is not a known TblDesc' %s (db_name))
+        raise KeyError('%s is not a known TblDesc' % db_name)
 
     def lookup_col_desc(self, db_name):
         for cd in self.row_desc.col_descs:
@@ -84,18 +84,24 @@ class TblDesc(object):
                     raise ValueError('no TblDesc to evaluate %s' % (step_name))
                 step_cd = tbl_desc.lookup_col_desc(step_name)
                 if isinstance(step_cd, ShortcutCD):
-                    if step_cd.path_cds is None:
-                        tbl_desc._complete_col_desc(step_cd)
-                    if isinstance(step_cd.path_cds[-1], LinkCD):
-                        tbl_desc = step_cd.path_cds[-1].foreign_td
-                    else:
-                        tbl_desc = None
-                    col_desc.path_cds.extend(step_cd.path_cds)
+                    try:
+                        if step_cd.path_cds is None:
+                            tbl_desc._complete_col_desc(step_cd)
+                        if isinstance(step_cd.path_cds[-1], LinkColDesc):
+                            tbl_desc = step_cd.path_cds[-1].foreign_td
+                        else:
+                            tbl_desc = None
+                        col_desc.path_cds.extend(step_cd.path_cds)
+                    except Exception as ed:
+                        print('hey')
                 elif isinstance(step_cd, LinkColDesc):
-                    if step_cd.foreign_td is None:
-                        tbl_desc._complete_col_desc(step_cd)
-                    tbl_desc = step_cd.foreign_td
-                    col_desc.path_cds.append(step_cd)
+                    try:
+                        if step_cd.foreign_td is None:
+                            tbl_desc._complete_col_desc(step_cd)
+                        tbl_desc = step_cd.foreign_td
+                        col_desc.path_cds.append(step_cd)
+                    except Exception as ed:
+                        print('hey')
                 elif isinstance(step_cd, DataColDesc):
                     tbl_desc = None
                     col_desc.path_cds.append(step_cd)
@@ -125,21 +131,26 @@ class TblDesc(object):
             self.def_viewed_row)
 
 
+Item_td = TblDesc(db.Item, 'Item', [
+    IdCD('id', ['ID']),
+    TextCD('name', 'Name'),
+    TextCD('type', 'Type')  # FIXME: enumeration
+], {
+    TblReportView: ['name', 'type']
+}, '+id')
+
+
 class ItemTblDesc(TblDesc):
     def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols, sorter_str):
         extended_col_descs = [
-            IdCD('id', ['ID']),
-            TextCD('name', ['Name']),
-            TextCD('type', 'Type')  # FIXME: TblTypeColDesc
+            SuperCD('id', 'Item ID', foreign_tbl_name='Item'),
+            ShortcutCD('name', ['Name'], path_str='id.name'),
+            ShortcutCD('type', 'Type', path_str='id.type')
         ]
         extended_col_descs.extend(col_descs)
         super().__init__(db_tbl_cls, disp_names, extended_col_descs, def_viewed_cols, sorter_str)
     pass
 
-
-Item_td = ItemTblDesc(db.Item, 'Item', [], {
-    TblReportView: ['name', 'type']
-}, '+id')
 
 DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
     DateCD('date', ['Date'])

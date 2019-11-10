@@ -25,7 +25,9 @@ class TblQuery(object):
         self.tbl_desc = tbl_desc
         self.row_desc = row_desc
         self.set_sorter(sorter)
+        self.sql_query = None
         self.db_query = None
+
 
     def __repr__(self):
         return 'TblQuery(%r, %r, %r)' % (self.tbl_desc, self.row_desc, self.sorter)
@@ -96,11 +98,85 @@ class TblQuery(object):
         return missing_key_col_descs
 
     def set_sorter(self, sorter: Sorter = None):
+        self.sql_query = None
         self.db_query = None  # invalidate the compiled database query
         self.sorter = copy.copy(sorter if sorter is not None else self.tbl_desc.sorter)
 
     def set_filter(self, filter):
+        self.sql_query = None
         self.db_query = None  # invalidate the compiled database query
+
+    def get_sql_query(self):
+        if self.sql_query is not None:
+            return self.sql_query
+        self.debug = []
+        cols = []
+        join_chains = {}   # map: join_chain_tup => join_chain_idx
+        num_join_chains = 0
+        for cd in self.row_desc.col_descs:
+            if isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
+                self.debug.append(
+                    ('plain-getattr', self.tbl_desc.db_tbl_cls.__tablename__, cd.db_name)
+                )
+                cols.append('%s.%s AS %s' % (
+                    self.tbl_desc.db_tbl_cls.__tablename__, cd.db_name, cd.db_name))
+            elif isinstance(cd, ShortcutCD):
+                join_chain_list = []  # List of (child TD, parent/ref CD db_name, parent/ref TD)
+                td1 = self.tbl_desc
+                x = 0
+                for pcd in cd.path_cds:
+                    if x == len(cd.path_cds) - 1:
+                        join_chain_tup = tuple(join_chain_list)
+                        if join_chain_tup in join_chains:
+                            join_chain_idx = join_chains[join_chain_tup]
+                        else:
+                            join_chain_idx = num_join_chains
+                            join_chains[join_chain_tup] = join_chain_idx
+                            num_join_chains += 1
+                        t1_name = td1.db_tbl_cls.__tablename__ + '_' + str(join_chain_idx)
+                        self.debug.append(
+                            ('alias-getattr', td1.db_tbl_cls.__tablename__, t1_name, cd.db_name)
+                        )
+                        cols.append('%s.%s AS %s' % (t1_name, pcd.db_name, cd.db_name))
+                    else:
+                        td2 = pcd.foreign_td
+                        self.debug.append(
+                            ('join',
+                             td1.db_tbl_cls.__tablename__,
+                             pcd.db_name,
+                             td2.db_tbl_cls.__tablename__)
+                        )
+                        join_chain_list.append((td1, pcd.db_name, td2))
+                        td1 = td2
+                    x += 1
+            else:
+                raise ValueError('%s has unsupported type' % (cd.db_name))
+        self.sql_query = 'SELECT ' + ', '.join(cols)
+        self.sql_query += ' FROM ' + self.tbl_desc.db_tbl_cls.__tablename__
+        join_strs = []
+        for join_chain_tup, join_chain_idx in join_chains.items():
+            end_name = join_chain_tup[-1][2].db_tbl_cls.__tablename__
+            join_str = '%s %s ON ' % (end_name, end_name + '_' + str(join_chain_idx))
+            join_step_strs = []
+            for join_chain_step in join_chain_tup:
+                join_step_strs.append('%s.%s == %s.id' % (
+                    join_chain_step[0].db_tbl_cls.__tablename__,
+                    join_chain_step[1],
+                    join_chain_step[2].db_tbl_cls.__tablename__
+                ))
+            join_str += ' AND '.join(join_step_strs)
+            join_strs.append(join_str)
+        for join_str in join_strs:
+            self.sql_query += ' JOIN %s' % join_str
+        if len(self.sorter.cols) != 0:
+            sort_strs = []
+            for sc in self.sorter.cols:
+                sort_str = sc.col_desc.db_name
+                if sc.descending:
+                    sort_str += ' DESC'
+                sort_strs.append(sort_str)
+            self.sql_query += ' ORDER BY ' + ', '.join(sort_strs)
+        print('hi')
 
     def get_db_query(self, session):
         if self.db_query is None:
@@ -185,9 +261,11 @@ if __name__ == '__main__':
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
     TblDesc.complete_tbl_descs()
     q_folder = TblQuery.from_names('DbFolder', ['date', 'name', 'id'])
+    sql_folder = q_folder.get_sql_query()
     r = repr(q_folder)
     r_folder = q_folder.get_rows(session, skip=1)
     q_image = TblQuery.from_names('DbImage', ['name', 'folder_id', 'folder_name'])
+    sql_image = q_image.get_sql_query()
     r_image = q_image.get_rows(session, skip=126, limit=10)
     r_raw_image = session.query(DbImage)[:]
     # FIXME: results from my, web; no results from main, corbett
