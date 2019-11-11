@@ -942,8 +942,8 @@ class FsFolder(FsItem):
     db_name = Column(String)
 
     # last-import timestamps
-    last_scan = Column('last-scan', DateTime)
-    last_import_tags = Column('last-import-tags', DateTime)
+    last_scan = Column('last_scan', DateTime)
+    last_import_tags = Column('last_import_tags', DateTime)
 
     # FsFolder <<-> FsSource
     source_id = Column(Integer, ForeignKey('fs-source.id'))

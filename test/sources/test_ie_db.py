@@ -377,7 +377,7 @@ def test_web_cmd():
 
 def make_db():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'w')
-    # FIXME: my,main, corbett, web each work by themselves
+    # FIXME: my, main, corbett, web each work by themselves
     # do_my_cmd(session)
     # do_main_cmd(session)
     # do_corbett_cmd(session)
