@@ -11,6 +11,7 @@ from row_buf import RowBuf
 from row_desc import RowDesc
 from sorter import Sorter
 from tbl_desc import TblDesc
+import tbl_descs
 
 
 class TblQuery(object):
@@ -236,7 +237,6 @@ class TblQuery(object):
             pass
 
 from db import open_file_db
-from tbl_desc import DbFolder_td, DbImage_td
 import jsonpickle
 from base_path import dev_base_ie_source_path
 

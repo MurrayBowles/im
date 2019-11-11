@@ -1,14 +1,14 @@
-""" database table descriptor, used by tbl_acc, tbl/row_buf, and tbl_xxx_view """
+""" database Table Descriptor classes """
 
 import re
-from typing import Any, List, Mapping, NewType, Tuple, Type
+from typing import List, Mapping, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc
-from col_desc import DateCD, IdCD, ParentCD, ShortcutCD, SuperCD, TextCD
+from col_desc import ShortcutCD, SuperCD
 from row_desc import RowDesc
 from sorter import Sorter, SorterCol
-from tbl_view import TblView, TblItemView, TblReportView
-from util import find_descendent_class, force_list
+from tbl_view import TblView, TblReportView
+from util import force_list
 
 import db
 ImTblCls = Type[db.Base] # a database table class
@@ -142,15 +142,6 @@ class TblDesc(object):
             self.def_viewed_row)
 
 
-Item_td = TblDesc(db.Item, 'Item', [
-    IdCD('id', ['ID']),
-    TextCD('name', 'Name'),
-    TextCD('type', 'Type')  # FIXME: enumeration
-], {
-    TblReportView: ['name', 'type']
-}, '+id')
-
-
 class ItemTblDesc(TblDesc):
     def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols, sorter_str):
         extended_col_descs = [
@@ -162,27 +153,3 @@ class ItemTblDesc(TblDesc):
         super().__init__(db_tbl_cls, disp_names, extended_col_descs, def_viewed_cols, sorter_str)
     pass
 
-
-DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
-    DateCD('date', ['Date'])
-], {
-    TblReportView: ['name', 'date']
-}, '-date,+name')
-
-DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
-    ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),
-    ShortcutCD('folder_date', 'Folder Date', path_str='folder_id.date'),
-    ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name')
-], {
-    TblReportView: ['name', 'parent_id']
-}, '-folder_date,+folder_name,+name')
-
-TblDesc.complete_tbl_descs()
-
-if __name__== '__main__':
-    Item_s = repr(Item_td)
-    report_vcs = Item_td.viewed_cols(TblReportView)
-    item_vcs = Item_td.viewed_cols(TblItemView)
-    DbFolder_s = repr(DbFolder_td)
-    TblDesc.complete_tbl_descs()
-    pass
