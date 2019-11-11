@@ -1,6 +1,6 @@
 """ database table descriptor, used by tbl_acc, tbl/row_buf, and tbl_xxx_view """
 
-from dataclasses import dataclass
+import re
 from typing import Any, List, Mapping, NewType, Tuple, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc
@@ -57,8 +57,10 @@ class TblDesc(object):
         n = self.db_tbl_cls.__tablename__
         if suffix is not None:
             n += '_' + suffix
-        return '"' + n + '"'
-        # FIXME - get rid of hyphenated SQL table names
+        sql_bad = r'\W'  # not very precise...
+        if re.compile(sql_bad).search(n):
+            n = '"' + n + '"'
+        return n
 
     def set_sorter(self, sorter: Sorter):
         self.sorter = sorter

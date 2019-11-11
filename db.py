@@ -50,10 +50,10 @@ class TagFlags(PyIntEnum):
 class ItemTag(Base):
     """ Item <<->> DbTag association table """
 
-    __tablename__ = 'item-tags'
+    __tablename__ = 'item_tags'
 
     id = Column(Integer, primary_key=True)
-    tag_id = Column(Integer, ForeignKey('db-tag.id'))
+    tag_id = Column(Integer, ForeignKey('db_tag.id'))
     item_id = Column(Integer, ForeignKey('item.id'))
     flags = Column(Enum(TagFlags))
 
@@ -67,8 +67,8 @@ class ItemTag(Base):
 
 # DbImage <<->> DbCollection
 image_collections = Table('image-collections', Base.metadata,
-    Column('image_id', Integer, ForeignKey('db-image.id')),
-    Column('collection_id', Integer, ForeignKey('db-collection.id'))
+    Column('image_id', Integer, ForeignKey('db_image.id')),
+    Column('collection_id', Integer, ForeignKey('db_collection.id'))
 )
 
 
@@ -151,7 +151,7 @@ class Item(Base):
 
 class DbFolder(Item):
     """ represents a single photo-shooting session """
-    __tablename__ = 'db-folder'
+    __tablename__ = 'db_folder'
 
     # isa Item
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
@@ -169,7 +169,7 @@ class DbFolder(Item):
         back_populates='db_folder')
 
     # DbFolder -> thumbnail DbImage
-    thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
+    thumbnail_id = Column(Integer, ForeignKey('db_image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
     Index('db-folder-index', 'date', 'db_name', unique=True)
@@ -202,7 +202,7 @@ class DbFolder(Item):
 
 class DbCollection(Item):
     """ a collection of images from multiple folders """
-    __tablename__ = 'db-collection'
+    __tablename__ = 'db_collection'
 
     # isa Item
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
@@ -213,7 +213,7 @@ class DbCollection(Item):
         'DbImage', secondary=image_collections, back_populates='collections')
 
     # DbCollection -> thumbnail DbImage
-    thumbnail_id = Column(Integer, ForeignKey('db-image.id'))
+    thumbnail_id = Column(Integer, ForeignKey('db_image.id'))
     thumbnail = relationship(
         "DbImage", foreign_keys='[DbCollection.thumbnail_id]')
 
@@ -235,7 +235,7 @@ class DbCollection(Item):
 
 class DbImage(Item):
     """ a single image (usually with multiple files: NEF/TIFF/PSD/JPEG) """
-    __tablename__ = 'db-image'
+    __tablename__ = 'db_image'
 
     # isa Item (db_name is <seq>[<suffix>], as with FsImage and IEImage)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
@@ -245,7 +245,7 @@ class DbImage(Item):
     thumbnail_timestamp = Column(DateTime)
 
     # DbImage <<-> DbFolder
-    folder_id = Column(Integer, ForeignKey('db-folder.id'))
+    folder_id = Column(Integer, ForeignKey('db_folder.id'))
     folder = relationship(
         'DbFolder', foreign_keys=[folder_id], back_populates='images')
 
@@ -300,14 +300,14 @@ class DbTagType(PyIntEnum):
 
 class DbTag(Item):
     """ a hierarchical tag on a Item """
-    __tablename__ = 'db-tag'
+    __tablename__ = 'db_tag'
 
     # isa Item
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'DbTag'}
 
     # DbTag tree
-    parent_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
+    parent_id = Column(Integer, ForeignKey('db_tag.id'), nullable=True)
     parent = relationship('DbTag', remote_side=[id], foreign_keys=[parent_id])
     children = relationship(
         'DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent')
@@ -318,7 +318,7 @@ class DbTag(Item):
 
     # DbTag -> replacement or identity DbTag
     tag_type = Column(Integer)  # DbTagType
-    base_tag_id = Column(Integer, ForeignKey('db-tag.id'), nullable=True)
+    base_tag_id = Column(Integer, ForeignKey('db_tag.id'), nullable=True)
     base_tag = relationship(
         'DbTag', remote_side=[id], foreign_keys=[base_tag_id])
 
@@ -433,7 +433,7 @@ class DbTextType(PyIntEnum):
 
 class DbNoteType(Base):
     """ the type of a DbNote (e.g. db_name, location, PBase page,...) """
-    __tablename__ = 'db-note-type'
+    __tablename__ = 'db_note_type'
     id = Column(Integer, primary_key=True)
 
     name = Column(String(30))
@@ -457,14 +457,14 @@ class DbNote(Base):
     """ a state note on a Item
         DbNotes are added/accessed/deleted by calling <Item>.add/get/del_note
     """
-    __tablename__ = 'db-note'
+    __tablename__ = 'db_note'
     id = Column(Integer, primary_key=True)
 
     idx = Column(Integer) # index in .item.notes
     text = Column(String(100))
 
     # DbNote -> DbNoteType
-    type_id = Column(Integer, ForeignKey('db-note-type.id'))
+    type_id = Column(Integer, ForeignKey('db_note_type.id'))
     type = relationship("DbNoteType", backref=backref("db-note", uselist=False))
     #type = relationship('DbNoteType', foreign_keys='[DbNote.tyoe_id]')
 
@@ -483,7 +483,7 @@ class DbNote(Base):
 
 class FsTagSource(Base):
     """ who tagged these FsFolders/Images """
-    __tablename__ = 'fs-tag-source'
+    __tablename__ = 'fs_tag_source'
 
     id = Column(Integer, primary_key=True)
     description = Column(String(100))
@@ -528,7 +528,7 @@ class FsSourceType(PyIntEnum):
 
 class FsSource(Item):
     """ external source from which a set of FsFolders/Images was imported """
-    __tablename__ = 'fs-source'
+    __tablename__ = 'fs_source'
 
     # isa Item (.db_name is the user-assigned db_name, or None)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
@@ -545,7 +545,7 @@ class FsSource(Item):
     readonly = Column(Boolean)
 
     # FsSource -> FsTagSourceId
-    tag_source_id = Column(Integer, ForeignKey('fs-tag-source.id'))
+    tag_source_id = Column(Integer, ForeignKey('fs_tag_source.id'))
     tag_source = relationship(
         'FsTagSource', backref=backref('fs-tag-source', uselist=False))
 
@@ -635,7 +635,7 @@ class FsSource(Item):
 
 class FsItem(Item):
     """ FsFolder | FsImage """
-    __tablename__ = 'fs-item'
+    __tablename__ = 'fs_item'
 
     # isa Item
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
@@ -686,12 +686,12 @@ class FsItemTagSource(PyIntEnum):
 
 class FsItemTag(Base):
     """ an external tag (or a possible word of a tag) for an FsItem """
-    __tablename__ = 'fs-item-tag'
+    __tablename__ = 'fs_item_tag'
 
     # primary key
     id = Column(Integer, primary_key=True)
 
-    item_id = Column(Integer, ForeignKey('fs-item.id'))
+    item_id = Column(Integer, ForeignKey('fs_item.id'))
     item = relationship(
         'FsItem', foreign_keys=[item_id], back_populates='item_tags')
 
@@ -719,7 +719,7 @@ class FsItemTag(Base):
     binding = Column(Enum(FsTagBinding))
 
     # if .binding.has_db_tag()
-    db_tag_id = Column(Integer,ForeignKey('db-tag.id'))
+    db_tag_id = Column(Integer,ForeignKey('db_tag.id'))
     db_tag = relationship('DbTag', foreign_keys=[db_tag_id], uselist=False)
 
     Index('fs-item-tag', 'type', 'state', unique=False)
@@ -810,12 +810,12 @@ class FsItemTag(Base):
 
 class FsTagMapping(Base):
     """ a state -> DbTag map in an FsTagSource """
-    __tablename__ = 'fs-tag-mapping'
+    __tablename__ = 'fs_tag_mapping'
 
     # key
 
     tag_source_id = Column(
-        Integer, ForeignKey('fs-tag-source.id'), primary_key=True)
+        Integer, ForeignKey('fs_tag_source.id'), primary_key=True)
     tag_source = relationship(
         'FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
 
@@ -827,7 +827,7 @@ class FsTagMapping(Base):
     binding = Column(Enum(FsTagBinding))
     # a state is marked to be ignored by setting binding=BOUND, db_tag=None
 
-    db_tag_id = Column(Integer, ForeignKey('db-tag.id'))
+    db_tag_id = Column(Integer, ForeignKey('db_tag.id'))
     db_tag = relationship(
         'DbTag', backref=backref('fs-tag-mapping', uselist=False))
 
@@ -887,7 +887,7 @@ class TagChange(Base):
     """ a timestamp-sorted list of new DbTags and FsTagMappings
         which have not yet been applied to FsFolders and FsImages
     """
-    __tablename__ = 'tag-change'
+    __tablename__ = 'tag_change'
 
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime)
@@ -929,10 +929,10 @@ class FsFolder(FsItem):
         if source.type is dir_set, a filesystem directory
         if source.type is file_set, a group of files with a common db_name prefix
     """
-    __tablename__ = 'fs-folder'
+    __tablename__ = 'fs_folder'
 
     # isa FsItem (.db_name is relative db_name from FsSource.db_name to IEFolder.fs_path)
-    id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
+    id = Column(Integer, ForeignKey('fs_item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
 
     # DbFolder date and db_name suggested by import/export code (e.g scan_dir_set)
@@ -946,12 +946,12 @@ class FsFolder(FsItem):
     last_import_tags = Column('last_import_tags', DateTime)
 
     # FsFolder <<-> FsSource
-    source_id = Column(Integer, ForeignKey('fs-source.id'))
+    source_id = Column(Integer, ForeignKey('fs_source.id'))
     source = relationship(
         'FsSource', foreign_keys=[source_id], back_populates='folders')
 
     # FsFolder <<-> DbFolder
-    db_folder_id = Column(Integer, ForeignKey('db-folder.id'))
+    db_folder_id = Column(Integer, ForeignKey('db_folder.id'))
     db_folder = relationship(
         'DbFolder', foreign_keys=[db_folder_id], back_populates='fs_folders')
 
@@ -1004,19 +1004,19 @@ class FsImage(FsItem):
         and one FsImage would be created,
         with .image_types indicating which were found
     """
-    __tablename__ = 'fs-image'
+    __tablename__ = 'fs_image'
 
     # isa Item (db_name is <seq>[<suffix>], as with DbImage and FsImage)
-    id = Column(Integer, ForeignKey('fs-item.id'), primary_key=True)
+    id = Column(Integer, ForeignKey('fs_item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsImage'}
 
     # FsImage <<-> FsFolder
-    folder_id = Column(Integer, ForeignKey('fs-folder.id'), primary_key=True)
+    folder_id = Column(Integer, ForeignKey('fs_folder.id'), primary_key=True)
     folder = relationship(
         'FsFolder', foreign_keys=[folder_id], back_populates='images')
 
     # FsImage <<-> DbImage
-    db_image_id = Column(Integer, ForeignKey('db-image.id'))
+    db_image_id = Column(Integer, ForeignKey('db_image.id'))
     db_image = relationship(
         'DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
 
