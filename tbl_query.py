@@ -213,24 +213,20 @@ class TblQuery(object):
             self.sql_query += ' ORDER BY ' + ', '.join(sort_strs)
         return self.sql_query
 
-    def get_rows(self, session, limit=None, skip=0):
+    def get_rows(self, session, limit=None, skip=0) -> List[RowBuf]:
         if self.sql_query is None:
             self.get_sql_query()
         try:
-            row_bufs: RowBuf = []
+            row_bufs = []
             q = self.sql_query
             if limit is not None:
                 q += ' LIMIT %u' % limit
             if skip != 0:
                 if limit is None:
-                    q += ' LIMIT -1'  # brain-dead SQLite
+                    q += ' LIMIT -1'  # SQLite won't do OFFSET without LIMIT
                 q += ' OFFSET %u' % skip
             db_rows = session.execute(q)
-            for dbr in db_rows:
-                cols = []
-                for dbc in dbr:
-                    cols.append(dbc)  # TODO: non-identity cases?
-                row_bufs.append(RowBuf(cols))
+            row_bufs = [RowBuf([dbc for dbc in dbr]) for dbr in db_rows]
             return row_bufs
         except Exception as ed:
             print('hey')

@@ -1,7 +1,6 @@
-""" database column descriptor, used by tbl_acc, tbl/row_buf, and tbl_xxx_view """
+""" database Column Descriptors """
 
 from typing import Any, List, TypeVar
-
 
 from util import force_list
 

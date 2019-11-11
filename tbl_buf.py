@@ -1,7 +1,7 @@
 ''' table, block, and row buffers '''
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from col_desc import ColDesc
 from row_buf import RowBuf
@@ -12,8 +12,8 @@ from tbl_query import TblQuery
 
 @dataclass
 class BlkBuf(object):
-    data_row_desc: RowDesc
-    key_row_desc: RowDesc
+    data_row_desc: RowDesc  # type of data rows
+    key_row_desc: RowDesc   # type of first/last_key
     first_key: RowBuf       # key of first row
     last_key: RowBuf        # key of last row
     row_bufs: List[RowBuf]  # never empty
@@ -36,12 +36,16 @@ class BlkBuf(object):
 
 
 class TblBuf(object):
-    cli_query: TblQuery     # the query specified by the client
-    buf_query: TblQuery     # the query used by TblBuf (may have added key columns)
-    blk_bufs: List[BlkBuf]  # sorted by .first_key
+    cli_query: TblQuery                 # the query specified by the client
+    buf_query: TblQuery                 # the query used by TblBuf (may have added key columns)
+    blk_bufs: List[BlkBuf]              # sorted by .first_key
+    cur_rows: Optional[List[RowBuf]]    # the result of the last get_rows()
+        # cur_rows is None before the first sucessful get_rows()
+        # a prefix and suffix (or all) of cur_rows' elements may be None
 
     def __init__(self, cli_query: TblQuery):
         self.set_query(cli_query)
+        self.cur_rows = None
 
     def _set_tbl_query(self):
         added_key_col_descs = self.cli_query.missing_key_col_descs()
@@ -84,11 +88,11 @@ class TblBuf(object):
             row_bufs = self.tbl_query.get_rows(session, limit=limit, skip=skip)
             bb = BlkBuf.from_row_buf_list(row_bufs, self.tbl_query)
             self.blk_bufs = [bb]
-            r = [
+            self.cur_rows = [
                 rb.extract(bb.data_row_desc, self.cli_query.row_desc)
                 for rb in bb.row_bufs
             ]
-            return r
+            return self.cur_rows
         except Exception as ed:
             print('hey')
             pass
