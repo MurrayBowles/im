@@ -172,7 +172,7 @@ class DbFolder(Item):
     thumbnail_id = Column(Integer, ForeignKey('db_image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
-    Index('db-folder-index', 'date', 'db_name', unique=True)
+    Index('db_folder_index', 'date', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, date, name):
@@ -217,7 +217,7 @@ class DbCollection(Item):
     thumbnail = relationship(
         "DbImage", foreign_keys='[DbCollection.thumbnail_id]')
 
-    Index('db-collection-index', 'db_name', unique=True)
+    Index('db_collection_index', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, name):
@@ -258,8 +258,8 @@ class DbImage(Item):
         'FsImage', foreign_keys='[FsImage.db_image_id]',
         back_populates='db_image')
 
-    Index('db-folder-image-index', 'folder_id', 'db_name', unique=True)
-    Index('db-date-image-index', 'folder.date', 'db_name')
+    Index('db_folder_image_index', 'folder_id', 'db_name', unique=True)
+    Index('db_date_image_index', 'folder.date', 'db_name')
 
     @classmethod
     def add(cls, session, folder, name):
@@ -323,7 +323,7 @@ class DbTag(Item):
         'DbTag', remote_side=[id], foreign_keys=[base_tag_id])
 
     lower_name = Column(String) # TODO: this extra column shouldn't be necessary
-    Index('db-tag', lower_name, 'parent')
+    Index('db_tag', lower_name, 'parent')
 
     def base(self):
         return {
@@ -722,7 +722,7 @@ class FsItemTag(Base):
     db_tag_id = Column(Integer,ForeignKey('db_tag.id'))
     db_tag = relationship('DbTag', foreign_keys=[db_tag_id], uselist=False)
 
-    Index('fs-item-tag', 'type', 'state', unique=False)
+    Index('fs_item_tag', 'type', 'state', unique=False)
 
     @classmethod
     def insert(cls, session, item, idx, type, text, bases):
@@ -893,7 +893,7 @@ class TagChange(Base):
     timestamp = Column(DateTime)
     text = Column(String)
 
-    Index('tag-change-index', 'timestamp', unique=False)
+    Index('tag_change_index', 'timestamp', unique=False)
 
     @classmethod
     def clear(cls, session):
@@ -959,7 +959,7 @@ class FsFolder(FsItem):
     images = relationship(
         'FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
 
-    Index('fs-folder-index', 'source', 'db_name', unique=True)
+    Index('fs_folder_index', 'source', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, source, name,
