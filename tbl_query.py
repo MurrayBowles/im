@@ -87,14 +87,19 @@ class TblQuery(object):
     def move_col(self, fro: int, to: int):
         pass
 
+    def has_col_desc(self, col_desc):
+        # Python is so compact and clutter-free!
+        try:
+            self.row_desc.col_descs.index(col_desc)
+            return True
+        except ValueError:  # WTF: not KeyError!
+            return False
+
     def missing_key_col_descs(self):
         ''' Return a list of any key fields not in the query's RowDesc '''
         missing_key_col_descs = []
         for key_col_desc in self.sorter.row_desc.col_descs:
-            try:
-                self.row_desc.col_descs.index(key_col_desc)
-            except ValueError:  # WTF: not KeyError!
-                missing_key_col_descs.append(key_col_desc)
+            missing_key_col_descs.append(key_col_desc)
         return missing_key_col_descs
 
     def set_sorter(self, sorter: Sorter = None):
@@ -106,142 +111,120 @@ class TblQuery(object):
         self.sql_query = None
         self.db_query = None  # invalidate the compiled database query
 
+    @staticmethod
+    def _register_join_chain(join_chains, join_chain):
+        ''' Return idx, l: a join_chains index, the length of the match.
+        cases:
+            1. join_chain exactly matches (a prefix of a) a list in join_chains, l == len(join_chain)
+            2. a list in join_chains matches a prefix of join_chain, l == the length of the prefix
+            3. no match: idx is the index of a new empty list added to join_chains, l == 0
+        '''
+        arg_len = len(join_chain)
+        jcx = 0
+        for jc in join_chains:
+            check_len = len(jc)
+            min_len = min(arg_len, check_len)
+            try:
+                for x in range(0, min_len):
+                    if(jc[x] is not join_chain[x]):
+                        raise ValueError
+            except ValueError:
+                jcx += 1
+                continue
+            if check_len >= arg_len:
+                # case 1: join_chain matches join_chains[jcx]
+                return jcx, arg_len
+            else:
+                # case 2: join_chain extends join_chains[jcx]
+                join_chains[jcx].extend(join_chain[min_len:])
+            return jcx, check_len
+        # case 3: join_chain matches nothing in join_chains
+        join_chains.append(join_chain)
+        return jcx, 0
+
+    def _add_chain_joins(self, joins, join_chains, join_chain):
+        ''' Add joins for join_chain to joins[], and return the target-table SQL name '''
+        jcx, num_match = TblQuery._register_join_chain(join_chains, join_chain)
+        jcx_str = str(jcx)
+        if num_match == 0:
+            td1 = self.tbl_desc
+            td1_name = td1.sql_name()
+        else:
+            td1 = join_chain[num_match - 1].foreign_td
+            td1_name = td1.sql_name(jcx_str)
+        for x in range(num_match, len(join_chain)):
+            pcd = join_chain[x]
+            td2 = pcd.foreign_td
+            join_str = 'JOIN %s AS %s ON %s.%s == %s.id' % (
+                td2.sql_name(),
+                td2.sql_name(jcx_str),
+                td1_name,
+                pcd.db_name,
+                td2.sql_name(jcx_str)
+            )
+            joins.append(join_str)
+            td1 = td2
+            td1_name = td1.sql_name(jcx_str)
+        return td1_name
+
     def get_sql_query(self):
         if self.sql_query is not None:
             return self.sql_query
         self.debug = []
         cols = []
-        join_chains = {}   # map: join_chain_tup => join_chain_idx
-        num_join_chains = 0
+        joins = []
+        join_chains = []
         for cd in self.row_desc.col_descs:
             if isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
                 self.debug.append(
-                    ('plain-getattr', self.tbl_desc.db_tbl_cls.__tablename__, cd.db_name)
+                    ('plain-getattr', self.tbl_desc.sql_name(), cd.db_name)
                 )
                 cols.append('%s.%s AS %s' % (
-                    self.tbl_desc.db_tbl_cls.__tablename__, cd.db_name, cd.db_name))
+                    self.tbl_desc.sql_name(), cd.db_name, cd.db_name))
             elif isinstance(cd, ShortcutCD):
-                join_chain_list = []  # List of (child TD, parent/ref CD db_name, parent/ref TD)
-                td1 = self.tbl_desc
-                x = 0
-                for pcd in cd.path_cds:
-                    if x == len(cd.path_cds) - 1:
-                        join_chain_tup = tuple(join_chain_list)
-                        if join_chain_tup in join_chains:
-                            join_chain_idx = join_chains[join_chain_tup]
-                        else:
-                            join_chain_idx = num_join_chains
-                            join_chains[join_chain_tup] = join_chain_idx
-                            num_join_chains += 1
-                        t1_name = td1.db_tbl_cls.__tablename__ + '_' + str(join_chain_idx)
-                        self.debug.append(
-                            ('alias-getattr', td1.db_tbl_cls.__tablename__, t1_name, cd.db_name)
-                        )
-                        cols.append('%s.%s AS %s' % (t1_name, pcd.db_name, cd.db_name))
-                    else:
-                        td2 = pcd.foreign_td
-                        self.debug.append(
-                            ('join',
-                             td1.db_tbl_cls.__tablename__,
-                             pcd.db_name,
-                             td2.db_tbl_cls.__tablename__)
-                        )
-                        join_chain_list.append((td1, pcd.db_name, td2))
-                        td1 = td2
-                    x += 1
+                target_sql_name = self._add_chain_joins(
+                    joins, join_chains, cd.path_cds[0:-1])
+                cols.append('%s.%s AS %s' % (
+                    target_sql_name, cd.path_cds[-1].db_name, cd.db_name))
             else:
                 raise ValueError('%s has unsupported type' % (cd.db_name))
         self.sql_query = 'SELECT ' + ', '.join(cols)
-        self.sql_query += ' FROM ' + self.tbl_desc.db_tbl_cls.__tablename__
-        join_strs = []
-        for join_chain_tup, join_chain_idx in join_chains.items():
-            end_name = join_chain_tup[-1][2].db_tbl_cls.__tablename__
-            join_str = '%s %s ON ' % (end_name, end_name + '_' + str(join_chain_idx))
-            join_step_strs = []
-            for join_chain_step in join_chain_tup:
-                join_step_strs.append('%s.%s == %s.id' % (
-                    join_chain_step[0].db_tbl_cls.__tablename__,
-                    join_chain_step[1],
-                    join_chain_step[2].db_tbl_cls.__tablename__
-                ))
-            join_str += ' AND '.join(join_step_strs)
-            join_strs.append(join_str)
-        for join_str in join_strs:
-            self.sql_query += ' JOIN %s' % join_str
+        self.sql_query += ' FROM ' + self.tbl_desc.sql_name()
+        for join in joins:
+            self.sql_query += ' ' + join
         if len(self.sorter.cols) != 0:
             sort_strs = []
             for sc in self.sorter.cols:
-                sort_str = sc.col_desc.db_name
+                cd = sc.col_desc
+                if self.has_col_desc(cd):
+                    sort_str = cd.db_name
+                elif isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
+                    sort_str = '%s.%s' % (self.tbl_desc.sql_name(), cd.db_name)
+                elif isinstance(cd, ShortcutCD):
+                    target_sql_name = self._add_chain_joins(
+                        joins, join_chains, cd.path_cds[0:-1])
+                    sort_str = '%s.%s' % (target_sql_name, cd.path_cds[-1].db_name)
+                else:
+                    raise ValueError('%s has unsupported type' % (cd.db_name))
                 if sc.descending:
                     sort_str += ' DESC'
                 sort_strs.append(sort_str)
             self.sql_query += ' ORDER BY ' + ', '.join(sort_strs)
-        print('hi')
-
-    def get_db_query(self, session):
-        if self.db_query is None:
-            cols = []
-            self.debug = []
-            join_set = set()    # Set of Tuples
-            for cd in self.row_desc.col_descs:
-                try:
-                    if isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
-                        self.debug.append(
-                            ('plain-getattr', self.tbl_desc.db_tbl_cls.__name__, cd.db_name)
-                        )
-                        cols.append(getattr(self.tbl_desc.db_tbl_cls, cd.db_name).label(cd.db_name))
-                    elif isinstance(cd, ShortcutCD):
-                        join_list = []  # List of (child TD, parent/ref CD db_name, parent/ref TD)
-                        td1 = self.tbl_desc
-                        x = 0
-                        for pcd in cd.path_cds:
-                            if x == len(cd.path_cds) - 1:
-                                t1_name = td1.db_tbl_cls.__name__ + '_' + str(x + 1)
-                                t1_alias = aliased(td1.db_tbl_cls, name=t1_name)
-                                self.debug.append(
-                                    ('alias-getattr', td1.db_tbl_cls.__name__, t1_name, cd.db_name)
-                                )
-                                cols.append(getattr(t1_alias, pcd.db_name).label(cd.db_name))
-                            else:
-                                td2 = pcd.foreign_td
-                                self.debug.append(
-                                    ('join', td1.db_tbl_cls.__name__, pcd.db_name, td2.db_tbl_cls.__name__)
-                                )
-                                join_list.append((td1, pcd.db_name, td2))
-                                pass
-                                td1 = td2
-                            x += 1
-                        join_set.add(tuple(join_list))
-                    else:
-                        raise ValueError('%s has unsupported type' % (cd.db_name))
-                except Exception as ed:
-                    print('hi')
-            try:
-                q = session.query(*cols)
-                # TODO: explicitly suggest joins
-                for join in join_set:
-                    join_chain = []
-                    for join_step in join:
-                        join_chain.append(join_step[2].db_tbl_cls)
-                    pass  # q = q.join(*join_chain)
-                for sc in self.sorter.cols:
-                    order_attr = getattr(self.tbl_desc.db_tbl_cls, sc.col_desc.db_name)
-                    if sc.descending:
-                        order_attr = order_attr.desc()
-                    q = q.order_by(order_attr)
-                    pass
-            except Exception as ed:
-                print('hey')
-                pass
-            self.db_query = q
-        return self.db_query
+        return self.sql_query
 
     def get_rows(self, session, limit=None, skip=0):
-        if self.db_query is None:
-            self.get_db_query(session)
+        if self.sql_query is None:
+            self.get_sql_query()
         try:
             row_bufs: RowBuf = []
-            db_rows = self.db_query[skip:] if limit is None else self.db_query[skip:skip+limit]
+            q = self.sql_query
+            if limit is not None:
+                q += ' LIMIT %u' % limit
+            if skip != 0:
+                if limit is None:
+                    q += ' LIMIT -1'  # brain-dead SQLite
+                q += ' OFFSET %u' % skip
+            db_rows = session.execute(q)
             for dbr in db_rows:
                 cols = []
                 for dbc in dbr:

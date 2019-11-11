@@ -53,6 +53,13 @@ class TblDesc(object):
     def col_idx(self, col_desc):
         return self.row_desc.col_descs.index(cd)
 
+    def sql_name(self, suffix=None):
+        n = self.db_tbl_cls.__tablename__
+        if suffix is not None:
+            n += '_' + suffix
+        return '"' + n + '"'
+        # FIXME - get rid of hyphenated SQL table names
+
     def set_sorter(self, sorter: Sorter):
         self.sorter = sorter
 
@@ -71,6 +78,7 @@ class TblDesc(object):
         self.set_sorter(sorter)
 
     def _complete_col_desc(self, col_desc: ColDesc):
+        ''' Complete a ColDesc's definition. '''
         if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
             col_desc.db_attr = getattr(self.db_tbl_cls, col_desc.db_name, None)
             if isinstance(col_desc, LinkColDesc):
@@ -84,6 +92,7 @@ class TblDesc(object):
                     raise ValueError('no TblDesc to evaluate %s' % (step_name))
                 step_cd = tbl_desc.lookup_col_desc(step_name)
                 if isinstance(step_cd, ShortcutCD):
+                    # flatten any embedded ShortcutCDs
                     try:
                         if step_cd.path_cds is None:
                             tbl_desc._complete_col_desc(step_cd)

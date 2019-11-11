@@ -79,15 +79,19 @@ class TblBuf(object):
         self.tbl_query.set_filter(filter)
         self.blk_bufs = []  # invalidate the buffers
 
-    def get_rows(self, session, limit=None, skip=0):
-        row_bufs = self.tbl_query.get_rows(session, limit, skip)
-        bb = BlkBuf.from_row_buf_list(row_bufs, self.tbl_query)
-        self.blk_bufs = [bb]
-        r = [
-            rb.extract(bb.data_row_desc, self.cli_query.row_desc)
-            for rb in bb.row_bufs
-        ]
-        return bb.rows
+    def get_rows(self, session, limit=None, skip=0) -> List[RowBuf]:
+        try:
+            row_bufs = self.tbl_query.get_rows(session, limit=limit, skip=skip)
+            bb = BlkBuf.from_row_buf_list(row_bufs, self.tbl_query)
+            self.blk_bufs = [bb]
+            r = [
+                rb.extract(bb.data_row_desc, self.cli_query.row_desc)
+                for rb in bb.row_bufs
+            ]
+            return r
+        except Exception as ed:
+            print('hey')
+            pass
 
 from base_path import dev_base_ie_source_path
 from db import open_file_db
@@ -96,5 +100,5 @@ if __name__ == '__main__':
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
     q_image = TblQuery.from_names('DbImage', ['name', 'folder_id', 'folder_name'])
     tb = TblBuf(q_image)
-    row_bufs = tb.get_rows(session, 10)
+    row_bufs = tb.get_rows(session, 10, skip=2)
     pass

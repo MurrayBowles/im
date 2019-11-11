@@ -116,10 +116,10 @@ class SuperCD(LinkColDesc):
 
 
 class ShortcutCD(ColDesc):
-    path_str: str   # [shortcut-cd-name '.'] ref/parent-cd-name '.'... [data-cd-name]
+    path_str: str   # [ link-shortcut-cd-name | link-cd-name '.'... ] [cd-name]
 
-    # set by TblDesc._complete_col_desc()
-    path_cds = List[ColDesc]
+    # set by TblDesc._complete_col_desc(), which flattens embedded ShortcutCDs
+    path_cds = List[ColDesc]    # [ link-CD ... ] [ CD ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
