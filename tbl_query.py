@@ -168,6 +168,30 @@ class TblQuery(object):
             td1_name = td1.sql_name(jcx_str)
         return td1_name
 
+    def _finish_sql_query(self, sql_query, joins, join_chains, sorter=None):
+        sort_strs = []
+        if sorter is not None:
+            for sc in self.sorter.cols:
+                cd = sc.col_desc
+                if self.has_col_desc(cd):
+                    sort_str = cd.db_name
+                elif isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
+                    sort_str = '%s.%s' % (self.tbl_desc.sql_name(), cd.db_name)
+                elif isinstance(cd, ShortcutCD):
+                    target_sql_name = self._add_chain_joins(
+                        joins, join_chains, cd.path_cds[0:-1])
+                    sort_str = '%s.%s' % (target_sql_name, cd.path_cds[-1].db_name)
+                else:
+                    raise ValueError('%s has unsupported type' % (cd.db_name))
+                if sc.descending:
+                    sort_str += ' DESC'
+                sort_strs.append(sort_str)
+        for join in joins:
+            sql_query += ' ' + join
+        if len(sort_strs) != 0:
+            sql_query += ' ORDER BY ' + ', '.join(sort_strs)
+        return sql_query
+
     def get_sql_query(self):
         if self.sql_query is not None:
             return self.sql_query
@@ -191,26 +215,8 @@ class TblQuery(object):
                 raise ValueError('%s has unsupported type' % (cd.db_name))
         self.sql_query = 'SELECT ' + ', '.join(cols)
         self.sql_query += ' FROM ' + self.tbl_desc.sql_name()
-        for join in joins:
-            self.sql_query += ' ' + join
-        if len(self.sorter.cols) != 0:
-            sort_strs = []
-            for sc in self.sorter.cols:
-                cd = sc.col_desc
-                if self.has_col_desc(cd):
-                    sort_str = cd.db_name
-                elif isinstance(cd, DataColDesc) or isinstance(cd, LinkColDesc):
-                    sort_str = '%s.%s' % (self.tbl_desc.sql_name(), cd.db_name)
-                elif isinstance(cd, ShortcutCD):
-                    target_sql_name = self._add_chain_joins(
-                        joins, join_chains, cd.path_cds[0:-1])
-                    sort_str = '%s.%s' % (target_sql_name, cd.path_cds[-1].db_name)
-                else:
-                    raise ValueError('%s has unsupported type' % (cd.db_name))
-                if sc.descending:
-                    sort_str += ' DESC'
-                sort_strs.append(sort_str)
-            self.sql_query += ' ORDER BY ' + ', '.join(sort_strs)
+        self.sql_query = self._finish_sql_query(
+            self.sql_query, joins, join_chains, sorter=self.sorter)
         return self.sql_query
 
     def get_rows(self, session, limit=None, skip=0) -> List[RowBuf]:
@@ -231,6 +237,19 @@ class TblQuery(object):
         except Exception as ed:
             print('hey')
             pass
+
+    def get_num_rows(self, session):
+        tbl_name = self.tbl_desc.sql_name()
+        sql_query = 'SELECT COUNT(%s.id) FROM %s' % (tbl_name, tbl_name)
+        sql_query = self._finish_sql_query(sql_query, [], [])
+        try:
+            num_rows = session.execute(sql_query).scalar()
+        except Exception as ed:
+            print('hey')
+        return num_rows
+
+    def get_index(self, session, key_desc: RowDesc, key: RowBuf) -> int:
+        return 0
 
 from db import open_file_db
 import jsonpickle
@@ -253,5 +272,7 @@ if __name__ == '__main__':
         q_image2 = jsonpickle.decode(json)
     except Exception as ed:
         print('hi')
+    num_folders = q_folder.get_num_rows(session)
+    num_images = q_image.get_num_rows(session)
     print('hay')
     pass

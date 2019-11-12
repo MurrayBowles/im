@@ -1,4 +1,4 @@
-''' table, block, and row buffers '''
+''' table and block buffers '''
 
 from dataclasses import dataclass
 from typing import List, Optional
@@ -40,8 +40,8 @@ class TblBuf(object):
     buf_query: TblQuery                 # the query used by TblBuf (may have added key columns)
     blk_bufs: List[BlkBuf]              # sorted by .first_key
     cur_rows: Optional[List[RowBuf]]    # the result of the last get_rows()
-        # cur_rows is None before the first sucessful get_rows()
-        # a prefix and suffix (or all) of cur_rows' elements may be None
+    # cur_rows is None before the first sucessful get_rows()
+    # a prefix and suffix (or all) of cur_rows' elements may be None
 
     def __init__(self, cli_query: TblQuery):
         self.set_query(cli_query)
