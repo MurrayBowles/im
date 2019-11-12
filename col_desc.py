@@ -40,6 +40,9 @@ class ColDesc(object):
     def __repr__(self):
         return self.__class__.__name__ + '(' + self.base_repr() + ')'
 
+    def sql_literal_str(self, literal):
+        return str(literal)
+
     @classmethod
     def find(cls, db_name, col_descs: List[Any]):   # FIXME: Any should be ColDesc
         for col_desc in col_descs:
@@ -55,6 +58,9 @@ class DataColDesc(ColDesc):
 class TextCD(DataColDesc):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def sql_literal_str(self, literal):
+        return '"%s"' % literal
 
 
 class DateCD(DataColDesc):
@@ -132,6 +138,9 @@ class ShortcutCD(ColDesc):
         s = super().base_repr()
         s += ', path_str=%r' % (self.path_str)
         return s
+
+    def sql_literal_str(self, literal):
+        return self.path_cds[-1].sql_literal_str(literal)
 
 
 if __name__ == '__main__':

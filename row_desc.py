@@ -11,3 +11,11 @@ class RowDesc(object):
 
     def __init__(self, col_desc_seq):
         self.col_descs = tuple(col_desc_seq)    # why doesn't dataclass generate this?
+
+    def has_col_desc(self, col_desc):
+        # Python is so compact and clutter-free!
+        try:
+            self.col_descs.index(col_desc)
+            return True
+        except ValueError:  # WTF: not KeyError!
+            return False
