@@ -1,6 +1,5 @@
 ''' SQL utilities'''
 
-from dataclasses import dataclass
 from typing import List
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD
@@ -77,15 +76,16 @@ class JoinState:
         ''' Return the SQL string to reference col_desc, adding any necessary sql_strs. '''
         if row_desc.has_col_desc(col_desc):
             col_ref = col_desc.db_name
-        elif isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
-            col_ref = '%s.%s' % (self.tbl_desc.sql_name(), col_desc.db_name)
-        elif isinstance(col_desc, ShortcutCD):
-            target_sql_name = self._add_joins(col_desc.path_cds[0:-1])
-            col_ref = '%s.%s' % (target_sql_name, col_desc.path_cds[-1].db_name)
         else:
-            raise ValueError('%s has unsupported type' % (col_desc.db_name))
-        if alias:
-            col_ref += ' AS %s' % col_desc.db_name
+            if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
+                col_ref = '%s.%s' % (self.tbl_desc.sql_name(), col_desc.db_name)
+            elif isinstance(col_desc, ShortcutCD):
+                target_sql_name = self._add_joins(col_desc.path_cds[0:-1])
+                col_ref = '%s.%s' % (target_sql_name, col_desc.path_cds[-1].db_name)
+            else:
+                raise ValueError('%s has unsupported type' % (col_desc.db_name))
+            if alias:
+                col_ref += ' AS %s' % col_desc.db_name
         return col_ref
 
 

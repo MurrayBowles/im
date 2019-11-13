@@ -7,9 +7,11 @@ from sqlalchemy.orm import aliased, with_polymorphic
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD
 from db import DbFolder, DbImage
+from filter import Filter
 from row_buf import RowBuf
 from row_desc import RowDesc
 from sorter import Sorter
+from sql_query import SqlQuery
 from sql_util import JoinState
 from tbl_desc import TblDesc
 import tbl_descs
@@ -19,19 +21,22 @@ class TblQuery(object):
 
     tbl_desc: TblDesc
     row_desc: RowDesc
-    # filter: Filter
+    filter: Optional[Filter]
     sorter: Sorter
         # the Sorter's ColDescs must be either from tbl_desc.col_descs or self.col_descs
 
-    def __init__(self, tbl_desc: TblDesc, row_desc:RowDesc, sorter:Sorter=None):
+    def __init__(
+        self, tbl_desc: TblDesc, row_desc: RowDesc, filter: Filter = None, sorter: Sorter = None
+    ):
         self.tbl_desc = tbl_desc
         self.row_desc = row_desc
+        self.set_filter(filter)
         self.set_sorter(sorter)
         self.sql_query = None
-        self.db_query = None
 
     def __repr__(self):
-        return 'TblQuery(%r, %r, %r)' % (self.tbl_desc, self.row_desc, self.sorter)
+        return 'TblQuery(%r, %r, %r, %r)' % (
+            self.tbl_desc, self.row_desc, self.filter, self.sorter)
 
     def __getstate__(self):
         if self.row_desc == self.tbl_desc.row_desc:
@@ -71,13 +76,13 @@ class TblQuery(object):
         pass
 
     @classmethod
-    def from_names(cls, tbl_db_name, col_db_names):
+    def from_names(cls, tbl_db_name: str, col_db_names: List[str], **kwargs):
         tbl_desc = TblDesc.lookup_tbl_desc(tbl_db_name)
         col_descs = []
         for col_db_name in col_db_names:
             cd = tbl_desc.lookup_col_desc(col_db_name)
             col_descs.append(cd)
-        return TblQuery(tbl_desc, RowDesc(col_descs))
+        return TblQuery(tbl_desc, RowDesc(col_descs), **kwargs)
 
     def add_col(self, col_desc: ColDesc, idx: int = -1):
         pass
@@ -97,46 +102,25 @@ class TblQuery(object):
 
     def set_sorter(self, sorter: Sorter = None):
         self.sql_query = None
-        self.db_query = None  # invalidate the compiled database query
         self.sorter = copy.copy(sorter if sorter is not None else self.tbl_desc.sorter)
 
-    def set_filter(self, filter):
+    def set_filter(self, filter: Filter):
         self.sql_query = None
-        self.db_query = None  # invalidate the compiled database query
-
-    def _finish_sql_query(self, sql_query, join_state, row_desc:RowDesc=RowDesc([]), sorter=None):
-        sort_strs = []
-        if sorter is not None:
-            for sc in self.sorter.cols:
-                sort_str = join_state.sql_col_ref(sc.col_desc, row_desc=row_desc)
-                if sc.descending:
-                    sort_str += ' DESC'
-                sort_strs.append(sort_str)
-        for join in join_state.sql_strs:
-            sql_query += ' ' + join
-        if len(sort_strs) != 0:
-            sql_query += ' ORDER BY ' + ', '.join(sort_strs)
-        return sql_query
+        self.filter = filter
 
     def get_sql_query(self):
-        if self.sql_query is not None:
-            return self.sql_query
-        cols = []
-        join_state = JoinState(self.tbl_desc)
-        for cd in self.row_desc.col_descs:
-            cols.append(join_state.sql_col_ref(cd, alias=True))
-        self.sql_query = 'SELECT ' + ', '.join(cols)
-        self.sql_query += ' FROM ' + self.tbl_desc.sql_name()
-        self.sql_query = self._finish_sql_query(
-            self.sql_query, join_state, self.row_desc, self.sorter)
+        if self.sql_query is None:
+            self.sql_query = SqlQuery(
+                self.tbl_desc, self.row_desc, filter=self.filter, sorter=self.sorter)
         return self.sql_query
 
     def get_rows(self, session, limit=None, skip=0) -> List[RowBuf]:
         if self.sql_query is None:
-            self.get_sql_query()
+            self.sql_query = SqlQuery(
+                self.tbl_desc, self.row_desc, filter=self.filter, sorter=self.sorter)
         try:
             row_bufs = []
-            q = self.sql_query
+            q = str(self.sql_query)
             if limit is not None:
                 q += ' LIMIT %u' % limit
             if skip != 0:
@@ -151,43 +135,44 @@ class TblQuery(object):
             pass
 
     def get_num_rows(self, session) -> int:
-        tbl_name = self.tbl_desc.sql_name()
-        sql_query = 'SELECT COUNT(%s.id) FROM %s' % (tbl_name, tbl_name)
-        sql_query = self._finish_sql_query(sql_query, JoinState(self.tbl_desc))
+        sql_query = SqlQuery(self.tbl_desc, 'count')
+        q = str(sql_query)
         try:
-            num_rows = session.execute(sql_query).scalar()
+            num_rows = session.execute(q).scalar()
         except Exception as ed:
             print('hey')
         return num_rows
 
-    def get_index(self, session, key_desc: RowDesc, key: RowBuf) -> int:
-        tbl_name = self.tbl_desc.sql_name()
-        sql_query = 'SELECT COUNT(%s.id) FROM %s' % (tbl_name, tbl_name)
-        join_state = JoinState(self.tbl_desc)
-        conditions = []
-        for cd, cv in zip(key_desc.col_descs, key.cols):
-            condition = join_state.add_col_ref(cd) + ' < %s' % cv
-            conditions.append(condition)
-        sql_query += ' WHERE ' +  ' AND '.join(conditions)
-        sql_query = self._finish_sql_query(
-            sql_query, join_state, sorter=self.sorter)
+    def get_index(self, session, key: RowBuf) -> int:
+        def get_tup(scs, cvs):
+            if len(scs) > 1:
+                high = get_tup(scs[0:1], cvs[0:1])
+                low = get_tup(scs[1:], cvs[1:])
+                return ('|', high,
+                        ('&', ('==', scs[0].col_desc, cvs[0]), low))
+            else:
+                rel = '>' if scs[0].descending else '<'
+                return (rel, scs[0].col_desc, cvs[0])
+        filter_tup = get_tup(self.tbl_desc.sorter.cols, key.cols)
+        filter = Filter(filter_tup)
+        sql_query = SqlQuery(self.tbl_desc, 'count', filter=filter)
         try:
-            idx = session.execute(sql_query).scalar()
+            idx = session.execute(str(sql_query)).scalar()
         except Exception as ed:
             print('hey')
         return idx
 
-from db import open_file_db
-import jsonpickle
-from base_path import dev_base_ie_source_path
-
 if __name__ == '__main__':
+    from db import open_file_db
+    import jsonpickle
+    from base_path import dev_base_ie_source_path
+
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
     TblDesc.complete_tbl_descs()
     q_folder = TblQuery.from_names('DbFolder', ['date', 'name', 'id'])
     sql_folder = q_folder.get_sql_query()
     r = repr(q_folder)
-    r_folder = q_folder.get_rows(session, skip=1)
+    r_folder = q_folder.get_rows(session)
     q_image = TblQuery.from_names('DbImage', ['name', 'folder_id', 'folder_name'])
     sql_image = q_image.get_sql_query()
     r_image = q_image.get_rows(session, skip=126, limit=10)
@@ -200,12 +185,10 @@ if __name__ == '__main__':
         print('hi')
     num_folders = q_folder.get_num_rows(session)
     num_images = q_image.get_num_rows(session)
-    '''
+    q_folder_s = TblQuery.from_names('DbFolder', ['date', 'name'])
     folder_2_idx = q_folder.get_index(
         session,
-        RowDesc([q_folder.row_desc.col_descs[2]]),
-        RowBuf([3242])
+        RowBuf([r_folder[2].cols[0], r_folder[2].cols[1]])
     )
-    '''
     print('hay')
     pass

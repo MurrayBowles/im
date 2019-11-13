@@ -67,6 +67,9 @@ class DateCD(DataColDesc):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def sql_literal_str(self, literal):
+        return '"%s"' % literal
+
 
 class IntCD(DataColDesc):
     def_fmt = 'r8'

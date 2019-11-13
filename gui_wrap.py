@@ -205,7 +205,7 @@ class ListBox:
         select_fn = None,   # called initially, and when the selection changes
         edit_fn = None,     # called when an item is double-clicked
         label = None,
-        init_id = -1,       # object ID to select initially
+        init_id = -1,       # object ID to select_names initially
         init_list = None    # initial list to display
     ):
         self.parent = parent
@@ -245,7 +245,7 @@ class ListBox:
         return self.names, init_idx
 
     def _on_select(self, event): # single-click on an item
-        # select the item
+        # select_names the item
         sel_idx = self.list_box.GetSelection()
         sel_obj = self.objs[sel_idx]
         if sel_obj != self.selection:
@@ -295,7 +295,7 @@ class ListBoxAED:
         edit_fn = None,     # called to edit an object
         del_fn = None,      # called to delete an object
         label = None,
-        init_id = -1,       # object ID to select initially
+        init_id = -1,       # object ID to select_names initially
         init_list = None    # initial list to display
     ):
         self.add_fn = add_fn
