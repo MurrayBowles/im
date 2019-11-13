@@ -74,6 +74,9 @@ if __name__ == '__main__':
     TblDesc.complete_tbl_descs()
     td = TblDesc.lookup_tbl_desc('DbFolder')
     q_count = SqlQuery.from_names(td, 'count')
+    s_count = str(q_count)
     q_unsorted = SqlQuery.from_names(td, ['date', 'name', 'id'])
+    s_unsorted = str(q_unsorted)
     q_sorted = SqlQuery.from_names(td, ['date', 'name', 'id'], sorter=td.sorter)
+    s_sorted = str(q_sorted)
     pass
