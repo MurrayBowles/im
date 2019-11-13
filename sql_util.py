@@ -100,10 +100,10 @@ if __name__ == '__main__':
                 col_refs.append(js.sql_col_ref(cd))
             except Exception as ed:
                 printf('hey')
-        return col_refs
+        return col_refs, js.sql_strs
     TblDesc.complete_tbl_descs()
     DbFolder_td = TblDesc.lookup_tbl_desc('DbFolder')
     DbImage_td = TblDesc.lookup_tbl_desc('DbImage')
-    DbFolder_cols = col_refs(DbFolder_td)
-    DbImage_cols = col_refs(DbImage_td)
+    DbFolder_cols, DbFolder_joins = col_refs(DbFolder_td)
+    DbImage_cols, DbImage_joins = col_refs(DbImage_td)
     pass
