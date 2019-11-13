@@ -19,3 +19,6 @@ class RowDesc(object):
             return True
         except ValueError:  # WTF: not KeyError!
             return False
+
+
+
