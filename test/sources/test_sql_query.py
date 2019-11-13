@@ -17,7 +17,7 @@ def test_queries():
 
     td = TblDesc.lookup_tbl_desc('DbFolder')
     check(SqlQuery.from_names(td, 'count'),
-        'SELECT COUNT(db_folder.id) FROM db_folder')
+        'SELECT COUNT(*) FROM db_folder')
     check(SqlQuery.from_names(td, ['date', 'name', 'id']),
         'SELECT db_folder.date AS date, item_0.name AS name, db_folder.id AS id' +
         ' FROM db_folder JOIN item AS item_0 ON db_folder.id == item_0.id')

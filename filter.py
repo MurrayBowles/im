@@ -1,8 +1,14 @@
 ''' search filter tuples '''
 
-from typing import Any, Tuple
+from dataclasses import dataclass
+from typing import Any, List, Tuple
 
+from col_desc import ColDesc
 from sql_util import JoinState
+
+@dataclass
+class ColDescStr(object):
+    name: str
 
 class Filter(object):
     tup: Tuple[Any]
@@ -30,6 +36,35 @@ class Filter(object):
     '''
     def __init__(self, arg):
         self.tup = arg
+
+    def get_state(self):
+        def get_tup_state(t):
+            l = []
+            for e in t:
+                if isinstance(e, ColDesc):
+                    l.append(ColDescStr(e.db_name))
+                elif type(e) is tuple:
+                    l.append(get_tup_state(e))
+                else:
+                    l.append(e)
+            return l
+        return get_tup_state(self.tup)
+
+    @staticmethod
+    def from_state(state, col_descs: List[ColDesc]):
+        def from_tup_state(l: List[Any]):
+            l2 = []
+            for e in l:
+                if isinstance(e, ColDescStr):
+                    l2.append(ColDesc.find(e.name, col_descs))
+                elif type(e) is list:
+                    l2.append(from_tup_state(e))
+                else:
+                    l2.append(e)
+            return tuple(l2)
+        t = from_tup_state(state)
+        f = Filter(t)
+        return f
 
     @staticmethod
     def _tup_str(t, js: JoinState, parent_pri):

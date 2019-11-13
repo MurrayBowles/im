@@ -25,7 +25,8 @@ class SqlQuery(object):
         self.join_state = JoinState(tbl_desc)
         if select == 'count':
             self.select = RowDesc([tbl_desc.lookup_col_desc('id')])
-            self.select_str = 'SELECT COUNT(%s.id)' % tbl_desc.sql_name()
+            # self.select_str = 'SELECT COUNT(%s.id)' % tbl_desc.sql_name()
+            self.select_str = 'SELECT COUNT(*)'
         else:
             self.select = select
             cols = [self.join_state.sql_col_ref(cd, alias=True) for cd in self.select.col_descs]

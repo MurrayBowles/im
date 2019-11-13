@@ -53,7 +53,8 @@ class TblQuery(object):
         s = {
             'tbl_cls_name': self.tbl_desc.db_tbl_cls.__name__,
             'row_desc': RowDesc(col_descs),
-            'sorter': self.sorter.get_state()
+            'sorter': self.sorter.get_state(),
+            'filter': self.filter.get_state()
         }
         return s
 
@@ -71,8 +72,9 @@ class TblQuery(object):
             self.row_desc = self.tbl_desc.row_desc
         else:
             self.row_desc = RowDesc(col_descs)
-        self.sorter = Sorter.from_state(
-            state['sorter'], self.row_desc.col_descs + self.tbl_desc.row_desc.col_descs)
+        col_descs2 = self.row_desc.col_descs + self.tbl_desc.row_desc.col_descs
+        self.sorter = Sorter.from_state(state['sorter'], col_descs2)
+        self.filter = Filter.from_state(state['filter'], col_descs2)
         pass
 
     @classmethod
@@ -174,6 +176,8 @@ if __name__ == '__main__':
     r = repr(q_folder)
     r_folder = q_folder.get_rows(session)
     q_image = TblQuery.from_names('DbImage', ['name', 'folder_id', 'folder_name'])
+    filter = Filter(('>', q_image.row_desc.col_descs[2], 'm'))
+    q_image.set_filter(filter)
     sql_image = q_image.get_sql_query()
     r_image = q_image.get_rows(session, skip=126, limit=10)
     r_raw_image = session.query(DbImage)[:]
