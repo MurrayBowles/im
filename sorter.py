@@ -25,7 +25,7 @@ class Sorter(object):
     cols: List[SorterCol]
     row_desc: RowDesc
 
-    def __init__(self, cols: List[Any]):
+    def __init__(self, cols: List[SorterCol]):
         self.cols = cols
         self.row_desc = RowDesc([sc.col_desc for sc in self.cols])
 
