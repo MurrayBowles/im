@@ -168,14 +168,15 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
                 fs_image.db_image = db_image
             if (ie_cfg.import_thumbnails
             and ie_image.newest_inst_with_thumbnail is not None):
-                pass
+                pass # FIXME: what't this for?
             if (ie_cfg.import_thumbnails
             and ie_image.newest_inst_with_thumbnail is not None
             and (
                 db_image.thumbnail is None
-                or ie_image.latest_inst_with_timestamp.mod_datetime
+                or ie_image.newest_inst_with_thumbnail.mod_datetime
                     > db_image.thumbnail_timestamp
             )):
+                # FIXME: the test had been .latest_inst_with_timestamp
                 # add to the list of IEImages to get/update thumbnails for
                 work_item.get_thumbnail.add(ie_image)
         if new_fs_image:
@@ -290,14 +291,24 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
             print('hey')
 
     if True: # TODO work_item.fs_folder.db_folder is not None:
-        # create FsItemTags from any imported tags
         try:
+            # create FsItemTags from any imported tags, and set DbImage thumbnails
             set_fs_item_tags(session,
                 work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
             for image in work_item.existing_images:
-                set_fs_item_tags(session,
-                    image[0], image[1].tags, fs_source.tag_source)
-                pass
+                fs_image = image[0]
+                ie_image = image[1]
+                set_fs_item_tags(session, fs_image, ie_image.tags, fs_source.tag_source)
+
+                ie_image_inst = ie_image.newest_inst_with_thumbnail
+                if ie_image_inst is not None:
+                    db_image = fs_image.db_image
+                    if db_image is not None:
+                        if (db_image.thumbnail is None
+                            or db_image.thumbnail_timestamp < ie_image_inst.mod_datetime
+                        ):
+                            db_image.thumbnail = ie_image.thumbnail
+                            db_image.thumbnail_timestamp = ie_image_inst.mod_datetime
         except Exception as ed:
             print('hey')
 
