@@ -31,28 +31,28 @@ def test_pickle():
 
 def test_access():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
-    q_folder = TblQuery.from_names('DbFolder', ['date', 'name', 'id'])
+    q_folder = TblQuery.from_names('DbFolder', ['date', 'name'])
     r_folder = q_folder.get_rows(session, limit=4, skip=1)
     exp_r_folder = [
-        RowBuf(cols=['2017-10-07', 'virginia', 2818]),
-        RowBuf(cols=['2017-09-24', 'empire seven', 3128]),
-        RowBuf(cols=['2017-09-23', 'diana', 3242]),
-        RowBuf(cols=['2017-09-22', 'caravan', 3428])
+        RowBuf(cols=['2017-10-07', 'virginia']),
+        RowBuf(cols=['2017-09-24', 'empire seven']),
+        RowBuf(cols=['2017-09-23', 'diana']),
+        RowBuf(cols=['2017-09-22', 'caravan'])
     ]
     assert len(r_folder) == 4
     assert r_folder == exp_r_folder
-    q_image = TblQuery.from_names('DbImage', ['name', 'folder_id', 'folder_name'])
+    q_image = TblQuery.from_names('DbImage', ['name', 'folder_name'])
     r_image = q_image.get_rows(session, skip=100, limit=4)
     exp_r_image = [
-        RowBuf(cols=['9139', 2818, 'virginia']),
-        RowBuf(cols=['9140', 2818, 'virginia']),
-        RowBuf(cols=['9141', 2818, 'virginia']),
-        RowBuf(cols=['9142', 2818, 'virginia'])
+        RowBuf(cols=['9135', 'virginia']),
+        RowBuf(cols=['9139', 'virginia']),
+        RowBuf(cols=['9140', 'virginia']),
+        RowBuf(cols=['9141', 'virginia'])
     ]
     assert len(r_image) == 4
     assert r_image == exp_r_image
     num_folders = q_folder.get_num_rows(session)
-    assert num_folders == 55
+    assert num_folders == 58
     folder_2_idx = q_folder.get_index(
         session,
         RowBuf([r_folder[2].cols[0], r_folder[2].cols[1]])

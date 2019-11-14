@@ -3,6 +3,7 @@
 from datetime import date, datetime, time
 
 import db
+from fuksqa import fuksqa
 import ie_fs
 import tags
 
@@ -317,7 +318,7 @@ class Ctx:
             db.FsTagBinding.SUGGESTION if binding_char == 's'
             else db.FsTagBinding.BOUND)
         db_tag = None if tag_label is None else self._get_tag(tag_label)
-        mapping = db.FsTagMapping.add(
+        mapping = db.FsTagMapping.add_if_nx(
             self.session, tag_source, tag_text, binding, db_tag)
         self.mappings[(scope_char, tag_text)] = mapping
         return mapping

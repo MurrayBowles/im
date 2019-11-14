@@ -14,6 +14,8 @@ from sqlalchemy import ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
 
+from fuksqa import fuksqa
+
 from tags import on_db_tag_added, on_db_tag_removed
 from tags import on_fs_tag_mapping_added, on_fs_tag_mapping_removed
 import util
@@ -412,11 +414,14 @@ class DbTag(Item):
     
     def pname(self):
         tag = self
-        str = tag.name
+        s = tag.name
         while tag.parent is not None:
-            tag = tag.parent
-            str = tag.name + '|' + str
-        return str
+            try:
+                tag = tag.parent
+                s = tag.name + '|' + s
+            except Exception as ed:
+                print('hey')
+        return s
 
     def __repr__(self):
         return "<DbTag %s>" % self.pname()
@@ -465,12 +470,12 @@ class DbNote(Base):
 
     # DbNote -> DbNoteType
     type_id = Column(Integer, ForeignKey('db_note_type.id'))
-    type = relationship("DbNoteType", backref=backref("db-note", uselist=False))
+    type = relationship("DbNoteType", backref=backref("db_note", uselist=False))
     #type = relationship('DbNoteType', foreign_keys='[DbNote.tyoe_id]')
 
     # DbNote -> Item
     item_id = Column(Integer, ForeignKey('item.id'))
-    item = relationship("Item", backref=backref("db-note", uselist=False))
+    item = relationship("Item", backref=backref("db_note", uselist=False))
     #item = relationship('Item', foreign_keys='[DbNote.item_id]')
 
     def __repr__(self):
@@ -547,7 +552,7 @@ class FsSource(Item):
     # FsSource -> FsTagSourceId
     tag_source_id = Column(Integer, ForeignKey('fs_tag_source.id'))
     tag_source = relationship(
-        'FsTagSource', backref=backref('fs-tag-source', uselist=False))
+        'FsTagSource', backref=backref('fs_tag_source', uselist=False))
 
     # FsSource <->> FsFolder
     folders = relationship(
@@ -814,10 +819,11 @@ class FsTagMapping(Base):
 
     # key
 
+    # FsTagSource <-->> FsTagMapping
     tag_source_id = Column(
         Integer, ForeignKey('fs_tag_source.id'), primary_key=True)
-    tag_source = relationship(
-        'FsTagSource', backref=backref('fs-tag-mapping', uselist=False))
+    tag_source = relationship('FsTagSource')
+        # 'FsTagSource', backref=backref('fs_tag_mapping', uselist=False))
 
     text = Column(String(collation='NOCASE'), primary_key=True)
         # e.g. 'band|Tribe 8'
@@ -827,9 +833,10 @@ class FsTagMapping(Base):
     binding = Column(Enum(FsTagBinding))
     # a state is marked to be ignored by setting binding=BOUND, db_tag=None
 
+    # DbTag <->> FsTagMapping
     db_tag_id = Column(Integer, ForeignKey('db_tag.id'))
-    db_tag = relationship(
-        'DbTag', backref=backref('fs-tag-mapping', uselist=False))
+    db_tag = relationship('DbTag')
+        # 'DbTag', backref=backref('fs_tag_mapping', uselist=False))
 
     @classmethod
     def add(cls, session, tag_source, text, binding, db_tag):
@@ -845,6 +852,16 @@ class FsTagMapping(Base):
     def find(cls, session, tag_source, text):
         return session.query(FsTagMapping).filter_by(
             tag_source=tag_source, text=text).first()
+
+    @classmethod
+    def add_if_nx(cls, session, tag_source, text, binding, db_tag):
+        mapping = cls.find(session, tag_source, text)
+        if mapping is None:
+            return cls.add(session, tag_source, text, binding, db_tag)
+        else:
+            assert mapping.binding == binding
+            assert mapping.db_tag == db_tag
+            return mapping
 
     @classmethod
     def set(cls, session, tag_source, text, binding, db_tag):
@@ -1084,7 +1101,7 @@ def open_file_db(full_path, mode):
     if mode == 'w':
         try:
             os.remove(full_path)
-        except Exception:  # the path may not have existed in the first place
+        except Exception as ed:  # the path may not have existed in the first place
             pass
     return _open_db('sqlite:///' + full_path)
 

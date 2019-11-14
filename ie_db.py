@@ -4,6 +4,7 @@ import copy
 from collections import deque
 
 import db
+from fuksqa import fuksqa
 import web_ie_db
 from ie_cfg import *
 from ie_fs import *
@@ -271,34 +272,43 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
     if fs_source.source_type == db.FsSourceType.WEB:
         # create FsFolders and FsImages for the IEFolders/Images scanned
         # (for the file-system case, this is done BEFORE scanning)
-        assert work_item.fs_folder is None
-        ie_folder = work_item.ie_folder
-        fs_folder = create_fs_folder(session, ie_folder, fs_source)
-        work_item.fs_folder = fs_folder
-        db_folder = fs_folder.db_folder
-        for ie_image in ie_folder.images.values():
-            fs_image, new_fs_image = db.FsImage.get(
-                session, fs_folder, ie_image.name)
-            work_item.existing_images.append((fs_image, ie_image))
-            if db_folder is not None:
-                db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
-                if fs_image.db_image is None:
-                    fs_image.db_image = db_image
+        try:
+            assert work_item.fs_folder is None
+            ie_folder = work_item.ie_folder
+            fs_folder = create_fs_folder(session, ie_folder, fs_source)
+            work_item.fs_folder = fs_folder
+            db_folder = fs_folder.db_folder
+            for ie_image in ie_folder.images.values():
+                fs_image, new_fs_image = db.FsImage.get(
+                    session, fs_folder, ie_image.name)
+                work_item.existing_images.append((fs_image, ie_image))
+                if db_folder is not None:
+                    db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
+                    if fs_image.db_image is None:
+                        fs_image.db_image = db_image
+        except Exception as ed:
+            print('hey')
 
     if True: # TODO work_item.fs_folder.db_folder is not None:
         # create FsItemTags from any imported tags
-        set_fs_item_tags(session,
-            work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
-        for image in work_item.existing_images:
+        try:
             set_fs_item_tags(session,
-                image[0], image[1].tags, fs_source.tag_source)
-            pass
+                work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
+            for image in work_item.existing_images:
+                set_fs_item_tags(session,
+                    image[0], image[1].tags, fs_source.tag_source)
+                pass
+        except Exception as ed:
+            print('hey')
 
     # for the WEB case, queue processing for child pages
-    for child_path in work_item.child_paths:
-        child_work_item = get_web_ie_work_item(
-            session, fs_source, child_path, work_item)
-        worklist.append(child_work_item)
+    try:
+        for child_path in work_item.child_paths:
+            child_work_item = get_web_ie_work_item(
+                session, fs_source, child_path, work_item)
+            worklist.append(child_work_item)
+    except Exception as ed:
+        print ('hey')
 
     session.commit()
     pass
@@ -311,6 +321,7 @@ class IETask2(WxTask2):
         super().__init__(**kw)
 
         self.session = kw['session']
+        self.session.flush() # FUKSQA
         self.ie_cfg = copy.deepcopy(kw['ie_cfg'])
         self.ie_cfg.source = kw['fs_source']
         self.ie_cfg.import_mode = kw['import_mode']
@@ -326,22 +337,31 @@ class IETask2(WxTask2):
         self.pub('ie.sts.begun', data=self.worklist)
         while not self.cancelled() and self.worklist_idx < len(self.worklist):
             work_item = self.worklist[self.worklist_idx]
-            fg_start_ie_work_item(
-                self.session, self.ie_cfg, work_item, self.fs_source)
+            try:
+                fg_start_ie_work_item(
+                    self.session, self.ie_cfg, work_item, self.fs_source)
+            except Exception as ed:
+                print('hey')
 
             if (len(work_item.get_exif) > 0 or
                 len(work_item.get_thumbnail) > 0 or
                 self.fs_source.source_type == db.FsSourceType.WEB
             ):
-                yield (lambda: bg_proc_ie_work_item(
-                    work_item, self.fs_source, self.pub))
+                try:
+                    yield (lambda: bg_proc_ie_work_item(
+                        work_item, self.fs_source, self.pub))
+                except Exception as ed:
+                    print('hey')
                 pass
             else:
                 yield
 
-            fg_finish_ie_work_item(
-                self.session, self.ie_cfg, work_item, self.fs_source,
-                self.worklist)
+            try:
+                fg_finish_ie_work_item(
+                    self.session, self.ie_cfg, work_item, self.fs_source,
+                    self.worklist)
+            except Exception as ed:
+                print('hey')
 
             self.pub('ie.sts.folder done',
                 data=self.worklist[self.worklist_idx].ie_folder.db_name)

@@ -183,6 +183,8 @@ def test_get_worklist_file_sel_corbett_tiffs():
     )
     session.commit()
 
+from fuksqa import fuksqa
+
 def do_cmd(volume, dir_name, source_type, cfg, session):
     ctx = check_tags.Ctx(session)
     tag_source = ctx.get_tag_source('l')
@@ -378,9 +380,9 @@ def test_web_cmd():
 def make_db():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'w')
     # FIXME: my, main, corbett, web each work by themselves
-    # do_my_cmd(session)
-    # do_main_cmd(session)
-    # do_corbett_cmd(session)
+    do_my_cmd(session)
+    do_main_cmd(session)
+    do_corbett_cmd(session)
     do_web_cmd(session)
     close_db()
     pass
