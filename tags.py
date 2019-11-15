@@ -4,7 +4,6 @@ import db
 import difflib
 from ie_fs import IETagType
 
-
 def find_text_binding(session, text, fs_tag_source):
     """ Return [state, FsTagBinding, FsItemTagSource, DbTag id]. """
     mapping = db.FsTagMapping.find(session, fs_tag_source, text)
@@ -22,7 +21,6 @@ def find_text_binding(session, text, fs_tag_source):
         # <state> occurs in the DbTag database
         return [text, db.FsTagBinding.BOUND, db.FsItemTagSource.DBTAG, db_tag]
     return [text, db.FsTagBinding.UNBOUND, db.FsItemTagSource.NONE, None]
-
 
 def tag_text_binding(session, text, bases, fs_tag_source):
     """ Return [state, FsTagBinding, FsItemTagSource, DbTag id]. """
@@ -55,7 +53,6 @@ def tag_text_binding(session, text, bases, fs_tag_source):
     results.sort(key = lambda x: x[1], reverse=True)
     result = results[0]
     return result
-
 
 def word_list_bindings(session, word_list, bases, fs_tag_source):
     """ Return [(relative idx range, [state, binding, source, db_tag])]. """
@@ -96,7 +93,6 @@ def word_list_bindings(session, word_list, bases, fs_tag_source):
         idx += len(wl)
     return results
 
-
 def _bind_fs_item_tags(session, item, fs_tag_source):
     """ (Re)Bind item.item_tags based on fs_tag_source.
 
@@ -135,11 +131,9 @@ def _bind_fs_item_tags(session, item, fs_tag_source):
                 db.FsItemTag.add_grouping(item, range)
             pass
 
-
 def add_fs_item_note(session, item, ie_tag):
     """ Add a Note to <item>. """
     pass
-
 
 def _adjust_db_item_tags(session, fs_item, old_tag_set, new_tag_set):
     """ Adjust fs_item's DbItem's tags based on the changes from old to new """
@@ -170,7 +164,6 @@ def _adjust_db_item_tags(session, fs_item, old_tag_set, new_tag_set):
             db_item.mod_tag_flags(
                 session, db_tag, add_flags=db.TagFlags.EXTERNAL)
 
-
 def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
     """ Initialize item.item_tags from ie_tags based on fs_tag_source. """
     if True:
@@ -198,7 +191,6 @@ def init_fs_item_tags(session, item, ie_tags, fs_tag_source):
         new_db_tag_set = item.db_tag_set()
         _adjust_db_item_tags(session, item, set(), new_db_tag_set)
         pass
-
 
 def set_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
     """ Initialize or update fs_item.item_tags from ie_tags.
@@ -279,7 +271,6 @@ def set_fs_item_tags(session, fs_item, ie_tags, fs_tag_source):
         _adjust_db_item_tags(session, fs_item, old_db_tag_set, new_db_tag_set)
     pass
 
-
 def rebind_fs_item_tags(session, item, fs_tag_source):
     """ Update item.item_tags based on fs_tag_source.
 
@@ -293,7 +284,6 @@ def rebind_fs_item_tags(session, item, fs_tag_source):
     _adjust_db_item_tags(session, item, old_db_tag_set, new_db_tag_set)
     pass
 
-
 def _on_tag_change(session, text):
     """ Schedule a task to recalculate all FsItemTag bindings involving <state>.
 
@@ -304,14 +294,12 @@ def _on_tag_change(session, text):
     db.TagChange.add(session, text)
     pass
 
-
 def on_db_tag_added(session, db_tag):
     """ Schedule a task to add auto-FsItemTags to matching FsItems.
 
         called when a DbTag is added, renamed, or un-deprecated
     """
     _on_tag_change(session, db_tag.name)
-
 
 def on_db_tag_removed(session, db_tag):
     """ Schedule a task to remove auto-FsItemTags from matching FsItems.
@@ -320,14 +308,12 @@ def on_db_tag_removed(session, db_tag):
     """
     _on_tag_change(session, db_tag.name)
 
-
 def on_fs_tag_mapping_added(session, mapping):
     """ Schedule a task to add auto-FsItemTags for matching FsItems.
 
         called when an FsTagMapping is added or its .binding is changed
     """
     _on_tag_change(session, mapping.leaf_text())
-
 
 def on_fs_tag_mapping_removed(session, mapping):
     """ Schedule a task to remove auto-FsItemTags from matching FsItems.
