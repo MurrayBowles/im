@@ -1,4 +1,4 @@
-""" database classes """
+""" SQLAlchemy database classes """
 
 from enum import IntEnum as PyIntEnum
 import datetime
@@ -21,7 +21,7 @@ from tags import on_fs_tag_mapping_added, on_fs_tag_mapping_removed
 import util
 
 
-# DbXxx: the database's representation of folders/images/tags/notes
+# DbXxx: the database's internal representation of folders/images/tags/notes
 
 
 class TagFlags(PyIntEnum):
@@ -75,15 +75,15 @@ image_collections = Table('image-collections', Base.metadata,
 
 
 class Item(Base):
-    """ something which has a db_name and can be tagged:
+    """ something which has a name and can be tagged:
         a Folder, Collection, Image, or Tag
     """
     __tablename__ = 'item'
     id = Column(Integer, primary_key=True)
 
     type = Column(String(12))
-    # 'DbCollection' | 'DbFolder' | 'DbImage' | 'FsFolder'
-    # this must be the actual table class db_name
+    # e.g. 'DbCollection' | 'DbFolder' | 'DbImage' | 'FsFolder'
+    # this must be the actual table class name
     __mapper_args__ = {'polymorphic_identity': 'Item', 'polymorphic_on': type}
 
     name = Column(String(100))
@@ -163,14 +163,14 @@ class DbFolder(Item):
 
     # DbFolder <->> DbImage
     images = relationship(
-        'DbImage', foreign_keys='[DbImage.folder_id]', back_populates='folder')
+        'DbImage', foreign_keys='[DbImage.folder_id]', back_populates='folder', lazy='dynamic')
 
     # DbFolder <->> FsFolder
     fs_folders = relationship(
         'FsFolder', foreign_keys='[FsFolder.db_folder_id]',
-        back_populates='db_folder')
+        back_populates='db_folder', lazy='dynamic')
 
-    # DbFolder -> thumbnail DbImage
+    # DbFolder -> thumbnail DbImage  TODO: currently not set
     thumbnail_id = Column(Integer, ForeignKey('db_image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
@@ -214,7 +214,7 @@ class DbCollection(Item):
     images = relationship(
         'DbImage', secondary=image_collections, back_populates='collections')
 
-    # DbCollection -> thumbnail DbImage
+    # DbCollection -> thumbnail DbImage  TODO: currently not set
     thumbnail_id = Column(Integer, ForeignKey('db_image.id'))
     thumbnail = relationship(
         "DbImage", foreign_keys='[DbCollection.thumbnail_id]')
@@ -245,6 +245,8 @@ class DbImage(Item):
 
     thumbnail = Column(LargeBinary())
     thumbnail_timestamp = Column(DateTime)
+    # checked by fg_start_ie_work_item() to schedule a thumbnail read
+    # updated by fg_finish_ie_work_item()
 
     # DbImage <<-> DbFolder
     folder_id = Column(Integer, ForeignKey('db_folder.id'))
@@ -258,7 +260,7 @@ class DbImage(Item):
     # DbImage <->> FsImage
     fs_images = relationship(
         'FsImage', foreign_keys='[FsImage.db_image_id]',
-        back_populates='db_image')
+        back_populates='db_image', lazy='dynamic')
 
     Index('db_folder_image_index', 'folder_id', 'db_name', unique=True)
     Index('db_date_image_index', 'folder.date', 'db_name')
@@ -312,7 +314,7 @@ class DbTag(Item):
     parent_id = Column(Integer, ForeignKey('db_tag.id'), nullable=True)
     parent = relationship('DbTag', remote_side=[id], foreign_keys=[parent_id])
     children = relationship(
-        'DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent')
+        'DbTag', foreign_keys='[DbTag.parent_id]', back_populates='parent', lazy='dynamic')
 
     # DbTag <<->> Item
     items = relationship(
@@ -442,7 +444,7 @@ class DbNoteType(Base):
     id = Column(Integer, primary_key=True)
 
     name = Column(String(30))
-    text_type = Column(Integer)  # DbNoteType enumeration
+    text_type = Column(Integer)  # DbTextType enumeration
 
     @classmethod
     def add(cls, session, name, text_type):
@@ -547,6 +549,7 @@ class FsSource(Item):
         # for WEB, volume is 'http[s]:' and db_name is the rest of the URL
 
     source_type = Column(Enum(FsSourceType))
+        # TODO why is Enum ok here but not for DbNoteType.text_type
     readonly = Column(Boolean)
 
     # FsSource -> FsTagSourceId
@@ -681,7 +684,6 @@ class FsTagBinding(PyIntEnum):
 
 
 class FsItemTagSource(PyIntEnum):
-
     NONE        = 0 # no tag
     DBTAG       = 1 # tag/word(s) found in DbTags
     GLOBTS      = 2 # tag/word(s) found in global_tag_source
@@ -717,7 +719,7 @@ class FsItemTag(Base):
     bases = Column(String)
         # ,-separated list of suggested tag bases,
         #   e.g. 'band' or 'venue' or 'band, venue'
-        # FIXME: this should just be an integer enum:
+        # FIXME: this chould just be an integer enum:
         # the possible lists are fixed by the code
 
     source = Column(Enum(FsItemTagSource))
@@ -974,7 +976,7 @@ class FsFolder(FsItem):
 
     # FsFolder <->> FsImage
     images = relationship(
-        'FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder')
+        'FsImage', foreign_keys='[FsImage.folder_id]', back_populates='folder', lazy='dynamic')
 
     Index('fs_folder_index', 'source', 'db_name', unique=True)
 

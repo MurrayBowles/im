@@ -300,15 +300,15 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
                 ie_image = image[1]
                 set_fs_item_tags(session, fs_image, ie_image.tags, fs_source.tag_source)
 
-                ie_image_inst = ie_image.newest_inst_with_thumbnail
-                if ie_image_inst is not None:
+                ie_thumb_image_inst = ie_image.newest_inst_with_thumbnail
+                if ie_thumb_image_inst is not None:
                     db_image = fs_image.db_image
                     if db_image is not None:
                         if (db_image.thumbnail is None
-                            or db_image.thumbnail_timestamp < ie_image_inst.mod_datetime
+                            or db_image.thumbnail_timestamp < ie_thumb_image_inst.mod_datetime
                         ):
                             db_image.thumbnail = ie_image.thumbnail
-                            db_image.thumbnail_timestamp = ie_image_inst.mod_datetime
+                            db_image.thumbnail_timestamp = ie_thumb_image_inst.mod_datetime
         except Exception as ed:
             print('hey')
 

@@ -181,6 +181,9 @@ if __name__ == '__main__':
     sql_image = q_image.get_sql_query()
     r_image = q_image.get_rows(session, skip=126, limit=10)
     r_raw_image = session.query(DbImage)[:]
+    for i in r_raw_image:
+        if i.thumbnail is not None:
+            pass
     # FIXME: results from my, web; no results from main, corbett
     json = jsonpickle.encode(q_image)
     try:

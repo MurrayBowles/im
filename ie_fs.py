@@ -166,10 +166,10 @@ class IEFolder(object):
         self.db_name = db_name  # the db_name, e.g. 'virginia'
 
         self.mod_datetime = mod_datetime
-        self.images = {}        # IEImage.db_name -> IEImage
+        self.images = {}        # IEImage.name -> IEImage
+        self.image_insts = {}   # map: IEImageInst.fs_path -> IEImageInst
         self.msgs = []          # list of IEMsg
         self.tags = []          # list of IETag
-        self.image_insts = {}   # map: IEImageInst.fs_path => IEImageInst
 
     def add_image(self, ie_image):
         self.images[ie_image.name] = ie_image
@@ -197,9 +197,9 @@ class IEImage(object):
         self.msgs = []          # list of IEMsg
         self.insts = {}         # extension -> list of IEImageInst
 
-        self.newest_inst_with_thumbnail = None  # read by proc_ie_work_item
-        self.thumbnail = None                   # set when thumb is extracted
-        self.tags = []                          # list of IETag
+        self.newest_inst_with_thumbnail = None  # updated by IEImageInst init
+        self.thumbnail = None   # set by bg_proc_ie_work_item() > get_ie_image_thumbnails()
+        self.tags = []          # list of IETag
 
     def add_tag(self, ie_tag):
         self.tags.append(ie_tag)
@@ -227,7 +227,7 @@ class IEImageInst(object):
     def __init__(self, ie_image, fs_path, ext, mod_datetime):
 
         self.ie_image = ie_image
-        self.fs_path = fs_path  # filesystem pathname
+        self.fs_path = fs_path  # filesystem full pathname, key in ie_folder.image_insts
         self.ext = ext          # key in ie_image.insts, e.g '.jpg', '.jpg-hi'
         self.mod_datetime = mod_datetime
         self.msgs = []          # list of IEMsg
