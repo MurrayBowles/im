@@ -5,7 +5,6 @@ import pytest
 from filter import Filter
 from sql_util import JoinState
 from tbl_desc import TblDesc
-import tbl_descs
 TblDesc.complete_tbl_descs()
 
 def test_results():

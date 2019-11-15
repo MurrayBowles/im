@@ -16,8 +16,7 @@ from sqlalchemy.orm import backref, relationship
 
 from fuksqa import fuksqa
 
-from tags import on_db_tag_added, on_db_tag_removed
-from tags import on_fs_tag_mapping_added, on_fs_tag_mapping_removed
+import tags
 import util
 
 
@@ -25,13 +24,13 @@ import util
 
 
 class TagFlags(PyIntEnum):
-    """ flags describing the relationshop between an DbTag and its Item """
+    """ flags describing the relationship between a DbTag and its Item """
 
     NONE        = 0
-    DIRECT      = 1 # this tag was applied directly by the user
-    EXTERNAL    = 2 # some FsItem has this tag
-    BLOCKED     = 4 # this EXTERNAL tag is blocked by the user
-    # shortcuts
+    DIRECT      = 1 # this tag was applied by the user
+    EXTERNAL    = 2 # this tag was imported from some FsItem
+    BLOCKED     = 4 # this tag was blocked by the user
+    # abbreviations
     B           = BLOCKED
     BD          = BLOCKED | DIRECT
     D           = DIRECT
@@ -40,13 +39,8 @@ class TagFlags(PyIntEnum):
     E           = EXTERNAL
     EB          = EXTERNAL | BLOCKED
 
-    def __repr__(self):
-        if self.value == 0: return TagFlags.NONE
-        s = ''
-        if (TagFlags.DIRECT & self.value) != 0: s += 'D'
-        if (TagFlags.EXTERNAL & self.value) != 0: s += 'E'
-        if (TagFlags.BLOCKED & self.value) != 0: s += 'B'
-        return s
+    def __str__(self):
+        return 'TagFlags.%s' % self.name
 
 
 class ItemTag(Base):
@@ -59,13 +53,9 @@ class ItemTag(Base):
     item_id = Column(Integer, ForeignKey('item.id'))
     flags = Column(Enum(TagFlags))
 
-    def __repr__(self):
-        return "<ItemTag %s {%s} %s>" %(
-            self.tag.pname(),
-            self.flags.__repr__(),  # FIXME why does str() not work?
-            str(self.item)
-        )
-
+    def __str__(self):
+        return "[ItemTag tag_id=%u, item_id=%u, ItemTag=%s]" %(
+            self.tag_id, self.item_id, self.flags)
 
 # DbImage <<->> DbCollection
 image_collections = Table('image-collections', Base.metadata,
@@ -146,9 +136,9 @@ class Item(Base):
     def get_tags(self, session):
         return session.query(ItemTag).filter_by(item=self).all()
 
-    def __repr__(self):
+    def __str__(self):
         # this should always be overloaded
-        return "<%s %s>" % (self.type, self.name)
+        return "[Item %s, %s]" % (self.type, self.name)
 
 
 class DbFolder(Item):
@@ -198,8 +188,8 @@ class DbFolder(Item):
     def fs_items(self):
         return self.fs_folders
 
-    def __repr__(self):
-        return '<DbFolder %s %s>' % (str(self.date), self.name)
+    def __str__(self):  # checked
+        return '[DbFolder %s %s]' % (self.date, self.name)
 
 
 class DbCollection(Item):
@@ -231,8 +221,8 @@ class DbCollection(Item):
     def find(cls, session,  name):
         return session.query(DbCollection).filter_by(name=name).first()
 
-    def __repr__(self):
-        return '<Collection %s>' % self.name
+    def __str__(self):
+        return '[DbCollection %s]' % self.name
 
 
 class DbImage(Item):
@@ -288,8 +278,8 @@ class DbImage(Item):
     def fs_items(self):
         return self.fs_images
 
-    def __repr__(self):
-        return '<Image %s-%s>' % (
+    def __str__(self):  # checked
+        return '[DbImage %s-%s]' % (
             util.yymmdd_from_date(self.folder.date), self.name)
 
 
@@ -301,6 +291,8 @@ class DbTagType(PyIntEnum):
     REPLACED_BY = 3 # tag has been replaced by .base_tag
     DEPRECATED = 4  # tag has been deprecated; .base_tag is None
 
+    def __str__(self):
+        return 'DbTagType.%s' % self.name
 
 class DbTag(Item):
     """ a hierarchical tag on a Item """
@@ -346,7 +338,7 @@ class DbTag(Item):
             tag_type=tag_type.value, base_tag=base_tag)
         if obj is not None: session.add(obj)
         if tag_type != DbTagType.DEPRECATED:
-            on_db_tag_added(session, obj)
+            tags.on_db_tag_added(session, obj)
         return obj
 
     @classmethod
@@ -401,18 +393,18 @@ class DbTag(Item):
     def set_type(self, session, new_type):
         if new_type != self.tag_type:
             if new_type == DbTagType.DEPRECATED:
-                on_db_tag_removed(session, self)
+                tags.on_db_tag_removed(session, self)
             old_type = self.tag_type
             self.tag_type = new_type
             if old_type == DbTagType.DEPRECATED:
-                on_db_tag_added(session, self)
+                tags.on_db_tag_added(session, self)
                 
     def set_name(self, session, new_name):
         # TODO: change parent too, or just db_name?
         if new_name != self.name:
-            on_db_tag_removed(session, self)
+            tags.on_db_tag_removed(session, self)
             self.name = new_name
-            on_db_tag_added(session, self)
+            tags.on_db_tag_added(session, self)
     
     def pname(self):
         tag = self
@@ -425,8 +417,8 @@ class DbTag(Item):
                 print('hey')
         return s
 
-    def __repr__(self):
-        return "<DbTag %s>" % self.pname()
+    def __str__(self):  # checked
+        return "[DbTag %s: %s]" % (self.pname(), DbTagType(self.tag_type))
 
     def __cmp__(self, other):
         return self.pname().__cmp__(other.pname())
@@ -436,6 +428,9 @@ class DbTextType(PyIntEnum):
     """ the syntax of a DbNote's state """
     TEXT = 1        # simple state
     URL = 2         # a URL
+
+    def __str__(self):
+        return 'DbTextType.%s' % self.name
 
 
 class DbNoteType(Base):
@@ -456,9 +451,8 @@ class DbNoteType(Base):
     def find_id(cls, session, id):
         return session.query(DbNoteType).filter_by(id=id).first()
 
-    def __repr__(self):
-        return '<NoteType %s: %s>' % (
-            self.name, DbTextType(self.text_type).name)
+    def __str__(self):
+        return '[NoteType %s: %s]' % (self.name, self.text_type)
 
 class DbNote(Base):
     """ a state note on a Item
@@ -480,9 +474,8 @@ class DbNote(Base):
     item = relationship("Item", backref=backref("db_note", uselist=False))
     #item = relationship('Item', foreign_keys='[DbNote.item_id]')
 
-    def __repr__(self):
-        return '<Note %s[%s:%s:%s]>' % (
-            str(self.item), self.type.name, str(self.idx), str(id(self)))
+    def __str__(self):
+        return '[DbNote %s[%s]: %s]' % (self.item, self.idx, self.type)
 
 
 """ FsXxx: an inventory of what's been imported from the filesystem """
@@ -523,8 +516,8 @@ class FsTagSource(Base):
     def find_id(cls, session, id):
         return session.query(FsTagSource).filter_by(id=id).first()
 
-    def __repr__(self):
-        return '<FsTagSource %s>' % self.description
+    def __str__(self):  # checked
+        return '[FsTagSource %s]' % self.description
 
 
 class FsSourceType(PyIntEnum):
@@ -532,6 +525,8 @@ class FsSourceType(PyIntEnum):
     FILE    = 2 # a directory of image files
     WEB     = 3 # a web site to be scraped
 
+    def __str__(self):
+        return 'FsSourceType.%s' % self.name
 
 class FsSource(Item):
     """ external source from which a set of FsFolders/Images was imported """
@@ -637,8 +632,8 @@ class FsSource(Item):
             self.source_type == FsSourceType.WEB
             or (self.win_path() is not None))
 
-    def __repr__(self):
-        return '<FsSource %s>' % (self.pname())
+    def __str__(self):  # checked
+        return '[FsSource %s]' % (self.pname())
 
 
 class FsItem(Item):
@@ -664,11 +659,17 @@ class FsItem(Item):
                 res.add(item_tag.db_tag)
         return res
 
+    def __str__(self):
+        return '[FsItem]'  # FIXME: show type?
+
 
 class FsTagType(PyIntEnum):
     """ tag word(s) vs tag """
     WORD        = 1
     TAG         = 2
+
+    def __str__(self):
+        return 'FsTagType.%s' % self.name
 
 
 class FsTagBinding(PyIntEnum):
@@ -682,6 +683,9 @@ class FsTagBinding(PyIntEnum):
     def has_db_tag(self):
         return self >= FsTagBinding.SUGGESTED
 
+    def __str__(self):
+        return 'FsTagBinding.%s' % self.name
+
 
 class FsItemTagSource(PyIntEnum):
     NONE        = 0 # no tag
@@ -689,6 +693,9 @@ class FsItemTagSource(PyIntEnum):
     GLOBTS      = 2 # tag/word(s) found in global_tag_source
     FSTS        = 3 # tag/word(s) found in FsSource.tag_source
     DIRECT      = 4 # directly tagged by the user on this FsFolder/Image
+
+    def __str__(self):
+        return 'FsItemTagSource.%s' % self.name
 
 
 class FsItemTag(Base):
@@ -798,21 +805,19 @@ class FsItemTag(Base):
     def find_text(cls, session, type, text):
         return session.query(FsItemTag).filter_by(type=type, text=text).all()
 
-
     def diff_tup(self):
         # (w|t, state, bases)
         t = 'w' if self.type == FsTagType.WORD else 't'
         return t, self.text, self.bases
 
-    
-    def __repr__(self):
+    def __str__(self):  # checked
         if self.type == FsTagType.WORD:
             idx = 'w%s/%s..%s' % (self.idx, self.first_idx, self.last_idx)
         else:
             idx = 't%s' % self.idx
         tgt = ' => ' + self.db_tag.pname() if self.db_tag is not None else ''
-        return '<FsItemTag [%s] %s: %s/%s%s>' % (
-            idx, self.text, self.binding.name, self.source.name, tgt)
+        return '[FsItemTag [%s] %s: %s/%s%s]' % (
+            idx, self.text, self.binding, self.source, tgt)
 
 
 class FsTagMapping(Base):
@@ -847,7 +852,7 @@ class FsTagMapping(Base):
         mapping = FsTagMapping(
             tag_source=tag_source, text=text, binding=binding, db_tag=db_tag)
         if mapping is not None: session.add(mapping)
-        on_fs_tag_mapping_added(session, mapping)
+        tags.on_fs_tag_mapping_added(session, mapping)
         return mapping
 
     @classmethod
@@ -874,14 +879,14 @@ class FsTagMapping(Base):
         else:
             old_binding = mapping.binding
             if binding != old_binding:
-                on_fs_tag_mapping_removed(session, mapping)
+                tags.on_fs_tag_mapping_removed(session, mapping)
                 if binding == FsTagMapping.UNBOUND:
                     session.delete(mapping)
                     return None
             mapping.binding = binding
             mapping.db_tag = db_tag
             if binding != old_binding:
-                on_fs_tag_mapping_added(session, mapping)
+                tags.on_fs_tag_mapping_added(session, mapping)
         return mapping
 
     def leaf_text(self):
@@ -898,8 +903,8 @@ class FsTagMapping(Base):
             self.db_tag.pname() if self.db_tag is not None else 'None'
         )
 
-    def __repr__(self):
-        return '<FsTagMapping %s>' %  self.pname()
+    def __str__(self):  # checked
+        return '[FsTagMapping %s]' % self.pname()
 
 
 class TagChange(Base):
@@ -940,8 +945,9 @@ class TagChange(Base):
         """ Return the global TagChange list, sorted oldest-first. """
         return session.query(TagChange).order_by(TagChange.timestamp).all()
 
-    def __repr__(self):
-        return '<TagChange %s @ %s>' % (self.text, str(self.timestamp))
+    def __str__(self):  # checked
+        return '[TagChange %s @ %s]' % (self.text, str(self.timestamp))
+
 
 class FsFolder(FsItem):
     """ a filesystem source from which DbFolder were imported
@@ -1013,8 +1019,8 @@ class FsFolder(FsItem):
     def pname(self):
         return '%s|%s' % (self.source.pname(), self.name)
 
-    def __repr__(self):
-        return '<FsFolder %s>' % self.pname()
+    def __str__(self):  # checked
+        return '[FsFolder %s]' % self.pname()
 
 
 class FsImage(FsItem):
@@ -1066,8 +1072,8 @@ class FsImage(FsItem):
     def text(self):
         return '%s|%s' % (self.folder.pname(), self.name)
 
-    def __repr__(self):
-        return "<FsImage %s>" % (self.text())
+    def __str__(self):  # checked
+        return '[FsImage %s]' % self.text()
 
 
 session = None
