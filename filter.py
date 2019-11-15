@@ -68,7 +68,6 @@ class Filter(object):
 
     @staticmethod
     def _tup_str(t, js: JoinState, parent_pri):
-        # TODO insert parentheses
         map = {
             '<':        lambda t: Filter._relop_str(t, js, '<'),
             '<=':       lambda t: Filter._relop_str(t, js, '<='),

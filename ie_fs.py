@@ -262,6 +262,11 @@ class IEImageInst(object):
 _exiftool_args = [
     'exiftool', '-S', '-j', '-q',
     '-ImageSize',
+    '-FocalLength',
+    '-Flash',
+    '-ExposureTime',
+    '-FNumber',
+    '-ISO',
     '-XMP-dc:subject',
     '-XMP-lr:hierarchicalSubject'
 ]

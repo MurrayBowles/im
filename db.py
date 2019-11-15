@@ -236,7 +236,7 @@ class DbImage(Item):
     thumbnail = Column(LargeBinary())
     thumbnail_timestamp = Column(DateTime)
     # checked by fg_start_ie_work_item() to schedule a thumbnail read
-    # updated by fg_finish_ie_work_item()
+    # updated by fg_finish_ie_work_item() and FsImage.set_db_image()
 
     # DbImage <<-> DbFolder
     folder_id = Column(Integer, ForeignKey('db_folder.id'))
@@ -1044,6 +1044,12 @@ class FsImage(FsItem):
     db_image_id = Column(Integer, ForeignKey('db_image.id'))
     db_image = relationship(
         'DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
+
+    thumbnail = Column(LargeBinary())
+    thumbnail_timestamp = Column(DateTime)
+    # used when .db_image is null, otherwise null
+    # checked by fg_start_ie_work_item() to schedule a thumbnail read
+    # updated by fg_finish_ie_work_item() and cleared by FsImage.set_db_image()
 
     @classmethod
     def add(cls, session, folder, name, db_image=None):

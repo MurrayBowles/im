@@ -2,9 +2,10 @@
 
 import copy
 from collections import deque
+from typing import Union
 
 import db
-from fuksqa import fuksqa
+import ie_db
 import web_ie_db
 from ie_cfg import *
 from ie_fs import *
@@ -157,26 +158,35 @@ def create_fs_folder(session, ie_folder, fs_source):
         fs_folder.db_folder = db_folder
     return fs_folder
 
+def _thumbnail_needs_update(fs_or_db_image: Union[db.FsImage, db.DbImage], thumbnail_timestamp):
+    return (
+        fs_or_db_image.thumbnail_timestamp is None
+        or fs_or_db_image.thumbnail_timestamp < thumbnail_timestamp )
+
+def _update_thumbnail(
+    fs_or_db_image: Union[db.FsImage, db.DbImage], thumbnail, thumbnail_timestamp
+):
+    fs_or_db_image.thumbnail = thumbnail
+    fs_or_db_image.thumbnail_timestamp = thumbnail_timestamp
+
 def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     import_mode = ie_cfg.import_mode
 
-    def import_ie_image(fs_image, ie_image, new_fs_image):
+    def queue_ie_image_import(fs_image, ie_image, new_fs_image):
         work_item.existing_images.append((fs_image, ie_image, new_fs_image))
         if db_folder is not None:
             db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
             if fs_image.db_image is None:
                 fs_image.db_image = db_image
-            if (ie_cfg.import_thumbnails
-            and ie_image.newest_inst_with_thumbnail is not None):
-                pass # FIXME: what't this for?
-            if (ie_cfg.import_thumbnails
-            and ie_image.newest_inst_with_thumbnail is not None
-            and (
-                db_image.thumbnail is None
-                or ie_image.newest_inst_with_thumbnail.mod_datetime
-                    > db_image.thumbnail_timestamp
-            )):
-                # FIXME: the test had been .latest_inst_with_timestamp
+            fs_or_db_image = db_image
+        else:
+            fs_or_db_image = fs_image
+        if ie_cfg.import_thumbnails:
+            thumb_ie_image_inst = ie_image.newest_inst_with_thumbnail
+            if thumb_ie_image_inst is not None:
+                pass
+            if (thumb_ie_image_inst is not None
+            and _thumbnail_needs_update(fs_or_db_image, thumb_ie_image_inst.mod_datetime)):
                 # add to the list of IEImages to get/update thumbnails for
                 work_item.get_thumbnail.add(ie_image)
         if new_fs_image:
@@ -187,14 +197,17 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     fs_folder = work_item.fs_folder
     ie_folder = work_item.ie_folder
 
-    if fs_source.source_type == db.FsSourceType.DIR:
+    if fs_source.source_type == db.FsSourceType.FILE:
+        # the files have already been scanned by scan_file_set/sel()
+        pass
+    elif fs_source.source_type == db.FsSourceType.DIR:
         # scan the folder's image files
-        # (this will have already been done in the db.FsSourceType.FILE case
-        # by scan_file_set/sel)
         scan_std_dir_files(ie_folder)
     elif fs_source.source_type == db.FsSourceType.WEB:
-        # all the work is done inn the background thread
+        # all the work is done in the background thread
         return
+    else:
+        raise Exception('unexpected FsSourceType')
 
     if fs_folder is None:
         # create an FsFolder and maybe its DbFolder
@@ -207,11 +220,11 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
 
     if (import_mode == ImportMode.SEL
     and fs_source.source_type == db.FsSourceType.FILE):
-        # find/create FsImages corresponding to each IeImage
+        # find/create FsImages corresponding to each IEImage
         for ie_image in ie_folder.images.values():
             fs_image, new_fs_image = db.FsImage.get(
                 session, fs_folder, ie_image.name)
-            import_ie_image(fs_image, ie_image, new_fs_image)
+            queue_ie_image_import(fs_image, ie_image, new_fs_image)
     else:
         # get sorted lists of all FsImages and IEImages for the folder
         fs_images = list(fs_folder.images)
@@ -224,26 +237,26 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
                 fs_image = fs_images.pop(0)
                 ie_image = ie_images.pop(0)
                 if fs_image.name == ie_image.name:
-                    import_ie_image(fs_image, ie_image, False)
+                    queue_ie_image_import(fs_image, ie_image, False)
                 elif fs_image.name < ie_image.name:
                     work_item.deleted_images.append(fs_image)
                 else: # ie_image.db_name < fs_image.db_name
                     fs_image = db.FsImage.add(session, fs_folder, ie_image.name)
-                    import_ie_image(fs_image, ie_image, True)
+                    queue_ie_image_import(fs_image, ie_image, True)
             elif len(fs_images) != 0:
                 work_item.deleted_images.extend(fs_images)
                 break
             elif len(ie_images) != 0:
                 ie_image = ie_images.pop(0)
                 fs_image = db.FsImage.add(session, fs_folder, ie_image.name)
-                import_ie_image(fs_image, ie_image, True)
+                queue_ie_image_import(fs_image, ie_image, True)
             else:
                 break
 
 def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
-    """ get thumbnails or exifs for a work item
-        do all the processing for a web page
-        run in a background thread
+    """ WEB: scan the work item's web page
+        FILE or DIR: get thumbnails or exifs for the work item
+        this is run in a background thread and may not touch the database
     """
     try:
         if fs_source.source_type == db.FsSourceType.WEB:
@@ -253,7 +266,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
                     work_item.ie_folder, work_item.base_folder,
                     work_item.child_paths)
                 pub_fn('ie.sts.imported webpage', data=1)
-        else:
+        else:  # FILE or DIR
             if len(work_item.get_thumbnail) > 0:
                 pub_fn(
                     'ie.sts.import thumbnails', data=len(work_item.get_thumbnail))
@@ -272,7 +285,7 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
 
     if fs_source.source_type == db.FsSourceType.WEB:
         # create FsFolders and FsImages for the IEFolders/Images scanned
-        # (for the file-system case, this is done BEFORE scanning)
+        # (for the WEB or FILE case this was done in fg_start_ie_work_item)
         try:
             assert work_item.fs_folder is None
             ie_folder = work_item.ie_folder
@@ -290,27 +303,27 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
         except Exception as ed:
             print('hey')
 
-    if True: # TODO work_item.fs_folder.db_folder is not None:
-        try:
-            # create FsItemTags from any imported tags, and set DbImage thumbnails
-            set_fs_item_tags(session,
-                work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
-            for image in work_item.existing_images:
-                fs_image = image[0]
-                ie_image = image[1]
-                set_fs_item_tags(session, fs_image, ie_image.tags, fs_source.tag_source)
+    # create FsItemTags from any imported tags, and set Db/FsImage thumbnails
+    try:
+        set_fs_item_tags(session,
+            work_item.fs_folder, work_item.ie_folder.tags, fs_source.tag_source)
 
-                ie_thumb_image_inst = ie_image.newest_inst_with_thumbnail
-                if ie_thumb_image_inst is not None:
-                    db_image = fs_image.db_image
-                    if db_image is not None:
-                        if (db_image.thumbnail is None
-                            or db_image.thumbnail_timestamp < ie_thumb_image_inst.mod_datetime
-                        ):
-                            db_image.thumbnail = ie_image.thumbnail
-                            db_image.thumbnail_timestamp = ie_thumb_image_inst.mod_datetime
-        except Exception as ed:
-            print('hey')
+        for image in work_item.existing_images:
+            fs_image = image[0]
+            ie_image = image[1]
+
+            set_fs_item_tags(session, fs_image, ie_image.tags, fs_source.tag_source)
+            if ie_cfg.import_thumbnails:
+                fs_or_db_image = fs_image.db_image if fs_image.db_image is not None else fs_image
+                thumb_ie_image_inst = ie_image.newest_inst_with_thumbnail
+                if (thumb_ie_image_inst is not None
+                and _thumbnail_needs_update(fs_or_db_image, thumb_ie_image_inst.mod_datetime)):
+                    _update_thumbnail(
+                        fs_or_db_image,
+                        ie_image.thumbnail,
+                        thumb_ie_image_inst.mod_datetime)
+    except Exception as ed:
+        print('hey')
 
     # for the WEB case, queue processing for child pages
     try:

@@ -4,8 +4,6 @@ import pytest
 
 import check_tags
 from db import *
-from test_db import _mk_date, _mk_name
-
 
 def test_tags():
     session = open_mem_db()
@@ -30,7 +28,6 @@ def test_tags():
     ctx.execute(ops)
     pass
 
-
 tag_source_data = [
     (   'global', [
         ('b',),
@@ -46,7 +43,6 @@ tag_source_data = [
 ]
 # source-data: ( source-description-string, mapping-data-list )
 # mapping-data: ( state, [ db-tag-state ] )
-
 
 def test_tag_mappings():
     session = open_mem_db()
@@ -85,7 +81,6 @@ def test_tag_mappings():
 
     pass
 
-
 def test_tag_mappings2():
     ops = [
         ('+tag', [
@@ -109,7 +104,6 @@ def test_tag_mappings2():
     ctx = check_tags.Ctx(session)
     ctx.execute(ops)
     pass
-
 
 def test_check_tags():
     session = open_mem_db()
