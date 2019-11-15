@@ -14,8 +14,6 @@ from sqlalchemy import ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
 
-from fuksqa import fuksqa
-
 import tags
 import util
 

@@ -48,6 +48,7 @@ class IEWorkItem(object):
             str(self.ie_folder) if self.ie_folder is not None else 'NoIE'
         )
 
+
 def get_web_ie_work_item(session, fs_source, path, parent):
     child_paths = []
 
@@ -81,6 +82,7 @@ def get_web_ie_work_item(session, fs_source, path, parent):
         base_folder = parent.base_folder
     work_item = IEWorkItem(fs_folder, ie_folder, nest_lvl, parent, base_folder)
     return work_item
+
 
 def get_ie_worklist(session, fs_source, import_mode, paths):
     """ return a list of IEWorkItems
@@ -143,6 +145,7 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
                 break
     return worklist
 
+
 def create_fs_folder(session, ie_folder, fs_source):
     """ create an FsFolder, and maybe a DbFolder, for <ie_folder> """
 
@@ -158,16 +161,27 @@ def create_fs_folder(session, ie_folder, fs_source):
         fs_folder.db_folder = db_folder
     return fs_folder
 
+
 def _thumbnail_needs_update(fs_or_db_image: Union[db.FsImage, db.DbImage], thumbnail_timestamp):
     return (
         fs_or_db_image.thumbnail_timestamp is None
         or fs_or_db_image.thumbnail_timestamp < thumbnail_timestamp )
+
 
 def _update_thumbnail(
     fs_or_db_image: Union[db.FsImage, db.DbImage], thumbnail, thumbnail_timestamp
 ):
     fs_or_db_image.thumbnail = thumbnail
     fs_or_db_image.thumbnail_timestamp = thumbnail_timestamp
+
+
+def _set_db_image(fs_image: db.FsImage, db_image: db.DbImage):
+    # should be a FsImage method, but Python can't deal with circular imports
+    fs_image.db_image = db_image
+    if db_image is not None and fs_image.thumbnail_timestamp is not None:
+        if _thumbnail_needs_update(db_image, fs_image.thumbnail_timestamp):
+            _update_thumbnail(db_image, fs_image.thumbnail, fs_image.thumbnail_timestamp)
+
 
 def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     import_mode = ie_cfg.import_mode
