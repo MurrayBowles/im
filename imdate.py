@@ -100,7 +100,8 @@ class IMDatePat(object):
                 return '-'.join([elt_str(e) for e in t])
             else:
                 return elt_str(t)
-        return '/'.join([t_str(t) for t in self.val])
+        v = self.val
+        return '%s/%s/%s' % (t_str(v[1]), t_str(v[2]), t_str(v[0]))
 
     @staticmethod
     def from_str(s):
@@ -120,21 +121,24 @@ class IMDatePat(object):
             if len(elts) == 2:
                 args.append(datetime.date.today().year)
             else:
-                args.append(elt_val(elts[0], lambda x: IMDate.y2k(x)))
-            for elt in elts[1:]:
+                args.append(elt_val(elts[2], lambda x: IMDate.y2k(x)))
+            for elt in elts[0:2]:
                 args.append(elt_val(elt, lambda x: x))
             return IMDatePat(*args)
         else:
             raise ValueError('invalid date string: %s' % s)
+
+    def __eq__(self, other):
+        return self.val == other.val
 
     def match(self, date: IMDate):
         for p, d in zip(self.val, date.val):
             if d is IMDate.unk:
                 continue
             if type(p) is tuple:
-                if p[0] != IMDatePat.wild and p[0] < d:
+                if p[0] != IMDatePat.wild and p[0] > d:
                     return False
-                if p[1] != IMDatePat.wild and p[1] > d:
+                if p[1] != IMDatePat.wild and p[1] < d:
                     return False
             else:
                 if p != IMDatePat.wild and p != d:
