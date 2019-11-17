@@ -13,7 +13,9 @@ from sqlalchemy import Boolean, Column, Date, DateTime, Enum
 from sqlalchemy import ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import composite
 
+from imdate import IMDate
 import tags
 import util
 
@@ -149,6 +151,11 @@ class DbFolder(Item):
 
     date = Column(Date)
 
+    date2_year = Column(Integer)
+    date2_month = Column(Integer)
+    date2_day = Column(Integer)
+    date2 = composite(IMDate, date2_year, date2_month, date2_day)
+
     # DbFolder <->> DbImage
     images = relationship(
         'DbImage', foreign_keys='[DbImage.folder_id]', back_populates='folder', lazy='dynamic')
@@ -166,7 +173,7 @@ class DbFolder(Item):
 
     @classmethod
     def add(cls, session, date, name):
-        obj = cls(date=date, name=name)
+        obj = cls(date=date, date2=IMDate(date.year, date.month, date.day), name=name)
         if obj is not None: session.add(obj)
         return obj
 

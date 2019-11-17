@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
     TblDesc.complete_tbl_descs()
-    q_folder = TblQuery.from_names('DbFolder', ['date', 'name', 'id'])
+    q_folder = TblQuery.from_names('DbFolder', ['date', 'name', 'id', 'date2_year'])
     sql_folder = q_folder.get_sql_query()
     r = repr(q_folder)
     r_folder = q_folder.get_rows(session)

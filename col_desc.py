@@ -43,6 +43,10 @@ class ColDesc(object):
     def sql_literal_str(self, literal):
         return str(literal)
 
+    def wrap_sql_order_ref(self, ref: str, descending: bool):
+        return ref
+
+
     @classmethod
     def find(cls, db_name, col_descs: List[Any]):   # FIXME: Any should be ColDesc
         for col_desc in col_descs:
@@ -76,6 +80,20 @@ class IntCD(DataColDesc):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class IMDateEltCD(DataColDesc):
+    def __init__(self, *args, **kwargs):
+        if 'hidden' not in kwargs:
+            kwargs['hidden'] = True  # default hidden to True
+        super().__init__(*args, **kwargs)
+
+    def wrap_sql_order_ref(self, ref: str, descending: bool):
+        if descending:
+            # IMDate.unk (0) will already sort at the end
+            return ref
+        else:
+            return 'CASE WHEN %s == 0 THEN 999 ELSE %s' % (ref, ref)
 
 
 class IdCD(DataColDesc):

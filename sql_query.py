@@ -40,7 +40,8 @@ class SqlQuery(object):
         if sorter is not None:
             sort_cols = []
             for sc in sorter.cols:
-                sort_col = self.join_state.sql_col_ref(sc.col_desc, row_desc=self.select)
+                sort_ref = self.join_state.sql_col_ref(sc.col_desc, row_desc=self.select)
+                sort_col = sc.col_desc.wrap_sql_order_ref(sort_ref, sc.descending)
                 if sc.descending:
                     sort_col += ' DESC'
                 sort_cols.append(sort_col)
@@ -72,6 +73,8 @@ class SqlQuery(object):
 
 if __name__ == '__main__':
     import tbl_descs
+    from imdate import IMDate
+    from sorter import SorterCol
     TblDesc.complete_tbl_descs()
     td = TblDesc.lookup_tbl_desc('DbFolder')
     q_count = SqlQuery.from_names(td, 'count')
@@ -80,4 +83,10 @@ if __name__ == '__main__':
     s_unsorted = str(q_unsorted)
     q_sorted = SqlQuery.from_names(td, ['date', 'name', 'id'], sorter=td.sorter)
     s_sorted = str(q_sorted)
+    a_im_date_sorter = Sorter([SorterCol(td.lookup_col_desc('date2_year'), descending=False)])
+    q_a_im_date = SqlQuery.from_names(td, ['date', 'date2_year'], sorter=a_im_date_sorter)
+    d_im_date_sorter = Sorter([SorterCol(td.lookup_col_desc('date2_year'), descending=True)])
+    q_d_im_date = SqlQuery.from_names(td, ['date', 'date2_year'], sorter=d_im_date_sorter)
+    im_date_filter = Filter(('>', td.lookup_col_desc('date2_year'), 2000))
+    q_im_date = SqlQuery.from_names(td, ['date', 'date2_year'], filter=im_date_filter)
     pass
