@@ -43,9 +43,23 @@ class ColDesc(object):
     def sql_literal_str(self, literal):
         return str(literal)
 
-    def wrap_sql_order_ref(self, ref: str, descending: bool):
-        return ref
+    def sql_select_str(self, col_ref_fn):
+        return col_ref_fn(self)
 
+    def sql_relop_str(self, op: str, literal, col_ref_fn):
+        return '%s %s %s' % (col_ref_fn(self), op, self.sql_literal_str(literal))
+
+    def sql_order_str(self, descending: bool, col_ref_fn):
+        s = col_ref_fn(self)
+        if descending:
+            s += ' DESC'
+        return s
+
+    ''' see also:
+    Join State.sql_col_ref()
+    Filter._relop_str(), _between_str()
+    TblDesc._complete_col_desc()
+    '''
 
     @classmethod
     def find(cls, db_name, col_descs: List[Any]):   # FIXME: Any should be ColDesc
@@ -83,6 +97,8 @@ class IntCD(DataColDesc):
 
 
 class IMDateEltCD(DataColDesc):
+    def_fmt = 'l4'
+
     def __init__(self, *args, **kwargs):
         if 'hidden' not in kwargs:
             kwargs['hidden'] = True  # default hidden to True
@@ -144,7 +160,7 @@ class SuperCD(LinkColDesc):
 class ShortcutCD(ColDesc):
     path_str: str   # [ link-shortcut-cd-name | link-cd-name '.'... ] [cd-name]
 
-    # set by TblDesc._complete_col_desc(), which flattens embedded ShortcutCDs
+    # set by TblDesc._complete_col_desc(), which flattens embedded Shortcut/VirtualCDs
     path_cds = List[ColDesc]    # [ link-CD ... ] [ CD ]
 
     def __init__(self, *args, **kwargs):
@@ -162,6 +178,29 @@ class ShortcutCD(ColDesc):
 
     def sql_literal_str(self, literal):
         return self.path_cds[-1].sql_literal_str(literal)
+
+
+class VirtualCD(ColDesc):
+    dependencies: List[str]
+
+    # set by TblDesc._complete_col_desc(), which flattens embedded Shortcut/VirtualCDs
+    dependency_cds = List[ColDesc]    # [ link-CD ... ] [ CD ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'dependencies' in kwargs:
+            self.dependencies = kwargs['dependencies']
+        else:
+            raise KeyError('dependencies not specified')
+        self.dependency_cds = None
+
+    def base_repr(self):
+        s = super().base_repr()
+        s += ', dependencies=%r' % self.dependencies
+        return s
+
+    def sql_literal_str(self, literal):
+        raise ValueError('sql_literal_str not overloaded for %s', self.__class__.__name__)
 
 
 if __name__ == '__main__':

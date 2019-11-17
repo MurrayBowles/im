@@ -29,7 +29,8 @@ class SqlQuery(object):
             self.select_str = 'SELECT COUNT(*)'
         else:
             self.select = select
-            cols = [self.join_state.sql_col_ref(cd, alias=True) for cd in self.select.col_descs]
+            col_ref_fn = self.join_state.sql_col_ref_fn(alias=True)
+            cols = [cd.sql_select_str(col_ref_fn) for cd in self.select.col_descs]
             self.select_str = 'SELECT ' + ', '.join(cols)
         self.filter = filter
         if filter is not None:
@@ -39,12 +40,9 @@ class SqlQuery(object):
         self.sorter = sorter
         if sorter is not None:
             sort_cols = []
+            col_ref_fn = self.join_state.sql_col_ref_fn(row_desc=self.select)
             for sc in sorter.cols:
-                sort_ref = self.join_state.sql_col_ref(sc.col_desc, row_desc=self.select)
-                sort_col = sc.col_desc.wrap_sql_order_ref(sort_ref, sc.descending)
-                if sc.descending:
-                    sort_col += ' DESC'
-                sort_cols.append(sort_col)
+                sort_cols.append(sc.col_desc.sql_order_str(sc.descending, col_ref_fn))
             self.order_str = ' ORDER BY ' + ', '.join(sort_cols)
         else:
             self.order_str = ''

@@ -12,9 +12,10 @@ def test_join_state():
 
     def get_col_refs(td: TblDesc):
         js = JoinState(td)
+        col_ref_fn = js.sql_col_ref_fn()
         col_refs = []
         for cd in td.row_desc.col_descs:
-            col_refs.append(js.sql_col_ref(cd))
+            cd.sql_select_str(col_ref_fn)
         return col_refs, js.sql_strs
 
     def check(td: TblDesc, exp_col_refs, exp_join_strs):

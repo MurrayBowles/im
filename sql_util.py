@@ -72,8 +72,10 @@ class JoinState:
             td1_name = td1.sql_name(jcx_str)
         return td1_name
 
-    def sql_col_ref(self, col_desc: ColDesc, alias: bool = False, row_desc: RowDesc = RowDesc([])):
-        ''' Return the SQL string to reference col_desc, adding any necessary sql_strs. '''
+    def _sql_col_ref(self, col_desc: ColDesc, alias: bool = False, row_desc: RowDesc = RowDesc([])):
+        ''' Return the SQL string to reference col_desc, adding any necessary sql_strs.
+            Called only through the closures returned by sql_col_ref_fn()
+        '''
         if row_desc.has_col_desc(col_desc):
             col_ref = col_desc.db_name
         else:
@@ -88,16 +90,19 @@ class JoinState:
                 col_ref += ' AS %s' % col_desc.db_name
         return col_ref
 
+    def sql_col_ref_fn(self, alias: bool = False, row_desc: RowDesc = RowDesc([])):
+        return lambda cd: self._sql_col_ref(cd, alias, row_desc)
 
 if __name__ == '__main__':
     import tbl_descs
 
     def col_refs(td: TblDesc):
         js = JoinState(td)
+        col_ref_fn = js.sql_col_ref_fn()
         col_refs = []
         for cd in td.row_desc.col_descs:
             try:
-                col_refs.append(js.sql_col_ref(cd))
+                col_refs.append(cd.sql_select_str(col_ref_fn))
             except Exception as ed:
                 printf('hey')
         return col_refs, js.sql_strs

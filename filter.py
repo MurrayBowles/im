@@ -91,8 +91,7 @@ class Filter(object):
 
     @staticmethod
     def _relop_str(t, js: JoinState, op):
-        return '%s %s %s' % (
-            js.sql_col_ref(t[1]), op, t[1].sql_literal_str(t[2]))
+        return t[1].sql_relop_str(op, t[2], js.sql_col_ref_fn())
 
     @staticmethod
     def _many_str(t, js: JoinState, op, my_pri, parent_pri):
