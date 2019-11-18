@@ -1,6 +1,6 @@
 ''' SQL query generator '''
 
-from typing import List, Optional
+from typing import List, NewType, Optional, Union
 
 from filter import Filter
 from row_desc import RowDesc
@@ -8,6 +8,8 @@ from sorter import Sorter
 from sql_util import JoinState
 from tbl_desc import TblDesc
 
+
+SelectArg = NewType('SelectArg', Union[str, RowDesc])
 
 class SqlQuery(object):
     tbl_desc: TblDesc
@@ -20,14 +22,18 @@ class SqlQuery(object):
     order_str: str
     query_str: str
 
-    def __init__(self, tbl_desc: TblDesc, select, filter: Filter = None, sorter: Sorter= None):
+    def __init__(
+            self, tbl_desc: TblDesc, select: SelectArg,
+            filter: Filter=None, sorter: Sorter=None
+    ):
         self.tbl_desc = tbl_desc
         self.join_state = JoinState(tbl_desc)
         if select == 'count':
-            self.select = RowDesc([tbl_desc.lookup_col_desc('id')])
+            # self.select = RowDesc([tbl_desc.lookup_col_desc('id')])
             # self.select_str = 'SELECT COUNT(%s.id)' % tbl_desc.sql_name()
+            self.select = None
             self.select_str = 'SELECT COUNT(*)'
-        else:
+        else:  # RowDesc
             self.select = select
             col_ref_fn = self.join_state.sql_col_ref_fn(alias=True)
             cols = [cd.sql_select_str(col_ref_fn) for cd in self.select.col_descs]
@@ -40,7 +46,7 @@ class SqlQuery(object):
         self.sorter = sorter
         if sorter is not None:
             sort_cols = []
-            col_ref_fn = self.join_state.sql_col_ref_fn(row_desc=self.select)
+            col_ref_fn = self.join_state.sql_col_ref_fn()
             for sc in sorter.cols:
                 sort_cols.append(sc.col_desc.sql_order_str(sc.descending, col_ref_fn))
             self.order_str = ' ORDER BY ' + ', '.join(sort_cols)

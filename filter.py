@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, List, Tuple
 
 from col_desc import ColDesc
+from row_desc import RowDesc
 from sql_util import JoinState
 
 @dataclass

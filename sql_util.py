@@ -10,12 +10,14 @@ from tbl_desc import TblDesc
 class JoinState:
     tbl_desc: TblDesc
     chains: List[List[ColDesc]]
-    sql_strs: List[str]            # SQL JOIN-clause strings
+    sql_strs: List[str]     # SQL JOIN-clause strings
+    aliased: List[ColDesc]
 
     def __init__(self, tbl_desc: TblDesc):
         self.tbl_desc = tbl_desc
         self.chains = []
         self.sql_strs = []
+        self.aliased = []
 
     def _register_join_chain(self, join_chain: List[ColDesc]):
         ''' Return idx, l: a join_chains index, the length of the match.
@@ -72,11 +74,11 @@ class JoinState:
             td1_name = td1.sql_name(jcx_str)
         return td1_name
 
-    def _sql_col_ref(self, col_desc: ColDesc, alias: bool = False, row_desc: RowDesc = RowDesc([])):
+    def _sql_col_ref(self, col_desc: ColDesc, alias: bool = False):
         ''' Return the SQL string to reference col_desc, adding any necessary sql_strs.
             Called only through the closures returned by sql_col_ref_fn()
         '''
-        if row_desc.has_col_desc(col_desc):
+        if col_desc in self.aliased:
             col_ref = col_desc.db_name
         else:
             path_cds = col_desc.sql_path_cds()
@@ -87,10 +89,11 @@ class JoinState:
                 col_ref = '%s.%s' % (self.tbl_desc.sql_name(), path_cds[0].db_name)
             if alias:
                 col_ref += ' AS %s' % col_desc.db_name
+                self.aliased.append(col_desc)
         return col_ref
 
-    def sql_col_ref_fn(self, alias: bool = False, row_desc: RowDesc = RowDesc([])):
-        return lambda cd: self._sql_col_ref(cd, alias, row_desc)
+    def sql_col_ref_fn(self, alias: bool = False):
+        return lambda cd: self._sql_col_ref(cd, alias)
 
 if __name__ == '__main__':
     import tbl_descs
