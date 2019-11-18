@@ -43,6 +43,9 @@ class ColDesc(object):
     def sql_literal_str(self, literal):
         return str(literal)
 
+    def sql_path_cds(self):
+        return [self]
+
     def sql_select_str(self, col_ref_fn):
         return col_ref_fn(self)
 
@@ -104,7 +107,8 @@ class IMDateEltCD(DataColDesc):
             kwargs['hidden'] = True  # default hidden to True
         super().__init__(*args, **kwargs)
 
-    def wrap_sql_order_ref(self, ref: str, descending: bool):
+    def sql_order_str(self, descending: bool, col_ref_fn):
+        ref = col_ref_fn(self)
         if descending:
             # IMDate.unk (0) will already sort at the end
             return ref
@@ -179,6 +183,9 @@ class ShortcutCD(ColDesc):
     def sql_literal_str(self, literal):
         return self.path_cds[-1].sql_literal_str(literal)
 
+    def sql_path_cds(self):
+        return self.path_cds
+
 
 class VirtualCD(ColDesc):
     dependencies: List[str]
@@ -201,6 +208,15 @@ class VirtualCD(ColDesc):
 
     def sql_literal_str(self, literal):
         raise ValueError('sql_literal_str not overloaded for %s', self.__class__.__name__)
+
+    def sql_select_str(self, col_ref_fn):
+        raise ValueError('sql_select_str not specified')
+
+    def sql_relop_str(self, op: str, literal, col_ref_fn):
+        raise ValueError('sql_relop_str not specified')
+
+    def sql_order_str(self, descending: bool, col_ref_fn):
+        raise ValueError('sql_order_str not specified')
 
 
 if __name__ == '__main__':

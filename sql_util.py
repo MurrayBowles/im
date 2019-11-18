@@ -79,13 +79,12 @@ class JoinState:
         if row_desc.has_col_desc(col_desc):
             col_ref = col_desc.db_name
         else:
-            if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
-                col_ref = '%s.%s' % (self.tbl_desc.sql_name(), col_desc.db_name)
-            elif isinstance(col_desc, ShortcutCD):
-                target_sql_name = self._add_joins(col_desc.path_cds[0:-1])
-                col_ref = '%s.%s' % (target_sql_name, col_desc.path_cds[-1].db_name)
+            path_cds = col_desc.sql_path_cds()
+            if len(path_cds) > 1:
+                target_sql_name = self._add_joins(path_cds[0:-1])
+                col_ref = '%s.%s' % (target_sql_name, path_cds[-1].db_name)
             else:
-                raise ValueError('%s has unsupported type' % (col_desc.db_name))
+                col_ref = '%s.%s' % (self.tbl_desc.sql_name(), path_cds[0].db_name)
             if alias:
                 col_ref += ' AS %s' % col_desc.db_name
         return col_ref
