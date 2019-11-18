@@ -3,7 +3,7 @@
 import re
 from typing import List, Mapping, Type
 
-from col_desc import ColDesc, DataColDesc, LinkColDesc
+from col_desc import ColDesc, DataColDesc, LinkColDesc, VirtualColDesc
 from col_desc import ShortcutCD, SuperCD
 from row_desc import RowDesc
 from sorter import Sorter, SorterCol
@@ -116,6 +116,12 @@ class TblDesc(object):
                 elif isinstance(step_cd, DataColDesc):
                     tbl_desc = None
                     col_desc.path_cds.append(step_cd)
+        elif isinstance(col_desc, VirtualColDesc):
+            col_desc.dependency_cds = []
+            for name in col_desc.dependencies:
+                dcd = self.lookup_col_desc(name)
+                self._complete_col_desc(dcd)
+                col_desc.dependency_cds.append(dcd)
 
     def _complete(self):
         for col_desc in self.row_desc.col_descs:

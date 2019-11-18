@@ -187,7 +187,7 @@ class ShortcutCD(ColDesc):
         return self.path_cds
 
 
-class VirtualCD(ColDesc):
+class VirtualColDesc(ColDesc):
     dependencies: List[str]
 
     # set by TblDesc._complete_col_desc(), which flattens embedded Shortcut/VirtualCDs
@@ -207,16 +207,45 @@ class VirtualCD(ColDesc):
         return s
 
     def sql_literal_str(self, literal):
-        raise ValueError('sql_literal_str not overloaded for %s', self.__class__.__name__)
+        raise ValueError('sql_literal_str called on a VirtualColDesc')
 
     def sql_select_str(self, col_ref_fn):
-        raise ValueError('sql_select_str not specified')
+        return ', '.join([col_ref_fn(dcd) for dcd in self.dependency_cds])
 
     def sql_relop_str(self, op: str, literal, col_ref_fn):
-        raise ValueError('sql_relop_str not specified')
+        lits = literal.val  # literal is an IMDate
+        cds = self.dependency_cds
+        if op == '==':
+            return ' AND '.join(cd.sql_relop_str(op, l, col_ref_fn) for cd, l in zip(cds, lits))
+        elif op == '!=':
+            return ' OR '.join(cd.sql_relop_str(op, l, col_ref_fn) for cd, l in zip(cds, lits))
+        else:
+            def res(lits, cds):
+                if len(lits) == 1:
+                    return cds[0].sql_relop_str(op, lits[0], col_ref_fn)
+                else:
+                    return '(%s OR %s AND %s)' % (
+                        cds[0].sql_relop_str(op, lits[0], col_ref_fn),
+                        cds[0].sql_relop_str('==', lits[0], col_ref_fn),
+                        res(lits[1:], cds[1:])
+                    )
+            r = res(lits, cds)
+            return r
 
     def sql_order_str(self, descending: bool, col_ref_fn):
-        raise ValueError('sql_order_str not specified')
+        return ', '.join([
+            dcd.sql_order_str(descending, col_ref_fn) for dcd in self.dependency_cds])
+
+
+class IMDateCD(VirtualColDesc):
+    def __init__(self, *args, **kwargs):
+        db_name =  args[0]
+        ext_kwargs = kwargs
+        ext_kwargs['dependencies'] = [db_name + '_year', db_name + '_month', db_name + '_day']
+        super().__init__(*args, **ext_kwargs)
+
+    def sql_select_str(self, col_ref_fn):
+        return ', '.join([col_ref_fn(dcd) for dcd in self.dependency_cds])
 
 
 if __name__ == '__main__':

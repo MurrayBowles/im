@@ -1,6 +1,6 @@
 ''' database Table Descriptor instances '''
 
-from col_desc import DateCD, IMDateEltCD, IdCD, ParentCD, ShortcutCD, TextCD
+from col_desc import DateCD, IMDateCD, IMDateEltCD, IdCD, ParentCD, ShortcutCD, TextCD
 import db
 from tbl_desc import TblDesc, ItemTblDesc
 from tbl_view import TblItemView, TblReportView
@@ -17,7 +17,8 @@ DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
     DateCD('date', ['Date']),
     IMDateEltCD('date2_year', ['Year']),
     IMDateEltCD('date2_month', ['Month']),
-    IMDateEltCD('date2_day', ['Day'])
+    IMDateEltCD('date2_day', ['Day']),
+    IMDateCD('date2', ['date2_year', 'date2_month', 'date2_day'])
 ], {
     TblReportView: ['name', 'date'],
 }, '-date,+name')
