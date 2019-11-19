@@ -11,6 +11,7 @@ import tbl_descs
 TblDesc.complete_tbl_descs()
 
 from filter import Filter
+from imdate import IMDate
 from row_buf import RowBuf
 from tbl_query import TblQuery
 
@@ -31,13 +32,13 @@ def test_pickle():
 
 def test_access():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
-    q_folder = TblQuery.from_names('DbFolder', ['date', 'name'])
+    q_folder = TblQuery.from_names('DbFolder', ['date2', 'name'])
     r_folder = q_folder.get_rows(session, limit=4, skip=1)
     exp_r_folder = [
-        RowBuf(cols=['2017-10-07', 'virginia']),
-        RowBuf(cols=['2017-09-24', 'empire seven']),
-        RowBuf(cols=['2017-09-23', 'diana']),
-        RowBuf(cols=['2017-09-22', 'caravan'])
+        RowBuf(cols=[IMDate(2017, 10, 7), 'virginia']),
+        RowBuf(cols=[IMDate(2017, 9, 24), 'empire seven']),
+        RowBuf(cols=[IMDate(2017, 9, 23), 'diana']),
+        RowBuf(cols=[IMDate(2017, 9, 22), 'caravan'])
     ]
     assert len(r_folder) == 4
     assert r_folder == exp_r_folder

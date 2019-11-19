@@ -24,6 +24,7 @@ class TblQuery(object):
     filter: Optional[Filter]
     sorter: Sorter
         # the Sorter's ColDescs must be either from tbl_desc.col_descs or self.col_descs
+    sql_query: SqlQuery     # set by self.get_sql_query()
 
     def __init__(
         self, tbl_desc: TblDesc, row_desc: RowDesc, filter: Filter = None, sorter: Sorter = None
@@ -130,7 +131,15 @@ class TblQuery(object):
                     q += ' LIMIT -1'  # SQLite won't do OFFSET without LIMIT
                 q += ' OFFSET %u' % skip
             db_rows = session.execute(q)
-            row_bufs = [RowBuf([dbc for dbc in dbr]) for dbr in db_rows]
+            join_state = self.sql_query.join_state
+            row_bufs = []
+            for dbr in db_rows:
+                cols = []
+                for cd in self.sql_query.cli_select.col_descs:
+                    col = cd.get_val(lambda scd:
+                        dbr[join_state.select_cols[scd.db_name][0]])
+                    cols.append(col)
+                row_bufs.append(RowBuf(cols))
             return row_bufs
         except Exception as ed:
             print('hey')
@@ -171,7 +180,7 @@ if __name__ == '__main__':
 
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
     TblDesc.complete_tbl_descs()
-    q_folder = TblQuery.from_names('DbFolder', ['date', 'name', 'id', 'date2_year'])
+    q_folder = TblQuery.from_names('DbFolder', ['date2', 'name', 'id'])
     sql_folder = q_folder.get_sql_query()
     r = repr(q_folder)
     r_folder = q_folder.get_rows(session)

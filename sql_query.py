@@ -2,6 +2,7 @@
 
 from typing import List, NewType, Optional, Union
 
+from col_desc import ColDesc
 from filter import Filter
 from row_desc import RowDesc
 from sorter import Sorter
@@ -14,13 +15,13 @@ SelectArg = NewType('SelectArg', Union[str, RowDesc])
 class SqlQuery(object):
     tbl_desc: TblDesc
     join_state: JoinState
-    select: Optional[RowDesc]
-    select_str: str
+    cli_select: SelectArg
+    select_str: str                 # the SELECT clause, '' if none
     filter: Optional[Filter]
-    where_str: str
+    where_str: str                  # the WHERE clause, '' if none
     sorter: Optional[Sorter]
-    order_str: str
-    query_str: str
+    order_str: str                  # the ORDER BY clause, '' if none
+    query_str: str                  # the final SQL query
 
     def __init__(
             self, tbl_desc: TblDesc, select: SelectArg,
@@ -28,16 +29,17 @@ class SqlQuery(object):
     ):
         self.tbl_desc = tbl_desc
         self.join_state = JoinState(tbl_desc)
+        self.cli_select = select
         if select == 'count':
             # self.select = RowDesc([tbl_desc.lookup_col_desc('id')])
             # self.select_str = 'SELECT COUNT(%s.id)' % tbl_desc.sql_name()
-            self.select = None
             self.select_str = 'SELECT COUNT(*)'
         else:  # RowDesc
-            self.select = select
-            col_ref_fn = self.join_state.sql_col_ref_fn(alias=True)
-            cols = [cd.sql_select_str(col_ref_fn) for cd in self.select.col_descs]
-            self.select_str = 'SELECT ' + ', '.join(cols)
+            col_ref_fn = self.join_state.sql_col_ref_fn(select=True)
+            for cd in self.cli_select.col_descs:
+                cd.sql_select(col_ref_fn)
+            self.select_str = 'SELECT ' + ', '.join(self.join_state.select_strs)
+            pass
         self.filter = filter
         if filter is not None:
             self.where_str = ' ' + filter.sql_str(self.join_state)
@@ -72,6 +74,7 @@ class SqlQuery(object):
             select = RowDesc(col_descs)
         return SqlQuery(tbl_desc, select=select, **kwargs)
 
+
     def __str__(self):
         return self.query_str
 
@@ -83,18 +86,18 @@ if __name__ == '__main__':
     td = TblDesc.lookup_tbl_desc('DbFolder')
     q_count = SqlQuery.from_names(td, 'count')
     s_count = str(q_count)
-    q_unsorted = SqlQuery.from_names(td, ['date', 'name', 'id'])
+    q_unsorted = SqlQuery.from_names(td, ['date2', 'name', 'id'])
     s_unsorted = str(q_unsorted)
-    q_sorted = SqlQuery.from_names(td, ['date', 'name', 'id'], sorter=td.sorter)
+    q_sorted = SqlQuery.from_names(td, ['date2', 'name', 'id'], sorter=td.sorter)
     s_sorted = str(q_sorted)
     a_im_date_sorter = Sorter([SorterCol(td.lookup_col_desc('date2'), descending=False)])
-    q_a_im_date = SqlQuery.from_names(td, ['date', 'date2'], sorter=a_im_date_sorter)
+    q_a_im_date = SqlQuery.from_names(td, ['date2'], sorter=a_im_date_sorter)
     d_im_date_sorter = Sorter([SorterCol(td.lookup_col_desc('date2'), descending=True)])
-    q_d_im_date = SqlQuery.from_names(td, ['date', 'date2'], sorter=d_im_date_sorter)
+    q_d_im_date = SqlQuery.from_names(td, ['date2'], sorter=d_im_date_sorter)
     im_date_eq_filter = Filter(('==', td.lookup_col_desc('date2'), IMDate(2000, 1, 1)))
-    q_im_date_eq = SqlQuery.from_names(td, ['date', 'date2'], filter=im_date_eq_filter)
+    q_im_date_eq = SqlQuery.from_names(td, ['date2'], filter=im_date_eq_filter)
     im_date_ne_filter = Filter(('!=', td.lookup_col_desc('date2'), IMDate(2000, 1, 1)))
-    q_im_date_ne = SqlQuery.from_names(td, ['date', 'date2'], filter=im_date_ne_filter)
+    q_im_date_ne = SqlQuery.from_names(td, ['date2'], filter=im_date_ne_filter)
     im_date_lt_filter = Filter(('>', td.lookup_col_desc('date2'), IMDate(2000, 1, 1)))
-    q_im_date_lt = SqlQuery.from_names(td, ['date', 'date2'], filter=im_date_lt_filter)
+    q_im_date_lt = SqlQuery.from_names(td, ['date2'], filter=im_date_lt_filter)
     pass

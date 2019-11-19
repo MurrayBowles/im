@@ -21,7 +21,7 @@ DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
     IMDateCD('date2', ['date2_year', 'date2_month', 'date2_day'])
 ], {
     TblReportView: ['name', 'date'],
-}, '-date,+name')
+}, '-date2,+name')
 
 DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
     ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),

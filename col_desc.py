@@ -2,6 +2,7 @@
 
 from typing import Any, List, TypeVar
 
+from imdate import IMDate
 from util import force_list
 
 
@@ -46,8 +47,9 @@ class ColDesc(object):
     def sql_path_cds(self):
         return [self]
 
-    def sql_select_str(self, col_ref_fn):
-        return col_ref_fn(self)
+    def sql_select(self, col_ref_fn):
+        ''' Call col_ref_fn(col_desc) for every SQL column accessed to display this column '''
+        col_ref_fn(self)
 
     def sql_relop_str(self, op: str, literal, col_ref_fn):
         return '%s %s %s' % (col_ref_fn(self), op, self.sql_literal_str(literal))
@@ -57,6 +59,9 @@ class ColDesc(object):
         if descending:
             s += ' DESC'
         return s
+
+    def get_val(self, get_sql_val_fn):
+        return get_sql_val_fn(self)
 
     ''' see also:
     Join State.sql_col_ref()
@@ -111,9 +116,9 @@ class IMDateEltCD(DataColDesc):
         ref = col_ref_fn(self)
         if descending:
             # IMDate.unk (0) will already sort at the end
-            return ref
+            return ref + ' DESC'
         else:
-            return 'CASE WHEN %s == 0 THEN 999 ELSE %s' % (ref, ref)
+            return 'CASE WHEN %s == 0 THEN 9999 ELSE %s' % (ref, ref)
 
 
 class IdCD(DataColDesc):
@@ -209,8 +214,10 @@ class VirtualColDesc(ColDesc):
     def sql_literal_str(self, literal):
         raise ValueError('sql_literal_str called on a VirtualColDesc')
 
-    def sql_select_str(self, col_ref_fn):
-        return ', '.join([col_ref_fn(dcd) for dcd in self.dependency_cds])
+    def sql_select(self, col_ref_fn):
+        ''' Call col_ref_fn(col_desc) for every SQL column accessed to display this column '''
+        for dcd in self.dependency_cds:
+            col_ref_fn(dcd)
 
     def sql_relop_str(self, op: str, literal, col_ref_fn):
         lits = literal.val  # literal is an IMDate
@@ -236,6 +243,9 @@ class VirtualColDesc(ColDesc):
         return ', '.join([
             dcd.sql_order_str(descending, col_ref_fn) for dcd in self.dependency_cds])
 
+    def get_val(self, get_sql_val_fn):
+        return [dcd.get_val(get_sql_val_fn) for dcd in self.dependency_cds]
+
 
 class IMDateCD(VirtualColDesc):
     def __init__(self, *args, **kwargs):
@@ -244,8 +254,9 @@ class IMDateCD(VirtualColDesc):
         ext_kwargs['dependencies'] = [db_name + '_year', db_name + '_month', db_name + '_day']
         super().__init__(*args, **ext_kwargs)
 
-    def sql_select_str(self, col_ref_fn):
-        return ', '.join([col_ref_fn(dcd) for dcd in self.dependency_cds])
+    def get_val(self, get_sql_val_fn):
+        args = super().get_val(get_sql_val_fn)
+        return IMDate(*args)
 
 
 if __name__ == '__main__':

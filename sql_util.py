@@ -10,14 +10,14 @@ from tbl_desc import TblDesc
 class JoinState:
     tbl_desc: TblDesc
     chains: List[List[ColDesc]]
-    sql_strs: List[str]     # SQL JOIN-clause strings
-    aliased: List[ColDesc]
+    select_strs: List[str]      # SQL JOIN-clause strings
 
     def __init__(self, tbl_desc: TblDesc):
         self.tbl_desc = tbl_desc
         self.chains = []
         self.sql_strs = []
-        self.aliased = []
+        self.select_cols = {}   # map: db_name -> (select_strs[] index, col_desc)
+        self.select_strs = []
 
     def _register_join_chain(self, join_chain: List[ColDesc]):
         ''' Return idx, l: a join_chains index, the length of the match.
@@ -74,11 +74,11 @@ class JoinState:
             td1_name = td1.sql_name(jcx_str)
         return td1_name
 
-    def _sql_col_ref(self, col_desc: ColDesc, alias: bool = False):
+    def _sql_col_ref(self, col_desc: ColDesc, select: bool):
         ''' Return the SQL string to reference col_desc, adding any necessary sql_strs.
             Called only through the closures returned by sql_col_ref_fn()
         '''
-        if col_desc in self.aliased:
+        if col_desc.db_name in self.select_cols:
             col_ref = col_desc.db_name
         else:
             path_cds = col_desc.sql_path_cds()
@@ -87,30 +87,20 @@ class JoinState:
                 col_ref = '%s.%s' % (target_sql_name, path_cds[-1].db_name)
             else:
                 col_ref = '%s.%s' % (self.tbl_desc.sql_name(), path_cds[0].db_name)
-            if alias:
+            if select:
                 col_ref += ' AS %s' % col_desc.db_name
-                self.aliased.append(col_desc)
+                if col_desc.db_name not in self.select_cols:
+                    x = len(self.select_strs)
+                    self.select_cols[col_desc.db_name] = (x, col_desc)
+                    self.select_strs.append(col_ref)
         return col_ref
 
-    def sql_col_ref_fn(self, alias: bool = False):
-        return lambda cd: self._sql_col_ref(cd, alias)
+    def sql_col_ref_fn(self, select: bool = False):
+        return lambda cd: self._sql_col_ref(cd, select)
 
 if __name__ == '__main__':
     import tbl_descs
-
-    def col_refs(td: TblDesc):
-        js = JoinState(td)
-        col_ref_fn = js.sql_col_ref_fn()
-        col_refs = []
-        for cd in td.row_desc.col_descs:
-            try:
-                col_refs.append(cd.sql_select_str(col_ref_fn))
-            except Exception as ed:
-                printf('hey')
-        return col_refs, js.sql_strs
     TblDesc.complete_tbl_descs()
     DbFolder_td = TblDesc.lookup_tbl_desc('DbFolder')
     DbImage_td = TblDesc.lookup_tbl_desc('DbImage')
-    DbFolder_cols, DbFolder_joins = col_refs(DbFolder_td)
-    DbImage_cols, DbImage_joins = col_refs(DbImage_td)
     pass

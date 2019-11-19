@@ -25,7 +25,7 @@ class IMDate(object):
         self.val = (IMDate.y2k(year), month, day)
 
     def __repr__(self):
-        return 'Date(%u, %u, %u)' % (self.val[0], self.val[1], self.val[2])
+        return 'IMDate(%u, %u, %u)' % (self.val[0], self.val[1], self.val[2])
 
     def __str__(self):
         def elt_str(elt):
