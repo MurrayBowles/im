@@ -6,6 +6,7 @@ from typing import Union
 
 import db
 import ie_db
+from fuksqa import fuksqa
 import web_ie_db
 from ie_cfg import *
 from ie_fs import *
@@ -103,14 +104,12 @@ def get_ie_worklist(session, fs_source, import_mode, paths):
             assert fs_source.source_type == db.FsSourceType.WEB
             return [
                 get_web_ie_work_item(session, fs_source, paths[0], parent=None)]
-
     else: # ImportMode.SEL
         if fs_source.source_type == db.FsSourceType.DIR:
             ie_folders = scan_dir_sel(paths, proc_std_dirname)
         else: # db.FsSourceType.FILE
             assert fs_source.source_type == db.FsSourceType.FILE
             ie_folders = scan_file_sel(paths, proc_corbett_filename)
-
 
     if import_mode == ImportMode.SEL:
         # get all db.FsFolders that match folders
@@ -222,6 +221,7 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
         return
     else:
         raise Exception('unexpected FsSourceType')
+
 
     if fs_folder is None:
         # create an FsFolder and maybe its DbFolder

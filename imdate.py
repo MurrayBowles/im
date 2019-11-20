@@ -67,6 +67,15 @@ class IMDate(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def year(self):
+        return self.val[0]
+
+    def month(self):
+        return self.val[1]
+
+    def day(self):
+        return self.day[2]
+
     def __composite_values__(self):
         return self.val
 

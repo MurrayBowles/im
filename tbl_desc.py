@@ -89,6 +89,8 @@ class TblDesc(object):
         elif isinstance(col_desc, ShortcutCD):
             tbl_desc = self
             col_desc.path_cds = []
+            if col_desc.db_name == 'folder_date2':
+                print('cc')
             for step_name in col_desc.path_str.split('.'):
                 if tbl_desc is None:
                     raise ValueError('no TblDesc to evaluate %s' % (step_name))
@@ -113,9 +115,11 @@ class TblDesc(object):
                         col_desc.path_cds.append(step_cd)
                     except Exception as ed:
                         print('hey')
-                elif isinstance(step_cd, DataColDesc):
+                elif isinstance(step_cd, DataColDesc) or isinstance(step_cd, VirtualColDesc):
                     tbl_desc = None
                     col_desc.path_cds.append(step_cd)
+                else:
+                    print('hey')
         elif isinstance(col_desc, VirtualColDesc):
             col_desc.dependency_cds = []
             for name in col_desc.dependencies:

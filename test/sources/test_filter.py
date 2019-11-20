@@ -2,10 +2,11 @@
 
 import pytest
 
+from col_desc import CDXState
 from filter import Filter
 from sql_util import JoinState
 from tbl_desc import TblDesc
-TblDesc.complete_tbl_descs()
+import tbl_descs
 
 def test_results():
     def check(t, exp_sql=None, exp_joins=None):
@@ -16,15 +17,17 @@ def test_results():
         except Exception:
             raise Exception("can't make Filter or JoinState for %s", what)
         try:
-            sql = f.sql_str(js)
+            sql = f.sql_str(js, CDXState())
         except Exception:
             raise Exception("can't get SQL string for %s" % what)
         if exp_sql is None or exp_joins is None:
             print('hey')
         else:
-            assert sql == exp_sql
+            if sql != exp_sql:
+                assert sql == exp_sql
             for got_join, exp_join in zip(js.sql_strs, exp_joins):
-                assert got_join == exp_join
+                if got_join != got_join:
+                    assert got_join == exp_join
         pass
 
     TblDesc.complete_tbl_descs()

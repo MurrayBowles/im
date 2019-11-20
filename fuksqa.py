@@ -1,7 +1,7 @@
 ''' I wish I'd never heard of SQLAlchemy -- debugging with print statements '''
 
 fuksqa_step = 0
-fuksqa_stop = 101999
+fuksqa_stop = 24333
 
 def fuksqa():
     global fuksqa_stop

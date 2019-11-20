@@ -2,7 +2,7 @@
 
 from typing import List, NewType, Optional, Union
 
-from col_desc import ColDesc
+from col_desc import CDXState, ColDesc
 from filter import Filter
 from row_desc import RowDesc
 from sorter import Sorter
@@ -27,6 +27,7 @@ class SqlQuery(object):
             self, tbl_desc: TblDesc, select: SelectArg,
             filter: Filter=None, sorter: Sorter=None
     ):
+        path_cds = []  # TODO: there must be a better way
         self.tbl_desc = tbl_desc
         self.join_state = JoinState(tbl_desc)
         self.cli_select = select
@@ -37,12 +38,12 @@ class SqlQuery(object):
         else:  # RowDesc
             col_ref_fn = self.join_state.sql_col_ref_fn(select=True)
             for cd in self.cli_select.col_descs:
-                cd.sql_select(col_ref_fn)
+                cd.sql_select(col_ref_fn, CDXState())
             self.select_str = 'SELECT ' + ', '.join(self.join_state.select_strs)
             pass
         self.filter = filter
         if filter is not None:
-            self.where_str = ' ' + filter.sql_str(self.join_state)
+            self.where_str = ' ' + filter.sql_str(self.join_state, CDXState())
         else:
             self.where_str = ''
         self.sorter = sorter
@@ -50,7 +51,8 @@ class SqlQuery(object):
             sort_cols = []
             col_ref_fn = self.join_state.sql_col_ref_fn()
             for sc in sorter.cols:
-                sort_cols.append(sc.col_desc.sql_order_str(sc.descending, col_ref_fn))
+                sort_cols.append(
+                    sc.col_desc.sql_order_str(sc.descending, col_ref_fn, CDXState()))
             self.order_str = ' ORDER BY ' + ', '.join(sort_cols)
         else:
             self.order_str = ''
@@ -98,6 +100,6 @@ if __name__ == '__main__':
     q_im_date_eq = SqlQuery.from_names(td, ['date2'], filter=im_date_eq_filter)
     im_date_ne_filter = Filter(('!=', td.lookup_col_desc('date2'), IMDate(2000, 1, 1)))
     q_im_date_ne = SqlQuery.from_names(td, ['date2'], filter=im_date_ne_filter)
-    im_date_lt_filter = Filter(('>', td.lookup_col_desc('date2'), IMDate(2000, 1, 1)))
-    q_im_date_lt = SqlQuery.from_names(td, ['date2'], filter=im_date_lt_filter)
+    im_date_gt_filter = Filter(('>', td.lookup_col_desc('date2'), IMDate(2000, 1, 1)))
+    q_im_date_gt = SqlQuery.from_names(td, ['date2'], filter=im_date_gt_filter)
     pass

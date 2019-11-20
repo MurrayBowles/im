@@ -2,7 +2,7 @@
 
 from typing import List
 
-from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD
+from col_desc import CDXState, ColDesc, DataColDesc, LinkColDesc, ShortcutCD
 from row_desc import RowDesc
 from tbl_desc import TblDesc
 
@@ -74,29 +74,30 @@ class JoinState:
             td1_name = td1.sql_name(jcx_str)
         return td1_name
 
-    def _sql_col_ref(self, col_desc: ColDesc, select: bool):
+    def _sql_col_ref(self, xs: CDXState, select: bool):
         ''' Return the SQL string to reference col_desc, adding any necessary sql_strs.
             Called only through the closures returned by sql_col_ref_fn()
         '''
-        if col_desc.db_name in self.select_cols:
-            col_ref = col_desc.db_name
+        assert len(xs.path) > 0
+        col_desc = xs.path[-1]
+        if xs.alias in self.select_cols:
+            col_ref = xs.alias
         else:
-            path_cds = col_desc.sql_path_cds()
-            if len(path_cds) > 1:
-                target_sql_name = self._add_joins(path_cds[0:-1])
-                col_ref = '%s.%s' % (target_sql_name, path_cds[-1].db_name)
-            else:
-                col_ref = '%s.%s' % (self.tbl_desc.sql_name(), path_cds[0].db_name)
+            if len(xs.path) > 1:
+                target_sql_name = self._add_joins(xs.path[0:-1])
+                col_ref = '%s.%s' % (target_sql_name, col_desc.db_name)
+            else:  # == 1
+                col_ref = '%s.%s' % (self.tbl_desc.sql_name(), col_desc.db_name)
             if select:
-                col_ref += ' AS %s' % col_desc.db_name
-                if col_desc.db_name not in self.select_cols:
+                col_ref += ' AS %s' % xs.alias
+                if xs.alias not in self.select_cols:
                     x = len(self.select_strs)
-                    self.select_cols[col_desc.db_name] = (x, col_desc)
+                    self.select_cols[xs.alias] = (x, col_desc)
                     self.select_strs.append(col_ref)
         return col_ref
 
     def sql_col_ref_fn(self, select: bool = False):
-        return lambda cd: self._sql_col_ref(cd, select)
+        return lambda xs: self._sql_col_ref(xs, select)
 
 if __name__ == '__main__':
     import tbl_descs

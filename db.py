@@ -149,8 +149,7 @@ class DbFolder(Item):
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'DbFolder'}
 
-    date = Column(Date)
-
+    # date = Column(Date)             # FIXME: remove
     date2_year = Column(Integer)
     date2_month = Column(Integer)
     date2_day = Column(Integer)
@@ -169,17 +168,22 @@ class DbFolder(Item):
     thumbnail_id = Column(Integer, ForeignKey('db_image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
-    Index('db_folder_index', 'date', 'db_name', unique=True)
+    Index('db_folder_index', 'date2', 'db_name', unique=True)
+    Index('db_folder_flyer_index', 'date2_month', 'date2_day', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, date, name):
-        obj = cls(date=date, date2=IMDate(date.year, date.month, date.day), name=name)
+        date2 = IMDate(date.year, date.month, date.day)
+        obj = cls(
+            # date=date,
+            date2=date2, name=name)
         if obj is not None: session.add(obj)
         return obj
 
     @classmethod
     def find(cls, session, date, name):
-        return session.query(DbFolder).filter_by(date=date, name=name).first()
+        date2 = IMDate(date.year, date.month, date.day)
+        return session.query(DbFolder).filter_by(date2=date2, name=name).first()
 
     @classmethod
     def get(cls, session, date, name):
@@ -968,7 +972,11 @@ class FsFolder(FsItem):
     # DbFolder date and db_name suggested by import/export code (e.g scan_dir_set)
     # may each be None
     # copied from the corresponding members in IEFolder
-    db_date = Column(Date)
+    db_date = Column(Date)  # FIXME: remove
+    db_date2_year = Column(Integer)
+    db_date2_month = Column(Integer)
+    db_date2_day = Column(Integer)
+    db_date2 = composite(IMDate, db_date2_year, db_date2_month, db_date2_day)
     db_name = Column(String)
 
     # last-import timestamps
@@ -995,27 +1003,34 @@ class FsFolder(FsItem):
     def add(cls, session, source, name,
         db_date=None, db_name=None, db_folder=None
     ):
+        if db_date is not None:
+            print('hey')
+        db_date2 = None if db_date is None else IMDate(
+            db_date.year, db_date.month, db_date.day)
         obj = cls(
             source=source, name=name,
-            db_date=db_date, db_name=db_name, db_folder=db_folder)
+            db_date=db_date, db_date2=db_date2, db_name=db_name, db_folder=db_folder)
         if obj is not None: session.add(obj)
         return obj
 
     @classmethod
     def find(cls, session, source, name):
-        return session.query(FsFolder).filter_by(
-            source=source, name=name).first()
+        return session.query(FsFolder).filter_by(source=source, name=name).first()
 
     @classmethod
     def get(cls, session, source, name,
         db_date=None, db_name='', db_folder=None
     ):
+        if db_date is not None:
+            print('hey')
         fs_folder = cls.find(session, source, name)
         if fs_folder is None:
             return (
                 cls.add(session, source, name, db_date, db_name, db_folder)
                 , True)
         else:
+            if db_date is not None:
+                print('hey')
             return fs_folder, False
 
     def db_item(self):

@@ -25,11 +25,11 @@ DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
 
 DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
     ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),
-    ShortcutCD('folder_date', 'Folder Date', path_str='folder_id.date'),
+    ShortcutCD('folder_date2', 'Folder Date', path_str='folder_id.date2'),
     ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name')
 ], {
     TblReportView: ['name', 'parent_id']
-}, '-folder_date,+folder_name,+name')
+}, '-folder_date2,+folder_name,+name')
 
 TblDesc.complete_tbl_descs()
 

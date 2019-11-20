@@ -23,7 +23,7 @@ class TblQuery(object):
     row_desc: RowDesc
     filter: Optional[Filter]
     sorter: Sorter
-        # the Sorter's ColDescs must be either from tbl_desc.col_descs or self.col_descs
+        # the Sorter's ColDescs must be either from tbl_desc.path or self.path
     sql_query: SqlQuery     # set by self.get_sql_query()
 
     def __init__(
@@ -190,9 +190,6 @@ if __name__ == '__main__':
     sql_image = q_image.get_sql_query()
     r_image = q_image.get_rows(session, skip=126, limit=10)
     r_raw_image = session.query(DbImage)[:]
-    for i in r_raw_image:
-        if i.thumbnail is not None:
-            pass
     # FIXME: results from my, web; no results from main, corbett
     json = jsonpickle.encode(q_image)
     try:

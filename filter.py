@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any, List, Tuple
 
-from col_desc import ColDesc
+from col_desc import CDXState, ColDesc
 from row_desc import RowDesc
 from sql_util import JoinState
 
@@ -68,18 +68,18 @@ class Filter(object):
         return f
 
     @staticmethod
-    def _tup_str(t, js: JoinState, parent_pri):
+    def _tup_str(t, js: JoinState, xs, parent_pri):
         map = {
-            '<':        lambda t: Filter._relop_str(t, js, '<'),
-            '<=':       lambda t: Filter._relop_str(t, js, '<='),
-            '==':       lambda t: Filter._relop_str(t, js, '=='),
-            '!=':       lambda t: Filter._relop_str(t, js, '!='),
-            '>=':       lambda t: Filter._relop_str(t, js, '>='),
-            '>':        lambda t: Filter._relop_str(t, js, '>'),
-            '&':        lambda t: Filter._many_str(t, js, 'AND', 6, parent_pri),
-            '|':        lambda t: Filter._many_str(t, js, 'OR', 7, parent_pri),
-            '!':        lambda t: Filter._uni_str(t, js, 'NOT', 5, parent_pri),
-            '-':        lambda t: Filter._minus_str(t, js, parent_pri)
+            '<':        lambda t: Filter._relop_str(t, js, xs, '<'),
+            '<=':       lambda t: Filter._relop_str(t, js, xs, '<='),
+            '==':       lambda t: Filter._relop_str(t, js, xs, '=='),
+            '!=':       lambda t: Filter._relop_str(t, js, xs, '!='),
+            '>=':       lambda t: Filter._relop_str(t, js, xs, '>='),
+            '>':        lambda t: Filter._relop_str(t, js, xs, '>'),
+            '&':        lambda t: Filter._many_str(t, js, xs, 'AND', 6, parent_pri),
+            '|':        lambda t: Filter._many_str(t, js, xs, 'OR', 7, parent_pri),
+            '!':        lambda t: Filter._uni_str(t, js, xs, 'NOT', 5, parent_pri),
+            '-':        lambda t: Filter._minus_str(t, js, xs, parent_pri)
         }
         try:
             return map[t[0]](t)
@@ -91,29 +91,33 @@ class Filter(object):
         return child_str if child_pri <= parent_pri else  '(' + child_str + ')'
 
     @staticmethod
-    def _relop_str(t, js: JoinState, op):
-        return t[1].sql_relop_str(op, t[2], js.sql_col_ref_fn())
+    def _relop_str(t, js: JoinState, xs, op):
+        try:
+            r = t[1].sql_relop_str(op, t[2], js.sql_col_ref_fn(), xs)
+        except Exception as ed:
+            print('dd')
+        return r
 
     @staticmethod
-    def _many_str(t, js: JoinState, op, my_pri, parent_pri):
-        operands = [Filter._tup_str(operand, js, my_pri) for operand in t[1:]]
+    def _many_str(t, js: JoinState, xs, op, my_pri, parent_pri):
+        operands = [Filter._tup_str(operand, js, xs, my_pri) for operand in t[1:]]
         if len(operands) == 1:
             return operands[0]
         else:
             return Filter._parens((' %s ' % op).join(operands), my_pri, parent_pri)
 
     @staticmethod
-    def _uni_str(t, js: JoinState, op, my_pri, parent_pri):
-        operand = Filter._tup_str(t[1], js, my_pri)
+    def _uni_str(t, js: JoinState, xs, op, my_pri, parent_pri):
+        operand = Filter._tup_str(t[1], js, xs, my_pri)
         return Filter._parens(' %s %s' % (op, operand), my_pri, parent_pri)
 
     @staticmethod
-    def _minus_str(t, js: JoinState, parent_pri):
+    def _minus_str(t, js: JoinState, xs, parent_pri):
         t2 = ('&', t[1], ('!', t[2]))
-        return Filter._tup_str(t2, js, parent_pri)
+        return Filter._tup_str(t2, js, xs, parent_pri)
 
-    def sql_str(self, js: JoinState):
-        return 'WHERE ' + Filter._tup_str(self.tup, js, parent_pri=9)
+    def sql_str(self, js: JoinState, xs: CDXState):
+        return 'WHERE ' + Filter._tup_str(self.tup, js, xs, parent_pri=9)
 
 if __name__ == '__main__':
     import tbl_descs
