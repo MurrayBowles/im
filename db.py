@@ -965,7 +965,7 @@ class FsFolder(FsItem):
     """
     __tablename__ = 'fs_folder'
 
-    # isa FsItem (.db_name is relative db_name from FsSource.db_name to IEFolder.fs_path)
+    # isa FsItem (.item.name is the folder's FS pathname relative to FsSource.item.name)
     id = Column(Integer, ForeignKey('fs_item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
 

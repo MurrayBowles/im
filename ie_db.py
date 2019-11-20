@@ -2,15 +2,17 @@
 
 import copy
 from collections import deque
+import datetime
 from typing import Union
 
 import db
-import ie_db
 from fuksqa import fuksqa
-import web_ie_db
+import ie_db
 from ie_cfg import *
 from ie_fs import *
+from imdate import IMDate
 from tags import set_fs_item_tags
+import web_ie_db
 from wx_task import WxTask2
 
 
@@ -152,11 +154,21 @@ def create_fs_folder(session, ie_folder, fs_source):
     fs_folder = db.FsFolder.get(
         session, fs_source, fs_source.rel_path(ie_folder.fs_path))[0]
 
-    # also create a DbFolder if ie_folder has a good db_name and date
-    if (IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None and
-                IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None):
+    ie_db_name_good = IEMsg.find(IEMsgType.NAME_NEEDS_EDIT, ie_folder.msgs) is None
+    ie_db_date_good = IEMsg.find(IEMsgType.NO_DATE, ie_folder.msgs) is None
+
+    if ie_db_name_good:
+        # FIXME: why is fs_folder.db_name '' and not null?
+        if fs_folder.db_name == '':
+            fs_folder.db_name = ie_folder.db_name
+    if ie_db_date_good:
+        if fs_folder.db_date2 is None:
+            fs_folder.db_date2 = IMDate.from_date(ie_folder.db_date)
+
+    # also create a DbFolder if ie_folder has a good db_name and db_date
+    if ie_db_name_good and ie_db_date_good:
         db_folder = db.DbFolder.get(
-            session, ie_folder.db_date, ie_folder.db_name)[0]
+            session, fs_folder.db_date2.date(), fs_folder.db_name)[0]
         fs_folder.db_folder = db_folder
     return fs_folder
 

@@ -56,6 +56,13 @@ class IMDate(object):
         year = IMDate.y2k(int(yymmdd[0:2]))
         return IMDate(int(year), int(yymmdd[2:4]), int(yymmdd[4:6]))
 
+    def date(self):
+        return datetime.date(self.val[0], self.val[1], self.val[2])
+
+    @staticmethod
+    def from_date(date: datetime.date):
+        return IMDate(date.year, date.month, date.day)
+
     def __eq__(self, other):
         for e1, e2 in zip(self.val, other.val):
             if e1 == IMDate.unk or e1 == IMDate.unk:

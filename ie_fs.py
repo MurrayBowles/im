@@ -30,9 +30,9 @@ class IEMsgType(Enum):
 
     NO_DATE             = ('IEFolder.date is None', 'ip')
         # (IEFolder)
-    FOLDER_ADDED        = ('folder added to imports', 'ip')
+    FOLDER_ADDED        = ('folder added to imports', 'ip')  # unused
         # (IEWorkItem)
-    FOLDER_DELETED      = ('folder deleted from import folder set', 'ip')
+    FOLDER_DELETED      = ('folder deleted from import folder set', 'ip')  # unused
         # (IEWorkItem)
     TAGS_ARE_WORDS      = ('tags need editing', 'i')
         # (IEFolder, IEImageInst) [ 'green', 'day', 'ok' ]
@@ -40,9 +40,9 @@ class IEMsgType(Enum):
         # (IEFolder)
     EXTRA_INSTS         = ('multiple instances of (image, extension)', 'ip')
         # (IEImage)
-    NO_IMAGES           = ('folder contains no images', 'ip')
+    NO_IMAGES           = ('folder contains no images', 'ip')  # unused
         # (IEFolder)
-    CANT_FIND_IMAGE     = ("internal error: can't find folder image", 'Ep')
+    CANT_FIND_IMAGE     = ("internal error: can't find folder image", 'Ep')  # unused
         # (IEFolder)
     NAME_NEEDS_EDIT     = ('IEFolder.db_name needs editing', 'is')
         # (IEFolder)
