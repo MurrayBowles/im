@@ -972,7 +972,7 @@ class FsFolder(FsItem):
     # DbFolder date and db_name suggested by import/export code (e.g scan_dir_set)
     # may each be None
     # copied from the corresponding members in IEFolder
-    db_date = Column(Date)  # FIXME: remove
+    # db_date = Column(Date)  # FIXME: remove
     db_date2_year = Column(Integer)
     db_date2_month = Column(Integer)
     db_date2_day = Column(Integer)
@@ -1003,13 +1003,10 @@ class FsFolder(FsItem):
     def add(cls, session, source, name,
         db_date=None, db_name=None, db_folder=None
     ):
-        if db_date is not None:
-            print('hey')
         db_date2 = None if db_date is None else IMDate(
             db_date.year, db_date.month, db_date.day)
         obj = cls(
-            source=source, name=name,
-            db_date=db_date, db_date2=db_date2, db_name=db_name, db_folder=db_folder)
+            source=source, name=name, db_date2=db_date2, db_name=db_name, db_folder=db_folder)
         if obj is not None: session.add(obj)
         return obj
 
@@ -1021,16 +1018,12 @@ class FsFolder(FsItem):
     def get(cls, session, source, name,
         db_date=None, db_name='', db_folder=None
     ):
-        if db_date is not None:
-            print('hey')
         fs_folder = cls.find(session, source, name)
         if fs_folder is None:
             return (
                 cls.add(session, source, name, db_date, db_name, db_folder)
                 , True)
         else:
-            if db_date is not None:
-                print('hey')
             return fs_folder, False
 
     def db_item(self):

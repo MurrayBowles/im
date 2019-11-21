@@ -360,13 +360,13 @@ class Ctx:
 
         def check_item_tag(self, item_tag):
             if item_tag.type != tag_type:
-                pass
+                print('as')
             assert item_tag.type == tag_type
             if item_tag.binding != binding:
-                pass
+                print('asf')
             assert item_tag.binding == binding
             if item_tag.source != source:
-                pass
+                print('asf')
             assert item_tag.source == source
             if binding != db.FsTagBinding.UNBOUND:
                 if tag_label is not None:

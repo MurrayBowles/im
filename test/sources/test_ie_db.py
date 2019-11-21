@@ -185,22 +185,8 @@ def test_get_worklist_file_sel_corbett_tiffs():
 
 from fuksqa import fuksqa
 
-def do_trivial(session):
-    ctx = check_tags.Ctx(session)
-    tag_source = ctx.get_tag_source('l')
-    source_type = FsSourceType.FILE
-    volume = 'c:'
-    path = '\\xxx'
-    fs_source = FsSource.add(
-        session, volume=volume, path=path, source_type=source_type, readonly=True, tag_source=tag_source)
 
-    fs_folder = FsFolder.add(session, fs_source, 'yyy')
-    pass
-
-def do_cmd(volume, dir_name, source_type, cfg, session):
-    ctx = check_tags.Ctx(session)
-    tag_source = ctx.get_tag_source('l')
-
+def do_cmd(ctx, volume, dir_name, tag_source, source_type, cfg, session):
     if source_type == FsSourceType.WEB:
         # import a subtree of web pages
         path = '//www.pbase.com/' + dir_name
@@ -248,7 +234,7 @@ def do_cmd(volume, dir_name, source_type, cfg, session):
         ctx.execute(('?fs-folder-tag', cfg['checks']))
         pass
 
-def do_my_cmd(session):
+def do_my_cmd(session, ctx, tag_source):
     cfg = {
         'tags': [
             ('scythe',  'band|Scythe'),
@@ -270,12 +256,14 @@ def do_my_cmd(session):
             ])
         ]
     }
-    do_cmd('c:', 'my format', FsSourceType.DIR, cfg, session)
+    do_cmd(ctx, 'c:', 'my format', tag_source, FsSourceType.DIR, cfg, session)
 
 def test_my_cmd():
-    do_my_cmd(open_mem_db())
+    session = open_mem_db()
+    ctx = check_tags.Ctx(session)
+    do_my_cmd(session, ctx, ctx.get_tag_source('mine'))
 
-def do_main_cmd(session):
+def do_main_cmd(session, ctx, tag_source):
     cfg = {
         'tags': [
             ('bk',      'band|Bikini Kill'),
@@ -318,12 +306,14 @@ def do_main_cmd(session):
             ])
         ]
     }
-    do_cmd('main1415', 'main1415 corbett psds', FsSourceType.FILE, cfg, session)
+    do_cmd(ctx, 'main1415', 'main1415 corbett psds', tag_source, FsSourceType.FILE, cfg, session)
 
 def test_main_cmd():
-    do_main_cmd(open_mem_db())
+    session = open_mem_db()
+    ctx = check_tags.Ctx(session)
+    do_main_cmd(session, ctx, ctx.get_tag_source('mine'))
 
-def do_corbett_cmd(session):
+def do_corbett_cmd(session, ctx, tag_source):
     cfg = {
         'tags': [
             ('nuisance', 'band|Nuisance'),
@@ -356,46 +346,48 @@ def do_corbett_cmd(session):
             ])
         ]
     }
-    do_cmd('j:', 'corbett drive', FsSourceType.FILE, cfg, session)
+    do_cmd(ctx, 'j:', 'corbett drive', tag_source, FsSourceType.FILE, cfg, session)
 
 def test_corbett_cmd():
-    do_corbett_cmd(open_mem_db())
+    session = open_mem_db()
+    ctx = check_tags.Ctx(session)
+    do_corbett_cmd(session, ctx, ctx.get_tag_source('corbett'))
 
-def do_web_cmd(session):
+def do_web_cmd(session, ctx, tag_source):
     cfg = {
         'tags': [
             ('e7', 'venue|Empire Seven'),
-            ('dys', 'band|Dysphoric'),
             ('ep', 'band|Empty People'),
             ('dp', 'band|Deadpressure'),
             ('cc', 'band|Capitalist Casualties')
         ],
         'mappings': [
             ('bg', 'venue|Empire Seven', 'e7'),
-            ('bg', 'band|Dysphoric', 'dys'),
             ('bf', 'band|Empty People', 'ep'),
             ('bg', 'band|Deadpressure', 'dp')
         ],
         'checks': [
             ('170924_empire_seven', [
                 ('tbg', 'empire seven', 'e7'),
-                ('tbg', 'dysphoric', 'dys'),
                 ('tbf', 'Empty People', 'ep')
             ])
         ]
     }
-    do_cmd('http:', 'murraybowles', FsSourceType.WEB, cfg, session)
+    do_cmd(ctx, 'http:', 'murraybowles', tag_source, FsSourceType.WEB, cfg, session)
 
 def test_web_cmd():
-    do_web_cmd(open_mem_db())
+    session = open_mem_db()
+    ctx = check_tags.Ctx(session)
+    do_web_cmd(session, ctx, ctx.get_tag_source('mine'))
 
 def make_db():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'w')
-    # FIXME: my, main, corbett, web each work by themselves
-    #do_trivial(session)
-    do_my_cmd(session)
-    do_main_cmd(session)
-    do_corbett_cmd(session)
-    do_web_cmd(session)
+    ctx = check_tags.Ctx(session)
+    my_tag_source = ctx.get_tag_source('mine')
+    corbett_tag_source = ctx.get_tag_source('corbett')
+    do_my_cmd(session, ctx, my_tag_source)
+    do_main_cmd(session, ctx, my_tag_source)
+    do_corbett_cmd(session, ctx, corbett_tag_source)
+    do_web_cmd(session, ctx, my_tag_source)
     close_db()
     pass
