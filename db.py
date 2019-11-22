@@ -583,7 +583,7 @@ class FsSource(Item):
     # FsSource -> FsTagSourceId
     tag_source_id = Column(Integer, ForeignKey('fs_tag_source.id'))
     tag_source = relationship(
-        'FsTagSource', backref=backref('fs_tag_source', uselist=False))
+        'FsTagSource', foreign_keys=[tag_source_id])
 
     # FsSource <->> FsFolder
     folders = relationship(

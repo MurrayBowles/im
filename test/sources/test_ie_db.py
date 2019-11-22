@@ -212,7 +212,6 @@ def do_cmd(ctx, volume, dir_name, source_type, cfg, session):
     fs_source = FsSource.add(
         session, volume, path, source_type,
         readonly=True, tag_source=ctx.local_tag_source)
-    session.flush()
 
     # perform the import/export task
     slicer = MockSlicer(suspended=True)
@@ -389,7 +388,7 @@ def make_db():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'w')
     my_tag_source = db.FsTagSource.add(session, 'mine')
     corbett_tag_source = db.FsTagSource.add(session, 'corbett')
-    session.flush()
+    session.commit()
     # FIXME: the database still winds up with the 'my' and 'main' FsSource.tag_source_id null
     # when you break in the debugger before the FsSource is create in do_cmd(),
     # the IDs are correct
