@@ -100,12 +100,12 @@ fs-item-tag-flags: {b                   |s|u}{n|t|g|l|d}
 '''
 
 class Ctx:
-    def __init__(self, session):
+    def __init__(self, session, local_tag_source):
         self.session = session
         self.tags = {}                  # tag-label => DbTag
         self.mappings = {}              # ('g|l', 'tag-state') => FsTagMapping
         self.fs_source = None           # FsSource, set by '!source'
-        self.local_tag_source = None    # FsTagSource
+        self.local_tag_source = local_tag_source  # FsTagSource
         self.date = date.today()        # used for DbFolder.date
         self.datetime = datetime.combine(self.date, time())
         self.fs_sources = []            # list of sources we created
@@ -297,14 +297,8 @@ class Ctx:
             assert image is not None
             check_db_item_tags(image, image_item_tag_patterns)
 
-    def get_tag_source(self, scope_char):
-        if scope_char == 'g':
-            tag_source = db.global_tag_source
-        else:
-            if self.local_tag_source is None:
-                self.local_tag_source = db.FsTagSource.add(self.session, 'test')
-            tag_source = self.local_tag_source
-        return tag_source
+    def get_tag_source(self, source_spec):
+        return db.global_tag_source if source_spec == 'g' else self.local_tag_source
 
     def add_mapping(self, mapping_spec):
         # unpack the mapping-spec
@@ -359,20 +353,12 @@ class Ctx:
                 assert False
 
         def check_item_tag(self, item_tag):
-            if item_tag.type != tag_type:
-                print('as')
             assert item_tag.type == tag_type
-            if item_tag.binding != binding:
-                print('asf')
             assert item_tag.binding == binding
-            if item_tag.source != source:
-                print('asf')
             assert item_tag.source == source
             if binding != db.FsTagBinding.UNBOUND:
                 if tag_label is not None:
                     db_tag = self.tags[tag_label]
-                    if item_tag.db_tag is not db_tag:
-                        pass
                     assert item_tag.db_tag is db_tag
             pass
 
@@ -408,11 +394,7 @@ class Ctx:
                 check_item_tag(self, item_tag0)
                 for x in range(1, len(key)):
                     item_tag = find_item_tag(key[x])
-                    if item_tag.idx != item_tag0.idx + x:
-                        pass
                     assert item_tag.idx == item_tag0.idx + x
-                    if item_tag.first_idx != item_tag0.idx:
-                        pass
                     assert item_tag.first_idx == item_tag0.idx
                     check_item_tag(self, item_tag)
             pass

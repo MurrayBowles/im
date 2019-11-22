@@ -7,7 +7,7 @@ from db import *
 
 def test_tags():
     session = open_mem_db()
-    ctx = check_tags.Ctx(session)
+    ctx = check_tags.Ctx(session, FsTagSource.add(session, 'test'))
 
     ops = [
         ('+db-folder', 'db_folder'),
@@ -101,13 +101,13 @@ def test_tag_mappings2():
         ])
     ]
     session = open_mem_db()
-    ctx = check_tags.Ctx(session)
+    ctx = check_tags.Ctx(session, FsTagSource.add(session, 'test'))
     ctx.execute(ops)
     pass
 
 def test_check_tags():
     session = open_mem_db()
-    ctx = check_tags.Ctx(session)
+    ctx = check_tags.Ctx(session, FsTagSource.add(session, 'test'))
     ctx.execute([
         ('+tag', [
             ('scythe', 'band|Scythe'),
@@ -124,7 +124,7 @@ def test_check_tags():
 
 def test_check_init_folder_tags():
     session = open_mem_db()
-    ctx = check_tags.Ctx(session)
+    ctx = check_tags.Ctx(session, FsTagSource.add(session, 'test'))
     ie_folder_spec = (
         'ie-folder', '', [
             ('w', 'b'),
