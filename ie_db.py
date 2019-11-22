@@ -194,6 +194,46 @@ def _set_db_image(fs_image: db.FsImage, db_image: db.DbImage):
             _update_thumbnail(db_image, fs_image.thumbnail, fs_image.thumbnail_timestamp)
 
 
+image_issues = {
+    IEMsgType.TAGS_ARE_WORDS:   db.IssueType.IMAGE_TAGS_ARE_WORDS,  # TODO doesn't currently happen
+    IEMsgType.EXTRA_INSTS:      db.IssueType.EXTRA_IMAGE_INSTS
+}
+
+
+folder_issues = {
+    IEMsgType.NO_DATE:          db.IssueType.NO_DATE,
+    IEMsgType.TAGS_ARE_WORDS:   db.IssueType.FOLDER_TAGS_ARE_WORDS,
+    IEMsgType.UNEXPECTED_FILE:  db.IssueType.UNEXPECTED_FILE,
+    IEMsgType.NAME_NEEDS_EDIT:  db.IssueType.NAME_NEEDS_EDIT
+}
+
+
+def apply_msgs_as_issues(msgs, map, fs_folder):
+    for msg in msgs:
+        if msg.type in map:
+            issue = map[msg.type]
+            fs_folder.issues |= issue[0]
+            if issue[1] < fs_folder.import_edit_level:
+                fs_folder.import_edit_level = issue[1]
+
+
+def set_fs_folder_metrics(fs_folder, ie_folder, ie_cfg):
+    now = datetime.datetime.now()  # Guido: "clutter is bad"
+    fs_folder.last_scan = now
+    if ie_cfg.import_image_tags or ie_cfg.import_folder_tags:
+        fs_folder.last_import_tags = now
+    fs_folder.issues = 0
+    fs_folder.import_edit_level = db.max_import_edit_level
+    apply_msgs_as_issues(ie_folder.msgs, folder_issues, fs_folder)
+    for ie_image in ie_folder.images.values():
+        apply_msgs_as_issues(ie_image.msgs, image_issues, fs_folder)
+    db_folder = fs_folder.db_folder
+    if db_folder is not None:
+        if db_folder.edit_level is None:
+            db_folder.edit_level = fs_folder.import_edit_level
+    pass
+
+
 def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
     import_mode = ie_cfg.import_mode
 
@@ -350,6 +390,12 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
                         thumb_ie_image_inst.mod_datetime)
     except Exception as ed:
         print('hey')
+
+    # set the FsFolder metrics
+    fs_folder = work_item.fs_folder
+    ie_folder = work_item.ie_folder
+    if fs_folder is not None and ie_folder is not None:
+        set_fs_folder_metrics(fs_folder, ie_folder, ie_cfg)
 
     # for the WEB case, queue processing for child pages
     try:

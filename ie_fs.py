@@ -35,7 +35,7 @@ class IEMsgType(Enum):
     FOLDER_DELETED      = ('folder deleted from import folder set', 'ip')  # unused
         # (IEWorkItem)
     TAGS_ARE_WORDS      = ('tags need editing', 'i')
-        # (IEFolder, IEImageInst) [ 'green', 'day', 'ok' ]
+        # (IEFolder) [ 'green', 'day', 'ok' ]  TODO should also be IEImage[Inst]
     UNEXPECTED_FILE     = ('unexpected file found', 'ip')
         # (IEFolder)
     EXTRA_INSTS         = ('multiple instances of (image, extension)', 'ip')

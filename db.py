@@ -64,6 +64,27 @@ image_collections = Table('image-collections', Base.metadata,
 )
 
 
+max_import_edit_level = 3   #  the maximum value set for Item.import_edit_level
+
+
+class IssueType(Enum):  # (flag, import_edit_level, string)
+    NO_DATE                 = (1, 0, 'ND')
+    # FsFolder.db_date is null, DbFolder not auto-linked
+    NAME_NEEDS_EDIT         = (2, 0, 'NNE')
+    # FsFolder.db_name is questionable, DbFolder not auto-linked
+    FOLDER_TAGS_ARE_WORDS   = (4, 1, 'FTAW')
+    # FsFolder: folder auto-tagging is likely to fail
+    IMAGE_TAGS_ARE_WORDS    = (8, 1, 'ITAW')
+    # FsFolder: image auto-tagging is likely to fail
+    UNEXPECTED_FILE         = (16, 2, 'UF')
+    # FsFolder contains mystery file(s)
+    EXTRA_IMAGE_INSTS       = (32, 2, 'XII')
+    # FsFolder: there are multiple instances for some extension for some images
+
+    def __str__(self):
+        return self[2]
+
+
 class Item(Base):
     """ something which has a name and can be tagged:
         a Folder, Collection, Image, or Tag
@@ -154,6 +175,9 @@ class DbFolder(Item):
     date2_month = Column(Integer)
     date2_day = Column(Integer)
     date2 = composite(IMDate, date2_year, date2_month, date2_day)
+
+    edit_level = Column(Integer)
+    # 0..5, where 5 is good; initialized from FsFolder.import_edit_level
 
     # DbFolder <->> DbImage
     images = relationship(
@@ -982,6 +1006,10 @@ class FsFolder(FsItem):
     # last-import timestamps
     last_scan = Column('last_scan', DateTime)
     last_import_tags = Column('last_import_tags', DateTime)
+
+    # issues reported by import code
+    issues = Column(Integer)                # a bitvector of IssueType[0] flags
+    import_edit_level = Column(Integer)     # 0..max_import_edit_level
 
     # FsFolder <<-> FsSource
     source_id = Column(Integer, ForeignKey('fs_source.id'))
