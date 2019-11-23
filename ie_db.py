@@ -173,37 +173,45 @@ def create_fs_folder(session, ie_folder, fs_source):
     return fs_folder
 
 
-def _update_exif_attrs(dest: Union[db.FsImage or db.DbImage], src: exif.Exif):
+def _update_exif_attrs(
+    image_data: db.ImageData, src: exif.Exif, exif_timestamp: datetime.datetime
+):
+    changed = False
     for xa in exif.attrs:
         if len(xa) > 1 and hasattr(src, xa[1]):
             if xa[1] == 'image_size':
-                if getattr(dest, 'image_height') is None:
-                    dest.image_width = src.image_size[0]
-                    dest.image_height = src.image_size[1]
+                if getattr(image_data, 'image_height') is None:
+                    image_data.image_width = src.image_size[0]
+                    image_data.image_height = src.image_size[1]
             else:
-                if getattr(dest, xa[1]) is None:
-                    setattr(dest, xa[1], getattr(src, xa[1]))
+                if getattr(image_data, xa[1]) is None:
+                    setattr(image_data, xa[1], getattr(src, xa[1]))
+            changed = True
+    if changed:
+        image_data.exif_timestamp = exif_timestamp
 
 
-def _thumbnail_needs_update(fs_or_db_image: Union[db.FsImage, db.DbImage], thumbnail_timestamp):
+def _thumbnail_needs_update(image_data: db.ImageData, thumbnail_timestamp: datetime.datetime):
     return (
-        fs_or_db_image.thumbnail_timestamp is None
-        or fs_or_db_image.thumbnail_timestamp < thumbnail_timestamp )
+        image_data is None
+        or image_data.thumbnail_timestamp is None
+        or image_data.thumbnail_timestamp < thumbnail_timestamp )
 
 
 def _update_thumbnail(
-    fs_or_db_image: Union[db.FsImage, db.DbImage], thumbnail, thumbnail_timestamp
+    image_data: db.ImageData, thumbnail, thumbnail_timestamp: datetime.datetime
 ):
-    fs_or_db_image.thumbnail = thumbnail
-    fs_or_db_image.thumbnail_timestamp = thumbnail_timestamp
+    image_data.thumbnail = thumbnail
+    image_data.thumbnail_timestamp = thumbnail_timestamp
 
 
 def _set_db_image(fs_image: db.FsImage, db_image: db.DbImage):
-    # should be a FsImage method, but Python can't deal with circular imports
+    # should be a FsImage method, but that would entail circular imports
     fs_image.db_image = db_image
-    if db_image is not None and fs_image.thumbnail_timestamp is not None:
-        if _thumbnail_needs_update(db_image, fs_image.thumbnail_timestamp):
-            _update_thumbnail(db_image, fs_image.thumbnail, fs_image.thumbnail_timestamp)
+    if db_image is not None and fs_image.data is not None:
+        if db_image.data is not None:
+            db_image.data = fs_image.data  # this may also be None
+        fs_image.data = None
 
 
 image_issues = {
@@ -255,15 +263,13 @@ def fg_start_ie_work_item(session, ie_cfg, work_item, fs_source):
             db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
             if fs_image.db_image is None:
                 fs_image.db_image = db_image
-            fs_or_db_image = db_image
+            image_data = db_image.data
         else:
-            fs_or_db_image = fs_image
+            image_data = fs_image.data
         if ie_cfg.import_thumbnails:
             thumb_ie_image_inst = ie_image.newest_inst_with_thumbnail
-            if thumb_ie_image_inst is not None:
-                pass
             if (thumb_ie_image_inst is not None
-            and _thumbnail_needs_update(fs_or_db_image, thumb_ie_image_inst.mod_datetime)):
+            and _thumbnail_needs_update(image_data, thumb_ie_image_inst.mod_datetime)):
                 # add to the list of IEImages to get/update thumbnails for
                 work_item.get_thumbnail.add(ie_image)
         if new_fs_image:
@@ -359,7 +365,7 @@ def bg_proc_ie_work_item(work_item, fs_source, pub_fn):
         pass
 
 def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
-    """ do auto-tagging, move thumbnails to db.DbImage """
+    """ do auto-tagging, move image_data to db.DbImage """
 
     if fs_source.source_type == db.FsSourceType.WEB:
         # create FsFolders and FsImages for the IEFolders/Images scanned
@@ -376,8 +382,7 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
                 work_item.existing_images.append((fs_image, ie_image))
                 if db_folder is not None:
                     db_image = db.DbImage.get(session, db_folder, ie_image.name)[0]
-                    if fs_image.db_image is None:
-                        fs_image.db_image = db_image
+                    _set_db_image(fs_image, db_image)
         except Exception as ed:
             print('hey')
 
@@ -392,20 +397,22 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
 
             set_fs_item_tags(session, fs_image, ie_image.tags, fs_source.tag_source)
 
-            if True:  # TODO ie_cfg.import_tags:
-                _update_exif_attrs(fs_image, ie_image.exif)
-                if fs_image.db_image is not None:
-                    _update_exif_attrs(fs_image.db_image, ie_image.exif)
+            if ie_cfg.import_image_tags or ie_cfg.import_thumbnails:
+                data_image = fs_image.db_image if fs_image.db_image is not None else fs_image
+                if data_image.data is None:
+                    image_data = data_image.data = db.ImageData()
+                else:
+                    image_data = data_image.data
+
+            if ie_cfg.import_image_tags:
+                _update_exif_attrs(image_data, ie_image.exif, datetime.datetime.now())
 
             if ie_cfg.import_thumbnails:
-                fs_or_db_image = fs_image.db_image if fs_image.db_image is not None else fs_image
                 thumb_ie_image_inst = ie_image.newest_inst_with_thumbnail
                 if (thumb_ie_image_inst is not None
-                and _thumbnail_needs_update(fs_or_db_image, thumb_ie_image_inst.mod_datetime)):
+                and _thumbnail_needs_update(image_data, thumb_ie_image_inst.mod_datetime)):
                     _update_thumbnail(
-                        fs_or_db_image,
-                        ie_image.thumbnail,
-                        thumb_ie_image_inst.mod_datetime)
+                        image_data, ie_image.thumbnail, thumb_ie_image_inst.mod_datetime)
     except Exception as ed:
         print('hey')
 

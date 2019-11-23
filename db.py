@@ -258,6 +258,37 @@ class DbCollection(Item):
         return '[DbCollection %s]' % self.name
 
 
+class ImageData(Base):
+    ''' data extracted from a FS image
+
+        At the point a DbImage is created for an FsImage, FsImage.data_id is nulled
+        and moved to DbImage.data_id. If there are multiple FsImages for a DbImage,
+        their .data_ids are nulled the next time they are encountered in a scan.
+    '''
+    __tablename__ = 'image_data'
+    id = Column(Integer, primary_key=True)
+
+    # DBImage ---> ImageData: set by fg_finish_ie_work_item() or ie_db._set_db_image()
+    # FsImage -0-> ImageData: set by fg_finish_ie_work_item(), cleared by _set_db_image()
+
+    # TODO: image_types bitset
+
+    thumbnail_timestamp = Column(DateTime)
+    thumbnail = Column(LargeBinary())
+    # checked by fg_start_ie_work_item() to schedule a thumbnail read
+    # updated by fg_finish_ie_work_item() and cleared by FsImage.set_db_image()
+
+    # EXIF attributes -- see exif.py
+    exif_timestamp = Column(DateTime)   # also covers imported image tags
+    image_width = Column(Integer)
+    image_height = Column(Integer)
+    focal_length = Column(Float)
+    flash = Column(String)
+    shutter_speed = Column(Float)
+    aperture = Column(Float)
+    sensitivity = Column(Integer)
+
+
 class DbImage(Item):
     """ a single image (usually with multiple files: NEF/TIFF/PSD/JPEG) """
     __tablename__ = 'db_image'
@@ -266,19 +297,9 @@ class DbImage(Item):
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'DbImage'}
 
-    thumbnail = Column(LargeBinary())
-    thumbnail_timestamp = Column(DateTime)
-    # checked by fg_start_ie_work_item() to schedule a thumbnail read
-    # updated by fg_finish_ie_work_item() and FsImage.set_db_image()
-
-    # EXIF attributes -- see exif.py
-    image_width = Column(Integer)
-    image_height = Column(Integer)
-    focal_length = Column(Float)
-    flash = Column(String)
-    shutter_speed = Column(Float)
-    aperture = Column(Float)
-    sensitivity = Column(Integer)
+    # DBImage -> ImageData: set by fg_finish_ie_work_item() or ie_db._set_db_image()
+    data_id = Column(Integer, ForeignKey('image_data.id'), nullable=True)
+    data = relationship('ImageData', foreign_keys=[data_id])
 
     # DbImage <<-> DbFolder
     folder_id = Column(Integer, ForeignKey('db_folder.id'))
@@ -1085,23 +1106,12 @@ class FsImage(FsItem):
     id = Column(Integer, ForeignKey('fs_item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsImage'}
 
-    thumbnail = Column(LargeBinary())
-    thumbnail_timestamp = Column(DateTime)
-    # used when .db_image is null, otherwise null
-    # checked by fg_start_ie_work_item() to schedule a thumbnail read
-    # updated by fg_finish_ie_work_item() and cleared by FsImage.set_db_image()
-
-    # EXIF attributes -- see exif.py
-    image_width = Column(Integer)
-    image_height = Column(Integer)
-    focal_length = Column(Float)
-    flash = Column(String)
-    shutter_speed = Column(Float)
-    aperture = Column(Float)
-    sensitivity = Column(Integer)
+    # FsImage -0-> ImageData: set by fg_finish_ie_work_item(), cleared by _set_db_image()
+    data_id = Column(Integer, ForeignKey('image_data.id'), nullable=True)
+    data = relationship('ImageData', foreign_keys=[data_id])
 
     # FsImage <<-> FsFolder
-    folder_id = Column(Integer, ForeignKey('fs_folder.id'), primary_key=True)
+    folder_id = Column(Integer, ForeignKey('fs_folder.id'))
     folder = relationship(
         'FsFolder', foreign_keys=[folder_id], back_populates='images')
 
