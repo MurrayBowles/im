@@ -10,6 +10,7 @@ from PIL import Image
 import re
 import subprocess
 
+import exif
 import util
 
 
@@ -185,8 +186,12 @@ class IEFolder(object):
     def __repr__(self):
         return '<IEFolder %s>' % self.pname()
 
+
 thumbnail_exts = [ '.jpg', '.jpg-hi' ] # TODO: silly PIL doesn't do TIFFs
+
+
 exif_exts = [ '.tif', '.psd', '.jpg', '.jpg-hi' ]
+
 
 class IEImage(object):
 
@@ -200,6 +205,7 @@ class IEImage(object):
         self.newest_inst_with_thumbnail = None  # updated by IEImageInst init
         self.thumbnail = None   # set by bg_proc_ie_work_item() > get_ie_image_thumbnails()
         self.tags = []          # list of IETag
+        self.exif = exif.Exif() # EXIF attributes, set by set_attrs_from_exiftool_json()
 
     def add_tag(self, ie_tag):
         self.tags.append(ie_tag)
@@ -211,16 +217,21 @@ class IEImage(object):
         return '<IEImage %s>' % self.pname()
 
     def set_attrs_from_exiftool_json(self, item):
-        if 'ImageSize' in item:
-            w, h = item['ImageSize'].split('x')
-            self.image_size = (int(w), int(h))
+        for xa in exif.attrs:
+            try:
+                if len(xa) > 1 and xa[0] in item:
+                    val = item[xa[0]]
+                    if len(xa) > 2:
+                        val = xa[2](val)
+                    setattr(self.exif, xa[1], val)
+                    self.exif.any_set = True
+            except Exception as ed:
+                print('bb')
         if 'Subject' in item:
             for tag in item['Subject']:
                 self.add_tag(
                     IETag(IETagType.UNBASED, text=tag, bases='band,person'))
-        else:
-            pass
-        pass
+
 
 class IEImageInst(object):
 
@@ -259,17 +270,12 @@ class IEImageInst(object):
         except:
             return None
 
-_exiftool_args = [
-    'exiftool', '-S', '-j', '-q',
-    '-ImageSize',
-    '-FocalLength',
-    '-Flash',
-    '-ExposureTime',
-    '-FNumber',
-    '-ISO',
-    '-XMP-dc:subject',
-    '-XMP-lr:hierarchicalSubject'
-]
+
+_exiftool_command_args = ['exiftool', '-S', '-j', '-q']
+
+
+_exiftool_attr_args = ['-%s' % attr[0] for attr in exif.attrs]
+
 
 def _get_exiftool_json(argv):
     """ Run exiftool on <argv> and return a list of dictionariess. """
@@ -295,14 +301,17 @@ def get_ie_image_exifs(ie_image_set, pub):
     """
 
     def proc_exiftool_json(ie_image_set, ext_paths, exiftool_json):
-        for item in exiftool_json:
-            fs_path = item['SourceFile']
-            if fs_path in ext_paths:
-                ie_image_inst = ext_paths[fs_path]
-                ie_image = ie_image_inst.ie_image
-                if ie_image in ie_image_set:
-                    ie_image_inst.ie_image.set_attrs_from_exiftool_json(item)
-                    ie_image_set.remove(ie_image_inst.ie_image)
+        try:
+            for item in exiftool_json:
+                fs_path = item['SourceFile']
+                if fs_path in ext_paths:
+                    ie_image_inst = ext_paths[fs_path]
+                    ie_image = ie_image_inst.ie_image
+                    if ie_image in ie_image_set:
+                        ie_image_inst.ie_image.set_attrs_from_exiftool_json(item)
+                        ie_image_set.remove(ie_image_inst.ie_image)
+        except Exception as ed:
+            print('aaa')
 
     # attempt in the order of exif_exts
     global ie_image_set0
@@ -333,8 +342,9 @@ def get_ie_image_exifs(ie_image_set, pub):
             if len(worklist) > num_dir_files / 2:
                 # run exiftools on <dir>/*.<ext>
                 len0 = len(ie_image_set)
-                argv = list(_exiftool_args)
+                argv = list(_exiftool_command_args)
                 argv.append(os.path.join(dir_path, '*' + fs_ext))
+                argv.extend(_exiftool_attr_args)
                 exiftool_json = _get_exiftool_json(argv)
                 proc_exiftool_json(ie_image_set, ext_paths, exiftool_json)
                 pub('ie.sts imported tags', data = len0 - len(ie_image_set))
@@ -344,9 +354,10 @@ def get_ie_image_exifs(ie_image_set, pub):
                     n = min(len(worklist), 30) # up to 30 files per run
                     sublist, worklist = worklist[:n], worklist[n:]
                     len0 = len(ie_image_set)
-                    argv = list(_exiftool_args)
+                    argv = list(_exiftool_command_args)
                     for ie_image_inst in sublist:
                         argv.append(ie_image_inst.fs_path)
+                    argv.extend(_exiftool_attr_args)
                     exiftool_json = _get_exiftool_json(argv)
                     proc_exiftool_json(ie_image_set, ext_paths, exiftool_json)
                     pub('ie.sts imported tags', data = len0 - len(ie_image_set))

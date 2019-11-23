@@ -34,7 +34,7 @@ class IECfg(object):
         self.paths = []
         self.clear_paths()
         self.import_folder_tags = True
-        self.import_image_tags = True
+        self.import_image_tags = True  # TODO: should there also be an import_image_exifs
         self.export_image_tags = True
         self.import_thumbnails = False
         self.reports = []

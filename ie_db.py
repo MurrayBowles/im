@@ -173,6 +173,18 @@ def create_fs_folder(session, ie_folder, fs_source):
     return fs_folder
 
 
+def _update_exif_attrs(dest: Union[db.FsImage or db.DbImage], src: exif.Exif):
+    for xa in exif.attrs:
+        if len(xa) > 1 and hasattr(src, xa[1]):
+            if xa[1] == 'image_size':
+                if getattr(dest, 'image_height') is None:
+                    dest.image_width = src.image_size[0]
+                    dest.image_height = src.image_size[1]
+            else:
+                if getattr(dest, xa[1]) is None:
+                    setattr(dest, xa[1], getattr(src, xa[1]))
+
+
 def _thumbnail_needs_update(fs_or_db_image: Union[db.FsImage, db.DbImage], thumbnail_timestamp):
     return (
         fs_or_db_image.thumbnail_timestamp is None
@@ -379,6 +391,12 @@ def fg_finish_ie_work_item(session, ie_cfg, work_item, fs_source, worklist):
             ie_image = image[1]
 
             set_fs_item_tags(session, fs_image, ie_image.tags, fs_source.tag_source)
+
+            if True:  # TODO ie_cfg.import_tags:
+                _update_exif_attrs(fs_image, ie_image.exif)
+                if fs_image.db_image is not None:
+                    _update_exif_attrs(fs_image.db_image, ie_image.exif)
+
             if ie_cfg.import_thumbnails:
                 fs_or_db_image = fs_image.db_image if fs_image.db_image is not None else fs_image
                 thumb_ie_image_inst = ie_image.newest_inst_with_thumbnail

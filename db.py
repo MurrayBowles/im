@@ -9,7 +9,7 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 from sqlalchemy.ext.orderinglist import ordering_list
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Enum
+from sqlalchemy import Boolean, Column, Date, DateTime, Enum, Float
 from sqlalchemy import ForeignKey, Index, Integer
 from sqlalchemy import LargeBinary, String, Table, Text
 from sqlalchemy.orm import backref, relationship
@@ -270,6 +270,15 @@ class DbImage(Item):
     thumbnail_timestamp = Column(DateTime)
     # checked by fg_start_ie_work_item() to schedule a thumbnail read
     # updated by fg_finish_ie_work_item() and FsImage.set_db_image()
+
+    # EXIF attributes -- see exif.py
+    image_width = Column(Integer)
+    image_height = Column(Integer)
+    focal_length = Column(Float)
+    flash = Column(String)
+    shutter_speed = Column(Float)
+    aperture = Column(Float)
+    sensitivity = Column(Integer)
 
     # DbImage <<-> DbFolder
     folder_id = Column(Integer, ForeignKey('db_folder.id'))
@@ -1076,6 +1085,21 @@ class FsImage(FsItem):
     id = Column(Integer, ForeignKey('fs_item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsImage'}
 
+    thumbnail = Column(LargeBinary())
+    thumbnail_timestamp = Column(DateTime)
+    # used when .db_image is null, otherwise null
+    # checked by fg_start_ie_work_item() to schedule a thumbnail read
+    # updated by fg_finish_ie_work_item() and cleared by FsImage.set_db_image()
+
+    # EXIF attributes -- see exif.py
+    image_width = Column(Integer)
+    image_height = Column(Integer)
+    focal_length = Column(Float)
+    flash = Column(String)
+    shutter_speed = Column(Float)
+    aperture = Column(Float)
+    sensitivity = Column(Integer)
+
     # FsImage <<-> FsFolder
     folder_id = Column(Integer, ForeignKey('fs_folder.id'), primary_key=True)
     folder = relationship(
@@ -1085,12 +1109,6 @@ class FsImage(FsItem):
     db_image_id = Column(Integer, ForeignKey('db_image.id'))
     db_image = relationship(
         'DbImage', foreign_keys=[db_image_id], back_populates='fs_images')
-
-    thumbnail = Column(LargeBinary())
-    thumbnail_timestamp = Column(DateTime)
-    # used when .db_image is null, otherwise null
-    # checked by fg_start_ie_work_item() to schedule a thumbnail read
-    # updated by fg_finish_ie_work_item() and cleared by FsImage.set_db_image()
 
     @classmethod
     def add(cls, session, folder, name, db_image=None):
