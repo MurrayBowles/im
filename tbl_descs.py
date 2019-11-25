@@ -1,6 +1,7 @@
 ''' database Table Descriptor instances '''
 
-from col_desc import DateCD, IMDateCD, IMDateEltCD, IdCD, ParentCD, ShortcutCD, TextCD
+from col_desc import DateCD, IdCD, IMDateCD, IMDateEltCD, IntCD
+from col_desc import ParentCD, RefCD, ShortcutCD, TextCD
 import db
 from tbl_desc import TblDesc, ItemTblDesc
 from tbl_view import TblItemView, TblReportView
@@ -23,10 +24,20 @@ DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
     TblReportView: ['name', 'date'],
 }, '-date2,+name')
 
+ImageData_td = TblDesc(db.ImageData, ['Image Data'], [
+    IntCD('sensitivity', ['Sensitivity', 'ISO']),
+    IntCD('image_height', ['Height']),
+    IntCD('image_width', ['Width'])
+], {
+    TblReportView: ['image_width', 'image_height', 'sensitivity']
+}, '-sensitivity')  # FIXME: sorter should not be mandatory
+
 DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
     ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),
     ShortcutCD('folder_date2', 'Folder Date', path_str='folder_id.date2'),
-    ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name')
+    ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name'),
+    RefCD('data_id', 'Data', foreign_tbl_name='ImageData'),
+    ShortcutCD('sensitivity', ['Sensitivity', 'ISO'], path_str='data_id.sensitivity')
 ], {
     TblReportView: ['name', 'parent_id']
 }, '-folder_date2,+folder_name,+name')
