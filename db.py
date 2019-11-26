@@ -350,7 +350,7 @@ class DbTagType(PyIntEnum):
     """ the relation between a tag and its .base_tag """
 
     BASE = 1        # normal (base) tag; .base_tag is None
-    IDENTITY_IS = 2 # tag refers to the thing represented by .base_tag
+    IDENTITY_IS = 2 # tag refers to the person/place/thing represented by .base_tag
     REPLACED_BY = 3 # tag has been replaced by .base_tag
     DEPRECATED = 4  # tag has been deprecated; .base_tag is None
 
@@ -781,15 +781,16 @@ class FsItemTag(Base):
     idx = Column(Integer)       # index of this ItemTag in item.item_tags[]
     user_grouping = Column(Boolean)
         # first/last_ids were assigned by the user, not by _bind_fs_item_tags()
-    first_idx = Column(Integer) # index of the first FsItemTag in the binding
-    last_idx =  Column(Integer) # index of the last FsItemTag in the binding
+        # when type == TAG, user_grouping == False
+    first_idx = Column(Integer) # index of the first FsItemTag in the bound tag
+    last_idx =  Column(Integer) # index of the last FsItemTag in the bound tag
         # first_idx <= idx <= last_idx
-        # when type == TAG, first_idx == last_idx, user_grouping=False
+        # when type == TAG, first_idx == last_idx
 
     bases = Column(String)
         # ,-separated list of suggested tag bases,
         #   e.g. 'band' or 'venue' or 'band, venue'
-        # FIXME: this chould just be an integer enum:
+        # FIXME: this should just be an integer enum:
         # the possible lists are fixed by the code
 
     source = Column(Enum(FsItemTagSource))
