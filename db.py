@@ -524,7 +524,7 @@ class DbNote(Base):
     __tablename__ = 'db_note'
     id = Column(Integer, primary_key=True)
 
-    idx = Column(Integer) # index in .item.notes
+    idx = Column(Integer) # tab_idx in .item.notes
     text = Column(String(100))
 
     # DbNote -> DbNoteType
@@ -599,7 +599,7 @@ class FsSource(Item):
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsSource'}
 
-    # secondary key (TODO index? enforce uniqueness?)
+    # secondary key (TODO tab_idx? enforce uniqueness?)
     volume = Column(String(32))
         # source volume: '<volume letter>:' or '<volume label>'
     path = Column(String(260))
@@ -778,12 +778,12 @@ class FsItemTag(Base):
     text = Column(String(collation='NOCASE'))
 
     # value
-    idx = Column(Integer)       # index of this ItemTag in item.item_tags[]
+    idx = Column(Integer)       # tab_idx of this ItemTag in item.item_tags[]
     user_grouping = Column(Boolean)
         # first/last_ids were assigned by the user, not by _bind_fs_item_tags()
         # when type == TAG, user_grouping == False
-    first_idx = Column(Integer) # index of the first FsItemTag in the bound tag
-    last_idx =  Column(Integer) # index of the last FsItemTag in the bound tag
+    first_idx = Column(Integer) # tab_idx of the first FsItemTag in the bound tag
+    last_idx =  Column(Integer) # tab_idx of the last FsItemTag in the bound tag
         # first_idx <= idx <= last_idx
         # when type == TAG, first_idx == last_idx
 

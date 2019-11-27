@@ -2,9 +2,15 @@
 
 import wx
 
-class EmptyTab(wx.Panel):
+from tab_panel_gui import TabPanel, TabPanelStack
 
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
+class EmptyTP(TabPanel):
+
+    def __init__(self, parent: TabPanelStack):
+        super().__init__(parent)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(sizer)
+        self.push()
+
+    def text(self):
+        return '+'

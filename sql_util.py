@@ -16,15 +16,15 @@ class JoinState:
         self.tbl_desc = tbl_desc
         self.chains = []
         self.sql_strs = []
-        self.select_cols = {}   # map: db_name -> (select_strs[] index, col_desc)
+        self.select_cols = {}   # map: db_name -> (select_strs[] tab_idx, col_desc)
         self.select_strs = []
 
     def _register_join_chain(self, join_chain: List[ColDesc]):
-        ''' Return idx, l: a join_chains index, the length of the match.
+        ''' Return idx, l: a join_chains tab_idx, the length of the match.
         cases:
             1. join_chain exactly matches (a prefix of a) a list in join_chains, l == len(join_chain)
             2. a list in join_chains matches a prefix of join_chain, l == the length of the prefix
-            3. no match: idx is the index of a new empty list added to join_chains, l == 0
+            3. no match: idx is the tab_idx of a new empty list added to join_chains, l == 0
         '''
         arg_len = len(join_chain)
         jcx = 0

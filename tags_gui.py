@@ -1,10 +1,11 @@
 """ tag editing GUI """
 
+from sortedcontainers import SortedKeyList
 import wx
 from wx.lib.agw import ultimatelistctrl as ulc
 
 import gui_wrap
-from sortedcontainers import SortedKeyList
+from tab_panel_gui import TabPanel, TabPanelStack
 
 class Table(ulc.UltimateListCtrl):
 
@@ -94,10 +95,10 @@ class Table(ulc.UltimateListCtrl):
         return s
 
 
-class TagsTab(wx.Panel):
+class TagsTP(TabPanel):
 
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
+    def __init__(self, parent: TabPanelStack):
+        super().__init__(parent)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         h = wx.StaticText(self, -1, 'the tags tab')
@@ -122,6 +123,10 @@ class TagsTab(wx.Panel):
         #sizer.Add(ul, 1, wx.EXPAND).SetMinSize(20, 200)
         sizer.Add(ul, 1, wx.EXPAND)
         self.SetSizer(sizer)
+        self.push()  # push onto tab stack
+
+    def text(self):
+        return 'Tags'
 
     def on_insert(self, key):
         self.ul._insert(key)

@@ -8,9 +8,10 @@ from wx.lib.pubsub import pub
 
 from cfg import cfg
 import db
-from empty_gui import EmptyTab
-from ie_gui import ImportExportTab
-from tags_gui import TagsTab
+from empty_gui import EmptyTP
+from ie_gui import ImportExportTP
+from tab_panel_gui import TabbedNotebook, TabPanel, TabPanelStack
+from tags_gui import TagsTP
 from wx_task import WxSlicer
 
 slicer = None # initialized in GuiApp.OnInit()
@@ -44,70 +45,6 @@ class GuiApp(wx.App):
         return True
 
 
-class TabStack(object):
-    ''' stack of panels for a tab '''
-    stack: List[Tuple[wx.Panel, str]]  # panel, tab label
-    current: int  # index of the TOS (-1 indicates an empty stack)
-
-    def __init__(self):
-        self.current = -1
-        self.stack = []
-
-    def cur_panel(self):
-        if self.current == -1:
-            return None
-        else:
-            return self.stack[self.current][0]
-
-    def _insert_current_panel(self, notebook, index):
-        panel, text = self.stack[self.current]
-        notebook.InsertPage(index, panel, text)
-        pass
-
-    def _delete_panels(self, notebook, index, down_through):
-        x = len(self.stack)
-        if x != 0:
-            while True:
-                self.stack.pop()
-                notebook.DeletePage(index)
-                if x == down_through:
-                    break
-                x -= 1
-        pass
-
-    def push(self, notebook, index, new_panel, text):
-        if self.current != -1:
-            notebook.RemovePage(index)
-        self._delete_panels(notebook, index, self.current)
-        self.stack.append((new_panel, text))
-        self.current += 1
-        self._insert_current_panel(notebook, index)
-        pass
-
-    def back_possible(self):
-        return self.current > 0
-
-    def back(self, notebook, index):
-        if self.back_possible():
-            notebook.RemovePage(index)
-            self.current -= 1
-            self._insert_current_panel()
-
-    def forward_possible(self):
-        return self.current < len(self.stack) - 1
-
-    def forward(self, notebook, index):
-        if self.forward_possible:
-            notebook.RemovePage(index)
-            self.current += 1
-            self._insert_current_panel()
-
-    def delete(self, notebook, index):
-        notebook.RemovePage(index)
-        self._delete_panels(notebook, index, 0)
-        pass
-
-
 class GuiTop(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(
@@ -125,22 +62,21 @@ class GuiTop(wx.Frame):
         self.SetMenuBar(menu_bar)
 
         # panel
-        panel = wx.Panel(self, -1)
+        panel = self.panel = wx.Panel(self, -1)
 
         # notebook
-        notebook = self.notebook = wx.aui.AuiNotebook(panel, style = wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
+        notebook = self.notebook = TabbedNotebook(
+            panel, style = wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
 
-        self.tab_stacks = []    # List[TabStack]
+        tpsA2 = TabPanelStack(notebook, 0)
+        empty_tp = EmptyTP(tpsA2)
 
-        empty_tab = EmptyTab(notebook)
-        self.tab_stacks.append(TabStack())
-        self.tab_stacks[0].push(notebook, 0, empty_tab, '+')
+        tpsB0 = empty_tp.relative_stack(-1)
+        ie_tp = ImportExportTP(tpsB0)
 
-        ie_tab = ImportExportTab(notebook)
-        self.add_tab(empty_tab, ie_tab, -1, 'Import/Export')
-
-        tags_tab = TagsTab(notebook)
-        self.add_tab(ie_tab, tags_tab, 1, 'Tags')
+        tpsC1 = ie_tp.relative_stack(1)
+        tags_tp = TagsTP(tpsC1)
+        ie_tab2 = ImportExportTP(tpsC1)
 
         notebook.Bind(wx.aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
         notebook.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_close)
@@ -153,25 +89,6 @@ class GuiTop(wx.Frame):
         self.status_bar = self.CreateStatusBar()
         pub.subscribe(self.on_set_status, 'top.status')
 
-    def _tab_index(self, panel):
-        for x in range(len(self.tab_stacks)):
-            if self.tab_stacks[x].cur_panel() == panel:
-                return x
-        raise KeyError('panel not found')
-
-    def add_tab(self, my_panel, new_panel, pos, new_text):
-        notebook = self.notebook
-        my_idx = self._tab_index(my_panel)
-        if pos == 0:
-            # push new_panel where my_panel currently is
-            new_idx = my_idx
-        else:
-            # insert new_panel in a new tab to the left or right of my_idx
-            new_idx = my_idx if pos == -1 else my_idx + 1
-            self.tab_stacks.insert(new_idx, TabStack())
-        self.tab_stacks[new_idx].push(notebook, new_idx, new_panel, new_text)
-        notebook.SetSelection(new_idx)
-
     def on_moved(self, data):
         cfg.gui.pos = data.GetPosition()
 
@@ -183,15 +100,47 @@ class GuiTop(wx.Frame):
         self.status_bar.SetStatusText(data)
 
     def on_tab_right_click(self, data):
-        # data.Selection is the tab index
+        # data.Selection is the tab tab_idx
+
+        def add_item(tab_idx, x, text, fn):
+            item = menu.Append(-1, text)
+            self.Bind(wx.EVT_MENU, lambda event: fn(event, tab_idx, x), item)
+
+        def add_stk_item(tab_idx, stk_idx, text):
+            add_item(tab_idx, stk_idx, text, self.on_stk_item_select)
+
+        def add_ins_item(tab_idx, x, text):
+            add_item(tab_idx, x, text, self.on_ins_item_select)
+
+        tab_idx = data.Selection
+        self.notebook.SetSelection(tab_idx)
+        event = data.EventObject
+        pos = event.GetPosition()
+        cli_pos = self.panel.ScreenToClient(pos)
+        tab_panel_stack = self.notebook.tab_panel_stacks[tab_idx]
+        menu = wx.Menu()
+        panel_list = tab_panel_stack.panel_list()
+        if len(panel_list) > 1:
+            for (stk_idx, text) in panel_list:
+                add_stk_item(tab_idx, stk_idx, text)
+            menu.AppendSeparator()
+        add_ins_item(tab_idx, -1, 'insert left')
+        add_ins_item(tab_idx, 0, 'push')
+        add_ins_item(tab_idx, 1, 'insert right')
+        self.panel.PopupMenu(menu)
+        pass
+
+    def on_stk_item_select(self, event, tab_idx, stk_idx):
+        tab_panel_stack = self.notebook.tab_panel_stacks[tab_idx]
+        tab_panel_stack.goto(stk_idx)
+        pass
+
+    def on_ins_item_select(self, event, tab_idx, x):
         pass
 
     def on_tab_close(self, data):
-        # data.Selection is the tab index
-        my_idx = data.Selection
-        self.notebook.RemovePage(data.Selection)
-        self.notebook.DeletePage(data.Selection)
-        pass
+        # data.Selection is the tab tab_idx
+        notebook.remove_tab(data.Selection)
 
     def on_exit(self, event):
         self.Close()

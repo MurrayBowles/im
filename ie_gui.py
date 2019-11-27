@@ -10,6 +10,7 @@ import gui_wrap
 from cfg import cfg
 from ie_cfg import *
 from ie_db import IETask2
+from tab_panel_gui import TabPanel, TabPanelStack
 import util
 
 class IEState(Enum):
@@ -24,10 +25,10 @@ source_type_map = {
     db.FsSourceType.WEB:    '(error)'
 }
 
-class ImportExportTab(wx.Panel):
+class ImportExportTP(TabPanel):
 
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
+    def __init__(self, parent: TabPanelStack):
+        super().__init__(parent)
 
         box = wx.BoxSizer(wx.VERTICAL)
         self.top_box = box
@@ -50,6 +51,10 @@ class ImportExportTab(wx.Panel):
         box.SetSizeHints(self)
         self.SetSizer(box)
         self.Fit()
+        self.push()  # push onto tab stack
+
+    def text(self):
+        return 'Import/Export'
 
     def hide_box_item(self, box, item_idx):
         box.Hide(item_idx)
