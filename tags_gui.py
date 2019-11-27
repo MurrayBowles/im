@@ -125,7 +125,8 @@ class TagsTP(TabPanel):
         self.SetSizer(sizer)
         self.push()  # push onto tab stack
 
-    def text(self):
+    @classmethod
+    def cls_text(cls):
         return 'Tags'
 
     def on_insert(self, key):

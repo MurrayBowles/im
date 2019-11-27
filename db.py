@@ -595,7 +595,7 @@ class FsSource(Item):
     """ external source from which a set of FsFolders/Images was imported """
     __tablename__ = 'fs_source'
 
-    # isa Item (.db_name is the user-assigned db_name, or None)
+    # isa Item (.name is an optional user-assigned name, or None)
     id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsSource'}
 

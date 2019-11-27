@@ -1,5 +1,6 @@
 """ top-level GUI """
 
+import copy
 import logging
 from typing import Any, List, Tuple
 import wx
@@ -8,10 +9,11 @@ from wx.lib.pubsub import pub
 
 from cfg import cfg
 import db
-from empty_gui import EmptyTP
+from empty_gui import EmptyTP, TableTP
 from ie_gui import ImportExportTP
 from tab_panel_gui import TabbedNotebook, TabPanel, TabPanelStack
 from tags_gui import TagsTP
+from tbl_desc import TblDesc
 from wx_task import WxSlicer
 
 slicer = None # initialized in GuiApp.OnInit()
@@ -75,8 +77,8 @@ class GuiTop(wx.Frame):
         ie_tp = ImportExportTP(tpsB0)
 
         tpsC1 = ie_tp.relative_stack(1)
-        tags_tp = TagsTP(tpsC1)
         ie_tab2 = ImportExportTP(tpsC1)
+        tags_tp = TagsTP(tpsC1)
 
         notebook.Bind(wx.aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
         notebook.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_close)
@@ -99,6 +101,23 @@ class GuiTop(wx.Frame):
         logging.info('status := %s', data)
         self.status_bar.SetStatusText(data)
 
+    def _push_menu(self, tab_idx, fn):
+        def lll(obj):
+            return lambda event: fn(event, tab_idx, obj)
+        menu = wx.Menu()
+        choices = (
+            [(td.disp_names[0], td) for td in TblDesc.objs]
+          + [(tp.cls_text(), tp) for tp in TabPanel.__subclasses__()]
+        )
+        choices.sort(key=lambda c: c[0])
+        for x in range(len(choices)):
+            c = choices[x]
+            if c[1] is EmptyTP or c[1] is TableTP:
+                continue
+            item = menu.Append(-1, c[0])
+            self.Bind(wx.EVT_MENU, lll(c[1]), item)
+        return menu
+
     def on_tab_right_click(self, data):
         # data.Selection is the tab tab_idx
 
@@ -118,15 +137,20 @@ class GuiTop(wx.Frame):
         pos = event.GetPosition()
         cli_pos = self.panel.ScreenToClient(pos)
         tab_panel_stack = self.notebook.tab_panel_stacks[tab_idx]
-        menu = wx.Menu()
-        panel_list = tab_panel_stack.panel_list()
-        if len(panel_list) > 1:
-            for (stk_idx, text) in panel_list:
-                add_stk_item(tab_idx, stk_idx, text)
-            menu.AppendSeparator()
-        add_ins_item(tab_idx, -1, 'insert left')
-        add_ins_item(tab_idx, 0, 'push')
-        add_ins_item(tab_idx, 1, 'insert right')
+        if tab_idx == len(self.notebook.tab_panel_stacks) - 1:
+            # the right tab is the special '+' tab
+            menu = self._push_menu(tab_idx, self.on_add_tab_push_item_select)
+            pass
+        else:
+            menu = wx.Menu()
+            panel_list = tab_panel_stack.panel_list()
+            if len(panel_list) > 0:
+                for (stk_idx, text) in panel_list:
+                    add_stk_item(tab_idx, stk_idx, text)
+                menu.AppendSeparator()
+            add_ins_item(tab_idx, -1, 'insert left')
+            add_ins_item(tab_idx, 0, 'push')
+            add_ins_item(tab_idx, 1, 'insert right')
         self.panel.PopupMenu(menu)
         pass
 
@@ -137,6 +161,14 @@ class GuiTop(wx.Frame):
 
     def on_ins_item_select(self, event, tab_idx, x):
         pass
+
+    def on_add_tab_push_item_select(self, event, tab_idx, obj):
+        add_tps = self.notebook.tab_panel_stacks[tab_idx]
+        new_tps = add_tps.relative_stack(-1)
+        if isinstance(obj, TblDesc):
+            TableTP(new_tps, obj)
+        else:
+            obj(new_tps)
 
     def on_tab_close(self, data):
         # data.Selection is the tab tab_idx
@@ -151,5 +183,6 @@ def gui_test():
     cfg.save()
 
 if __name__== '__main__':
+    import tbl_descs
     db.open_preloaded_mem_db()
     gui_test()

@@ -28,15 +28,19 @@ class TabPanel(wx.Panel):
         self.tab_panel_stack = tab_panel_stack
         # at the end of initialization, the subclass should call self.push()
 
-    def text(self):  # returns text to display in the tab
-        raise Exception('text() not implemented')
+    @classmethod
+    def cls_text(cls):  # returns text to display in the tab
+        return cls.__name__
+
+    def inst_text(self):  # returns text to display in the tab
+        return self.__class__.cls_text()
 
     def tab_idx(self):
         return self.tab_panel_stack.tab_idx(self)
 
     def relative_stack(self, pos):
         # pos: -1 add a tab to the left, +1 add a tab to the right; 0 return my_panel's tab
-        return self.tab_panel_stack.relative_stack(self)
+        return self.tab_panel_stack.relative_stack(pos)
 
     def push(self):
         self.tab_panel_stack.push(self)
@@ -87,14 +91,17 @@ class TabPanelStack(wx.Panel):
         return panels
 
     def _mystery_stuff(self):
+        cur_panel = self.cur_panel()
+        cur_panel.Layout()
+        cur_panel.Refresh()
         self.sizer.Layout()
-        self.sizer.Fit(self.notebook)
+        self.sizer.Fit(cur_panel)
         pass
 
     def _show_cur_panel(self):
         self.sizer.Show(self.stk_idx)
         cur_panel = self.stk[self.stk_idx]
-        self.notebook.SetPageText(self.tab_idx(), cur_panel.text())
+        self.notebook.SetPageText(self.tab_idx(), cur_panel.inst_text())
         pass
 
     def _hide_cur_panel(self):

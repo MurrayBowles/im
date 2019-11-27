@@ -53,7 +53,8 @@ class ImportExportTP(TabPanel):
         self.Fit()
         self.push()  # push onto tab stack
 
-    def text(self):
+    @classmethod
+    def cls_text(cls):
         return 'Import/Export'
 
     def hide_box_item(self, box, item_idx):
@@ -338,7 +339,7 @@ class FsSourceCtrl:
                 self.change_fn(obj)
 
     def selection_accessible(self):
-        return self.obj is not none and self.obj.accessible()
+        return self.obj is not None and self.obj.accessible()
 
     def on_select(self, obj):
         self._set_obj(obj)
@@ -439,8 +440,9 @@ class FsSourceAEDialog(wx.Dialog):
                 self, box, 'source type: ' + types[self.obj.source_type])
             gui_wrap.StaticText(self, box, 'source: ' + self.obj.pname())
 
-        # db_name
-        gui_wrap.AttrTextCtrl(self, box, 'db_name', self, 'source_name')
+        # name
+        gui_wrap.AttrTextCtrl(self, box, 'name', self, 'source_name')
+        # FIXME: the name doesn't actually get set
 
         # tag source
         FsTagSourceCtrl(
