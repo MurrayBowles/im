@@ -19,6 +19,7 @@ class TabbedNotebook(wx.aui.AuiNotebook):
     def remove_tab(self, tab_idx):
         self.RemovePage(tab_idx)
         self.DeletePage(tab_idx)
+        self.tab_panel_stacks.pop(tab_idx)
 
 
 class TabPanel(wx.Panel):
@@ -102,6 +103,7 @@ class TabPanelStack(wx.Panel):
         self.sizer.Show(self.stk_idx)
         cur_panel = self.stk[self.stk_idx]
         self.notebook.SetPageText(self.tab_idx(), cur_panel.inst_text())
+        self.notebook.SetSelection(self.tab_idx())
         pass
 
     def _hide_cur_panel(self):
