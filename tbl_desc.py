@@ -34,6 +34,12 @@ class TblDesc(object):
         TblDesc.objs.append(self)
         pass
 
+    def menu_text(self):
+        if hasattr(self, '_menu_text'):
+            return self._menu_text
+        else:
+            return self.disp_names[0] + 's'
+
     @classmethod
     def lookup_tbl_desc(cls, db_name):
         for td in cls.objs:

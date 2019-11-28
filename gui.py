@@ -106,7 +106,7 @@ class GuiTop(wx.Frame):
             return lambda event: fn(event, tab_idx, pos, obj)
         menu = wx.Menu()
         choices = (
-            [(td.disp_names[0], td) for td in TblDesc.objs]
+            [(td.menu_text(), td) for td in TblDesc.objs]
           + [(tp.cls_text(), tp) for tp in TabPanel.__subclasses__()]
         )
         choices.sort(key=lambda c: c[0])
@@ -161,9 +161,6 @@ class GuiTop(wx.Frame):
     def on_stk_item_select(self, event, tab_idx, stk_idx):
         tab_panel_stack = self.notebook.tab_panel_stacks[tab_idx]
         tab_panel_stack.goto(stk_idx)
-        pass
-
-    def on_ins_item_select(self, event, tab_idx, pos):
         pass
 
     def on_push_item_select(self, event, tab_idx, pos, obj):

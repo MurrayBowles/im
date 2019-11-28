@@ -14,7 +14,7 @@ Item_td = TblDesc(db.Item, 'Item', [
     TblReportView: ['name', 'type']
 }, '+id')
 
-DbFolder_td = ItemTblDesc(db.DbFolder, ['Database Folder', 'DbFolder'], [
+DbFolder_td = ItemTblDesc(db.DbFolder, ['Folder', 'DbFolder'], [
     DateCD('date', ['Date']),
     IMDateEltCD('date2_year', ['Year']),
     IMDateEltCD('date2_month', ['Month']),
@@ -31,8 +31,9 @@ ImageData_td = TblDesc(db.ImageData, ['Image Data'], [
 ], {
     TblReportView: ['image_width', 'image_height', 'sensitivity']
 }, '-sensitivity')  # FIXME: sorter should not be mandatory
+ImageData_td._menu_text = 'Image Data'
 
-DbImage_td = ItemTblDesc(db.DbImage, 'Database Image', [
+DbImage_td = ItemTblDesc(db.DbImage, 'Image', [
     ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),
     ShortcutCD('folder_date2', 'Folder Date', path_str='folder_id.date2'),
     ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name'),
