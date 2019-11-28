@@ -9,11 +9,13 @@ from wx.lib.pubsub import pub
 
 from cfg import cfg
 import db
-from empty_gui import EmptyTP, TableTP
+from empty_gui import EmptyTP
 from ie_gui import ImportExportTP
 from tab_panel_gui import TabbedNotebook, TabPanel, TabPanelStack
 from tags_gui import TagsTP
 from tbl_desc import TblDesc
+from tbl_view import TblTP
+import tbl_view_factory
 from wx_task import WxSlicer
 
 slicer = None # initialized in GuiApp.OnInit()
@@ -112,7 +114,7 @@ class GuiTop(wx.Frame):
         choices.sort(key=lambda c: c[0])
         for x in range(len(choices)):
             c = choices[x]
-            if c[1] is EmptyTP or c[1] is TableTP:
+            if c[1] is EmptyTP or c[1] is TblTP:
                 continue
             item = menu.Append(-1, c[0])
             self.Bind(wx.EVT_MENU, lll(c[1]), item)
@@ -167,7 +169,7 @@ class GuiTop(wx.Frame):
         add_tps = self.notebook.tab_panel_stacks[tab_idx]
         new_tps = add_tps.relative_stack(pos)
         if isinstance(obj, TblDesc):
-            TableTP(new_tps, obj)
+            tbl_view_factory.get(new_tps, obj)
         else:
             obj(new_tps)
 

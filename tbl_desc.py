@@ -1,13 +1,12 @@
 """ database Table Descriptor classes """
 
 import re
-from typing import List, Mapping, Type
+from typing import Any, List, Mapping, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc, VirtualColDesc
 from col_desc import ShortcutCD, SuperCD
 from row_desc import RowDesc
 from sorter import Sorter, SorterCol
-from tbl_view import TblView, TblReportView
 from util import force_list
 
 import db
@@ -18,7 +17,7 @@ class TblDesc(object):
     db_tbl_cls: ImTblCls        # the Python database-table class
     disp_names: List[str]       # display names, in decreasing length
     row_desc: RowDesc           # this table's predefined columns
-    def_viewed_row: Mapping[Type[TblView], RowDesc]
+    def_viewed_row: Mapping[Type[Any], RowDesc]  # FIXME: Any=>TblTP
     sorter: Sorter
     # TODO tag_field
 
