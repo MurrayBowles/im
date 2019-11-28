@@ -87,7 +87,7 @@ class TabPanelStack(wx.Panel):
         if len(self.stk) > 1:
             for stk_idx in range(len(self.stk) - 1, -1, -1):
                 if stk_idx != self.stk_idx:
-                    panels.append((stk_idx, self.stk[stk_idx].text()))
+                    panels.append((stk_idx, self.stk[stk_idx].inst_text()))
         return panels
 
     def _mystery_stuff(self):

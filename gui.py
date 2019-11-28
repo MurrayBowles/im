@@ -101,9 +101,9 @@ class GuiTop(wx.Frame):
         logging.info('status := %s', data)
         self.status_bar.SetStatusText(data)
 
-    def _push_menu(self, tab_idx, fn):
+    def _push_menu(self, tab_idx, pos, fn):
         def lll(obj):
-            return lambda event: fn(event, tab_idx, obj)
+            return lambda event: fn(event, tab_idx, pos, obj)
         menu = wx.Menu()
         choices = (
             [(td.disp_names[0], td) for td in TblDesc.objs]
@@ -128,8 +128,12 @@ class GuiTop(wx.Frame):
         def add_stk_item(tab_idx, stk_idx, text):
             add_item(tab_idx, stk_idx, text, self.on_stk_item_select)
 
-        def add_ins_item(tab_idx, x, text):
-            add_item(tab_idx, x, text, self.on_ins_item_select)
+        def add_ins_item(tab_idx, pos, text):
+            add_item(tab_idx, pos, text, self.on_ins_item_select)
+
+        def add_push_item(tab_idx, pos, text):
+            push_menu = self._push_menu(tab_idx, pos, self.on_push_item_select)
+            item = menu.AppendMenu(-1, text, push_menu)
 
         tab_idx = data.Selection
         self.notebook.SetSelection(tab_idx)
@@ -139,7 +143,7 @@ class GuiTop(wx.Frame):
         tab_panel_stack = self.notebook.tab_panel_stacks[tab_idx]
         if tab_idx == len(self.notebook.tab_panel_stacks) - 1:
             # the right tab is the special '+' tab
-            menu = self._push_menu(tab_idx, self.on_add_tab_push_item_select)
+            menu = self._push_menu(tab_idx, -1, self.on_push_item_select)
             pass
         else:
             menu = wx.Menu()
@@ -148,9 +152,9 @@ class GuiTop(wx.Frame):
                 for (stk_idx, text) in panel_list:
                     add_stk_item(tab_idx, stk_idx, text)
                 menu.AppendSeparator()
-            add_ins_item(tab_idx, -1, 'insert left')
-            add_ins_item(tab_idx, 0, 'push')
-            add_ins_item(tab_idx, 1, 'insert right')
+            add_push_item(tab_idx, -1, 'insert left')
+            add_push_item(tab_idx, 0, 'push')
+            add_push_item(tab_idx, 1, 'insert right')
         self.panel.PopupMenu(menu)
         pass
 
@@ -159,20 +163,23 @@ class GuiTop(wx.Frame):
         tab_panel_stack.goto(stk_idx)
         pass
 
-    def on_ins_item_select(self, event, tab_idx, x):
+    def on_ins_item_select(self, event, tab_idx, pos):
         pass
 
-    def on_add_tab_push_item_select(self, event, tab_idx, obj):
+    def on_push_item_select(self, event, tab_idx, pos, obj):
         add_tps = self.notebook.tab_panel_stacks[tab_idx]
-        new_tps = add_tps.relative_stack(-1)
+        new_tps = add_tps.relative_stack(pos)
         if isinstance(obj, TblDesc):
             TableTP(new_tps, obj)
         else:
             obj(new_tps)
 
+    def on_std_tab_push_item_select(self, event, tab_idx, pos, obj):
+        pass
+
     def on_tab_close(self, data):
         # data.Selection is the tab tab_idx
-        notebook.remove_tab(data.Selection)
+        self.notebook.remove_tab(data.Selection)
 
     def on_exit(self, event):
         self.Close()
