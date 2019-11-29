@@ -14,6 +14,7 @@ from ie_gui import ImportExportTP
 from tab_panel_gui import TabbedNotebook, TabPanel, TabPanelStack
 from tags_gui import TagsTP
 from tbl_desc import TblDesc
+from tbl_descs import DbFolder_td, ImageData_td, Item_td, DbImage_td
 from tbl_view import TblTP
 import tbl_view_factory
 from wx_task import WxSlicer
@@ -48,6 +49,8 @@ class GuiApp(wx.App):
 
         return True
 
+menu_bar = False
+
 
 class GuiTop(wx.Frame):
     def __init__(self):
@@ -56,34 +59,39 @@ class GuiTop(wx.Frame):
         self.Bind(wx.EVT_MOVE, self.on_moved)
         self.Bind(wx.EVT_SIZE, self.on_sized)
 
-        # menu bar
-        menu_bar = wx.MenuBar()
-        file_menu = wx.Menu();
-        file_menu.Append(-1, 'Settings', 'Edit settings')
-        exit = file_menu.Append(-1, 'Exit', 'Exit app')
-        self.Bind(wx.EVT_MENU, self.on_exit, exit)
-        menu_bar.Append(file_menu, 'File')
-        self.SetMenuBar(menu_bar)
+        global menu_bar
+        if menu_bar:
+            # menu bar
+            menu_bar = wx.MenuBar()
+            file_menu = wx.Menu();
+            file_menu.Append(-1, 'Settings', 'Edit settings')
+            exit = file_menu.Append(-1, 'Exit', 'Exit app')
+            self.Bind(wx.EVT_MENU, self.on_exit, exit)
+            menu_bar.Append(file_menu, 'File')
+            self.SetMenuBar(menu_bar)
 
         # panel
         panel = self.panel = wx.Panel(self, -1)
 
-        # notebook
-        notebook = self.notebook = TabbedNotebook(
-            panel, style = wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
+        if True:
+            notebook = tbl_view_factory.get(panel, ImageData_td)
+        else:
+            # notebook
+            notebook = self.notebook = TabbedNotebook(
+                panel, style = wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
 
-        tpsA2 = TabPanelStack(notebook, 0)
-        empty_tp = EmptyTP(tpsA2)
+            tpsA2 = TabPanelStack(notebook, 0)
+            empty_tp = EmptyTP(tpsA2)
 
-        tpsB0 = empty_tp.relative_stack(-1)
-        ie_tp = ImportExportTP(tpsB0)
+            tpsB0 = empty_tp.relative_stack(-1)
+            ie_tp = ImportExportTP(tpsB0)
 
-        tpsC1 = ie_tp.relative_stack(1)
-        ie_tab2 = ImportExportTP(tpsC1)
-        tags_tp = TagsTP(tpsC1)
+            tpsC1 = ie_tp.relative_stack(1)
+            ie_tab2 = ImportExportTP(tpsC1)
+            tags_tp = TagsTP(tpsC1)
 
-        notebook.Bind(wx.aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
-        notebook.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_close)
+            notebook.Bind(wx.aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
+            notebook.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_close)
 
         sizer = wx.BoxSizer()
         sizer.Add(notebook, 1, wx.EXPAND)
@@ -189,6 +197,9 @@ def gui_test():
     cfg.save()
 
 if __name__== '__main__':
+    from db import open_file_db
+    from base_path import dev_base_ie_source_path
     import tbl_descs
-    db.open_preloaded_mem_db()
+    db.session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
+    # db.open_preloaded_mem_db()
     gui_test()
