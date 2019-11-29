@@ -73,8 +73,8 @@ class GuiTop(wx.Frame):
         # panel
         panel = self.panel = wx.Panel(self, -1)
 
-        if True:
-            notebook = tbl_view_factory.get(panel, ImageData_td)
+        if False:
+            notebook = tbl_view_factory.get(panel, Item_td)
         else:
             # notebook
             notebook = self.notebook = TabbedNotebook(
@@ -143,7 +143,7 @@ class GuiTop(wx.Frame):
 
         def add_push_item(tab_idx, pos, text):
             push_menu = self._push_menu(tab_idx, pos, self.on_push_item_select)
-            item = menu.Append(-1, text, push_menu)
+            item = menu.AppendSubMenu(push_menu, text)
 
         tab_idx = data.Selection
         self.notebook.SetSelection(tab_idx)

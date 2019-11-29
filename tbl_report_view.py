@@ -14,10 +14,17 @@ class TblULC(ulc.UltimateListCtrl):
 
     def __init__(self, *args, **kwargs):
         tbl_desc = kwargs.pop('tbl_desc')
-        query = kwargs.pop('query')
         super().__init__(*args, **kwargs)
         self.tbl_desc = tbl_desc
-        self.query = query
+
+        vc = tbl_desc.viewed_cols(TblReportTP)
+        cds = [tbl_desc.lookup_col_desc(name) for name in vc]
+        query = self.query = TblQuery(tbl_desc, RowDesc(cds))
+        for x, cd in enumerate(cds):
+            self.InsertColumn(x, cd.disp_names[0])
+
+        num_rows = query.get_num_rows(db.session)
+        self.SetItemCount(num_rows)
 
     def OnGetItemText(self, row, col):
         try:
@@ -44,24 +51,20 @@ class TblReportTP(TblTP):
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        vc = tbl_desc.viewed_cols(TblReportTP)
-        cds = [tbl_desc.lookup_col_desc(name) for name in vc]
-        query = self.query = TblQuery(tbl_desc, RowDesc(cds))
+        #header
+        h = wx.StaticText(self, -1, '  ' + tbl_desc.menu_text())
+        sizer.AddSpacer(5)
+        sizer.Add(h, 0, 0) # wx.EXPAND)
+        sizer.AddSpacer(5)
 
         try:
-            report = TblULC(
+            report = self.report = TblULC(
                 self, -1, agwStyle=wx.LC_REPORT|wx.LC_VRULES|wx.LC_HRULES|wx.LC_VIRTUAL,
-                tbl_desc=tbl_desc, query=query)
+                tbl_desc=tbl_desc)
         except Exception as ed:
             print('kk')
-
-        for x, cd in enumerate(cds):
-            report.InsertColumn(x, cd.disp_names[0])
-
-        num_rows = query.get_num_rows(db.session)
-        report.SetItemCount(num_rows)
-
         sizer.Add(report, 1, wx.EXPAND)
+
         self.SetSizer(sizer)
         if isinstance(parent, TabPanelStack):
             self.push()

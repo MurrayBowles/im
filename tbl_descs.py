@@ -22,7 +22,7 @@ DbFolder_td = ItemTblDesc(db.DbFolder, ['Folder', 'DbFolder'], [
     IMDateEltCD('date2_day', ['Day']),
     IMDateCD('date2', ['date2_year', 'date2_month', 'date2_day'])
 ], {
-    TblReportTP: ['name', 'date2'],
+    TblReportTP: ['name', 'date2_year'],
 }, '-date2,+name')
 
 ImageData_td = TblDesc(db.ImageData, ['Image Data'], [
@@ -41,7 +41,7 @@ DbImage_td = ItemTblDesc(db.DbImage, 'Image', [
     RefCD('data_id', 'Data', foreign_tbl_name='ImageData'),
     ShortcutCD('sensitivity', ['Sensitivity', 'ISO'], path_str='data_id.sensitivity')
 ], {
-    TblReportTP: ['folder_date2', 'folder_name', 'name']
+    TblReportTP: ['folder_name', 'name', 'sensitivity']
 }, '-folder_date2,+folder_name,+name')
 
 TblDesc.complete_tbl_descs()

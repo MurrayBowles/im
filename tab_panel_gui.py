@@ -63,6 +63,7 @@ class TabPanelStack(wx.Panel):
         self.SetSizer(self.sizer)
         self.notebook.tab_panel_stacks.insert(tab_idx, self)
         self.notebook.InsertPage(tab_idx, self, '')
+        pass
 
     def relative_stack(self, pos):
         # pos: -1 add a tab to the left, +1 add a tab to the right; 0 return my_panel's tab
@@ -93,10 +94,12 @@ class TabPanelStack(wx.Panel):
 
     def _mystery_stuff(self):
         cur_panel = self.cur_panel()
-        cur_panel.Layout()
-        cur_panel.Refresh()
-        self.sizer.Layout()
-        self.sizer.Fit(cur_panel)
+        #cur_panel.Layout()
+        #cur_panel.Refresh()
+        self.Layout()
+        #self.Refresh()
+        #self.notebook.Layout()
+        #self.notebook.Refresh()
         pass
 
     def _show_cur_panel(self):

@@ -17,7 +17,7 @@ class TblTP(TabPanel):
         return 'Table'
 
     def inst_text(self):
-        return self.tbl_desc.disp_names[0]
+        return self.tbl_desc.menu_text()
 
 
 class TblItemTP(TblTP):
