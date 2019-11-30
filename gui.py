@@ -4,7 +4,8 @@ import copy
 import logging
 from typing import Any, List, Tuple
 import wx
-import wx.aui
+import wx.aui as aui
+#import wx.lib.agw.aui as aui
 from wx.lib.pubsub import pub
 
 from cfg import cfg
@@ -73,25 +74,14 @@ class GuiTop(wx.Frame):
         # panel
         panel = self.panel = wx.Panel(self, -1)
 
-        if False:
-            notebook = tbl_view_factory.get(panel, Item_td)
-        else:
-            # notebook
-            notebook = self.notebook = TabbedNotebook(
-                panel, style = wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
+        # notebook
+        notebook = self.notebook = TabbedNotebook(panel, style=aui.AUI_NB_CLOSE_ON_ALL_TABS)
 
-            tpsA2 = TabPanelStack(notebook, 0)
-            empty_tp = EmptyTP(tpsA2)
+        tps = TabPanelStack(notebook, 0)
+        empty_tp = EmptyTP(tps)
 
-            tpsB0 = empty_tp.relative_stack(-1)
-            ie_tp = ImportExportTP(tpsB0)
-
-            tpsC1 = ie_tp.relative_stack(1)
-            ie_tab2 = ImportExportTP(tpsC1)
-            tags_tp = TagsTP(tpsC1)
-
-            notebook.Bind(wx.aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
-            notebook.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_close)
+        notebook.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
+        notebook.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_close)
 
         sizer = wx.BoxSizer()
         sizer.Add(notebook, 1, wx.EXPAND)

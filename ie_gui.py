@@ -322,13 +322,14 @@ class FsSourceCtrl:
 
         sources = db.FsSource.all(db.session)
         self.list_box = gui_wrap.ListBoxAED(
-            self.parent, sizer, label='import/export source',
+            self.parent, sizer, label='Import/Export Source',
             init_list = sources,
             name_fn=lambda x: source_text(x),
             add_fn = self.on_add,
             edit_fn = self.on_edit,
             del_fn = self.on_del,
-            select_fn = self.on_select
+            select_fn = self.on_select,
+            size=(550,100)  # TODO should be automatic
         )
         # TODO: ListCtrl? then you could grey the unmounted items
 
@@ -382,14 +383,13 @@ class FsSourceAEDialog(wx.Dialog):
 
         # the presence of edit_obj indicates this is an edit, not an add dialog
         if 'edit_obj' in kw:
-            self.obj = kw['edit_obj']
+            self.obj = kw.pop('edit_obj')
             init_tag_source_id = (
                 self.obj.tag_source.id if self.obj.tag_source is not None
                 else -1)
             self.volume = self.obj.volume
             self.path = self.obj.path
             self.read_only = self.obj.readonly
-            kw.pop('edit_obj')
             ok_label = 'Set'
         else:
             self.obj = None
@@ -411,7 +411,9 @@ class FsSourceAEDialog(wx.Dialog):
         self.SetTitle(
             '%s Import/Export Source' % ('Add' if self.obj is None else 'Edit'))
         panel = wx.Panel(self)
-        box = wx.BoxSizer(wx.VERTICAL)
+        b_sizer = wx.BoxSizer()
+        v_sizer = wx.BoxSizer(wx.VERTICAL)
+        b_sizer.Add(v_sizer, flag=wx.LEFT | wx.RIGHT, border=8)
 
         types = {
             db.FsSourceType.DIR:   'set of directories',
@@ -422,42 +424,45 @@ class FsSourceAEDialog(wx.Dialog):
         if self.obj  is None: # Add
             # source type
             gui_wrap.RadioButton(
-                self, box, label='source type: ', choices=list(types.values()),
+                self, v_sizer, label='source type: ', choices=list(types.values()),
                 change_fn=self.on_source_type_changed)
 
             # directory
             self.dir_ctrl = gui_wrap.DirCtrl(
-                self, box, select_fn=self.on_dir_selected,
+                self, v_sizer, select_fn=self.on_dir_selected,
                 style = wx.DIRCTRL_DIR_ONLY)
 
             # URL
             self.text_ctrl = gui_wrap.TextCtrl(
-                self, box, 'URL', size = (300, 20),
+                self, v_sizer, 'URL', size = (300, 20),
                 change_fn = self.on_text_changed)
             # self.text_ctrl.set_hidden(True)
         else: # Edit
             gui_wrap.StaticText(
-                self, box, 'source type: ' + types[self.obj.source_type])
-            gui_wrap.StaticText(self, box, 'source: ' + self.obj.pname())
+                self, v_sizer, 'Source Type: ' + types[self.obj.source_type])
+            gui_wrap.StaticText(
+                self, v_sizer, 'Source: ' + self.obj.pname(), size=(-1, -1))
+            v_sizer.AddSpacer(5)
 
         # name
-        gui_wrap.AttrTextCtrl(self, box, 'name', self, 'source_name')
-        # FIXME: the name doesn't actually get set
+        gui_wrap.AttrTextCtrl(self, v_sizer, 'Name', self, 'source_name')
 
         # tag source
         FsTagSourceCtrl(
-            self, box, change_fn = self.on_tag_source_changed,
+            self, v_sizer, change_fn=self.on_tag_source_changed,
             init_id=init_tag_source_id)
 
         # read-only
-        gui_wrap.AttrCheckBox(self, box, 'read only', self, 'read_only')
+        gui_wrap.AttrCheckBox(self, v_sizer, 'read only', self, 'read_only')
 
         # OK/CANCEL buttons
         self.dialog_buttons = gui_wrap.DialogButtons(
-            self, box, ok_label=ok_label, cancel_label=cancel_label,
+            self, v_sizer, ok_label=ok_label, cancel_label=cancel_label,
             ok_disabled=self.obj is None)
 
-        self.SetSizer(box)
+        v_sizer.Layout()
+        b_sizer.Layout()
+        self.SetSizer(b_sizer)
         self.Fit()
 
     def on_source_type_changed(self, value):
@@ -503,10 +508,10 @@ class FsSourceAEDialog(wx.Dialog):
 class FsTagSourceCtrl:
     def __init__(
             self, parent, sizer,
-            size = gui_wrap.default_box,
-            init_id = None,
-            label = 'Tag Source',
-            change_fn = None
+            size=gui_wrap.default_box,
+            init_id=None,
+            label='Tag Source',
+            change_fn=None
     ):
         self.parent = parent
         self.obj = None
@@ -577,21 +582,24 @@ class FsTagSourceAEDialog(wx.Dialog):
         self.SetTitle('%s Import/Export Tag Source' % (
             'Add' if self.obj is None else 'Edit'))
         panel = wx.Panel(self)
-        box = wx.BoxSizer(wx.VERTICAL)
+
+        b_sizer = wx.BoxSizer()
+        v_sizer = wx.BoxSizer(wx.VERTICAL)
+        b_sizer.Add(v_sizer, flag=wx.LEFT | wx.RIGHT, border=8)
 
         # description
         gui_wrap.AttrTextCtrl(
-            self, box, 'description', self, 'description',
+            self, v_sizer, 'description', self, 'description',
             change_fn = self.on_change)
 
         # TODO: view tag mappings if EDIT
 
         # dialog buttons
         self.dialog_buttons = gui_wrap.DialogButtons(
-            self, box, ok_label=ok_label, cancel_label=cancel_label,
+            self, v_sizer, ok_label=ok_label, cancel_label=cancel_label,
             ok_disabled=self.obj is None)
 
-        self.SetSizer(box)
+        self.SetSizer(b_sizer)
         self.Fit()
 
     def on_change(self, text):

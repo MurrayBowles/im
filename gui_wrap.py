@@ -304,15 +304,29 @@ class ListBoxAED:
         self.select_fn = select_fn
 
         self.selection = None
+        if init_id != -1 and init_list is not None:
+            for i in init_list:
+                if id_fn(i) == init_id:
+                    self.selection = i
 
-        outer_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        v_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        v_sizer.AddSpacer(5)
+        if label is not None:
+            h = wx.StaticText(parent, -1, label + ':')
+            v_sizer.Add(h, 0, 0) # wx.EXPAND)
+            v_sizer.AddSpacer(3)
+
+        h_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
         list_sizer = wx.BoxSizer(wx.VERTICAL)
         self.list_box = ListBox(
-            parent, list_sizer, size=size, label=label,
+            parent, list_sizer, size=size,
             init_id=init_id, init_list=init_list,
             id_fn=id_fn, name_fn=name_fn,
             select_fn=self.on_select
         )
+
         button_sizer = wx.BoxSizer(wx.VERTICAL)
         if add_fn is not None:
             Button(parent, button_sizer, 'Add', self.on_add)
@@ -323,9 +337,16 @@ class ListBoxAED:
             self.del_button = Button(
                 parent, button_sizer, 'Delete', self.on_del)
         self._fix_buttons()
-        outer_sizer.Add(list_sizer)
-        outer_sizer.Add(button_sizer)
-        sizer.Add(outer_sizer)
+
+        h_sizer.Add(list_sizer)
+        h_sizer.Add(button_sizer)
+        v_sizer.Add(h_sizer)
+        sizer.Add(v_sizer)
+
+        list_sizer.Layout()
+        h_sizer.Layout()
+        v_sizer.Layout()
+        sizer.Layout()
 
     def _fix_buttons(self):
         self.edit_button.set_enabled(self.selection is not None)

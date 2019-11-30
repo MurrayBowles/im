@@ -256,7 +256,7 @@ def do_my_cmd(session, ctx):
             ])
         ]
     }
-    do_cmd(ctx, 'c:', 'my format', FsSourceType.DIR, cfg, session)
+    do_cmd(ctx, 'C:', 'my format', FsSourceType.DIR, cfg, session)
 
 def test_my_cmd():
     session = open_mem_db()
@@ -307,7 +307,7 @@ def do_main_cmd(session, ctx):
             ])
         ]
     }
-    do_cmd(ctx, 'main1415', 'main1415 corbett psds', FsSourceType.FILE, cfg, session)
+    do_cmd(ctx, 'C:', 'main1415 corbett psds', FsSourceType.FILE, cfg, session)
 
 def test_main_cmd():
     session = open_mem_db()
@@ -348,7 +348,7 @@ def do_corbett_cmd(session, ctx):
             ])
         ]
     }
-    do_cmd(ctx, 'j:', 'corbett drive', FsSourceType.FILE, cfg, session)
+    do_cmd(ctx, 'C:', 'corbett drive', FsSourceType.FILE, cfg, session)
 
 def test_corbett_cmd():
     session = open_mem_db()

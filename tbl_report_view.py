@@ -52,8 +52,8 @@ class TblReportTP(TblTP):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         #header
-        h = wx.StaticText(self, -1, '  ' + tbl_desc.menu_text())
         sizer.AddSpacer(5)
+        h = wx.StaticText(self, -1, '  ' + tbl_desc.menu_text())
         sizer.Add(h, 0, 0) # wx.EXPAND)
         sizer.AddSpacer(5)
 
@@ -66,8 +66,7 @@ class TblReportTP(TblTP):
         sizer.Add(report, 1, wx.EXPAND)
 
         self.SetSizer(sizer)
-        if isinstance(parent, TabPanelStack):
-            self.push()
+        self.push()
 
 
 

@@ -3,10 +3,11 @@
 from typing import Any, List, Tuple
 
 import wx
-import wx.aui
+import wx.aui as aui
+#import wx.lib.agw.aui as aui
 
 
-class TabbedNotebook(wx.aui.AuiNotebook):
+class TabbedNotebook(aui.AuiNotebook):
     tab_panel_stacks: List[Any]  # List[TabPanelStack]
 
     def __init__(self, *args, **kwargs):
@@ -99,7 +100,7 @@ class TabPanelStack(wx.Panel):
         self.Layout()
         #self.Refresh()
         #self.notebook.Layout()
-        #self.notebook.Refresh()
+        #Layout()self.notebook.Refresh()
         pass
 
     def _show_cur_panel(self):
