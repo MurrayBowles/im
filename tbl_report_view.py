@@ -18,7 +18,7 @@ class TblULC(ulc.UltimateListCtrl):
         self.tbl_desc = tbl_desc
 
         vc = tbl_desc.viewed_cols(TblReportTP)
-        cds = [tbl_desc.lookup_col_desc(name) for name in vc]
+        cds = self.cds = [tbl_desc.lookup_col_desc(name) for name in vc]
         query = self.query = TblQuery(tbl_desc, RowDesc(cds))
         for x, cd in enumerate(cds):
             self.InsertColumn(x, cd.disp_names[0])
@@ -32,7 +32,8 @@ class TblULC(ulc.UltimateListCtrl):
         except Exception as ed:
             print('cc')
         c = r[0].cols[col]
-        return str(c)
+        cd = self.cds[col]
+        return cd.gui_str(c)
 
     def OnGetItemAttr(self, row):
         return None

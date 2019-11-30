@@ -5,10 +5,12 @@ from dataclasses import dataclass
 from typing import Any, List, TypeVar
 
 from imdate import IMDate
-from util import force_list
+from util import force_list, gui_null_str
 
 
 class CDXState(object):
+    ''' the state of a Shortcut and/or Virtual ColDesc chain's eXpansion '''
+
     def __init__(self, xs=None):
         if xs is not None:
             self.path = copy.copy(xs.path)
@@ -23,22 +25,18 @@ class CDXState(object):
             '' if self.alias is None else ' AS ' + self.alias)
 
     def ref(self, col_desc):
-        res = CDXState(self)
-        res.path.append(col_desc)
+        res = CDXState(self)  # make a new copy of the CDXState
+        res.path.append(col_desc)  # append the CD to the path
         if res.alias is None:
+            # set the SQL 'AS' alias from the first CD in the chain
             res.alias = col_desc.db_name
         return res
 
-    def pfx(self, col_desc):
-        res = CDXState(self)
-
-        return res
-
-    def sfx(self, vcd, dcd):
+    def sfx(self, virtual_cd, dependent_cd):
         res = CDXState(self)
         if res.alias is None:
-            res.alias = vcd.db_name
-        res.alias += vcd._sfx(dcd)
+            res.alias = virtual_cd.db_name
+        res.alias += virtual_cd._sfx(dependent_cd)
         return res
 
     def extend(self, shortcut_cd, path):
@@ -84,23 +82,28 @@ class ColDesc(object):
         return self.__class__.__name__ + '(' + self.base_repr() + ')'
 
     def sql_literal_str(self, literal):
+        ''' Return the string to use in SQL literals. '''
         return str(literal)
 
-    def sql_select(self, col_ref_fn, xs):
+    def gui_str(self, val):
+        ''' Return the string to use in GUI output. '''
+        return gui_null_str if val is None else str(val)
+
+    def sql_select(self, col_ref_fn, xs: CDXState):
         ''' Call col_ref_fn(col_desc) for every SQL column accessed to display this column '''
         col_ref_fn(xs.ref(self))
 
-    def sql_relop_str(self, op: str, literal, col_ref_fn, xs):
+    def sql_relop_str(self, op: str, literal, col_ref_fn, xs: CDXState):
         return '%s %s %s' % (col_ref_fn(xs.ref(self)), op, self.sql_literal_str(literal))
 
-    def sql_order_str(self, descending: bool, col_ref_fn, xs):
+    def sql_order_str(self, descending: bool, col_ref_fn, xs: CDXState):
         s = col_ref_fn(xs.ref(self))
         if descending:
             s += ' DESC'
         return s
 
-    def get_val(self, get_sql_val_fn):
-        return get_sql_val_fn(self)
+    def get_val(self, get_sql_val_fn, xs: CDXState):
+        return get_sql_val_fn(xs.ref(self).alias)
 
     ''' see also:
     Join State.sql_col_ref()
@@ -137,6 +140,14 @@ class DateCD(DataColDesc):
         return '"%s"' % literal
 
 
+class DateTimeCD(DataColDesc):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def sql_literal_str(self, literal):
+        return '"%s"' % literal
+
+
 class IntCD(DataColDesc):
     def_fmt = 'r8'
 
@@ -152,7 +163,7 @@ class IMDateEltCD(DataColDesc):
             kwargs['hidden'] = True  # default hidden to True
         super().__init__(*args, **kwargs)
 
-    def sql_order_str(self, descending: bool, col_ref_fn, xs):
+    def sql_order_str(self, descending: bool, col_ref_fn, xs: CDXState):
         ref = col_ref_fn(xs.ref(self))
         if descending:
             # IMDate.unk (0) will already sort at the end
@@ -228,18 +239,21 @@ class ShortcutCD(ColDesc):
     def sql_literal_str(self, literal):
         return self.path_cds[-1].sql_literal_str(literal)
 
-    def sql_select(self, col_ref_fn, xs):
+    def sql_select(self, col_ref_fn, xs: CDXState):
         ''' Call col_ref_fn(col_desc) for every SQL column accessed to display this column '''
         return self.path_cds[-1].sql_select(
             col_ref_fn, xs.extend(self, self.path_cds[0:-1]))
 
-    def sql_relop_str(self, op: str, literal, col_ref_fn, xs):
+    def sql_relop_str(self, op: str, literal, col_ref_fn, xs: CDXState):
         return self.path_cds[-1].sql_relop_str(
             op, literal, col_ref_fn, xs.extend(self, self.path_cds[0:-1]))
 
-    def sql_order_str(self, descending: bool, col_ref_fn, xs):
+    def sql_order_str(self, descending: bool, col_ref_fn, xs: CDXState):
         return self.path_cds[-1].sql_order_str(
             descending, col_ref_fn, xs.extend(self, self.path_cds[0:-1]))
+
+    def get_val(self, get_sql_val_fn, xs: CDXState):
+        return self.path_cds[-1].get_val(get_sql_val_fn, xs.extend(self, self.path_cds[0:-1]))
 
 
 class VirtualColDesc(ColDesc):
@@ -269,12 +283,12 @@ class VirtualColDesc(ColDesc):
     def sql_literal_str(self, literal):
         raise ValueError('sql_literal_str called on a VirtualColDesc')
 
-    def sql_select(self, col_ref_fn, xs):
+    def sql_select(self, col_ref_fn, xs: CDXState):
         ''' Call col_ref_fn(col_desc) for every SQL column accessed to display this column '''
         for dcd in self.dependency_cds:
             dcd.sql_select(col_ref_fn, xs.sfx(self, dcd))
 
-    def sql_relop_str(self, op: str, literal, col_ref_fn, xs):
+    def sql_relop_str(self, op: str, literal, col_ref_fn, xs: CDXState):
         lits = literal  # literal is a sequence
         cds = self.dependency_cds
         try:
@@ -304,14 +318,14 @@ class VirtualColDesc(ColDesc):
             print('asf')
         return r
 
-    def sql_order_str(self, descending: bool, col_ref_fn, xs):
+    def sql_order_str(self, descending: bool, col_ref_fn, xs: CDXState):
         cols = []
         for dcd in self.dependency_cds:
             cols.append(dcd.sql_order_str(descending, col_ref_fn, xs.sfx(self, dcd)))
         return ', '.join(cols)
 
-    def get_val(self, get_sql_val_fn):
-        return [dcd.get_val(get_sql_val_fn) for dcd in self.dependency_cds]
+    def get_val(self, get_sql_val_fn, xs: CDXState):
+        return [dcd.get_val(get_sql_val_fn, xs.sfx(self, dcd)) for dcd in self.dependency_cds]
 
 
 class IMDateCD(VirtualColDesc):
@@ -321,12 +335,12 @@ class IMDateCD(VirtualColDesc):
         ext_kwargs['dependencies'] = [db_name + '_year', db_name + '_month', db_name + '_day']
         super().__init__(*args, **ext_kwargs)
 
-    def sql_relop_str(self, op: str, literal, col_ref_fn, xs):
+    def sql_relop_str(self, op: str, literal, col_ref_fn, xs: CDXState):
         # literal is an IMDate
         return super().sql_relop_str(op, literal.val, col_ref_fn, xs)
 
-    def get_val(self, get_sql_val_fn):
-        args = super().get_val(get_sql_val_fn)
+    def get_val(self, get_sql_val_fn, xs: CDXState):
+        args = super().get_val(get_sql_val_fn, xs)
         return IMDate(*args)
 
 

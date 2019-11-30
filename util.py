@@ -4,6 +4,8 @@ import datetime
 import os
 import win32api
 
+gui_null_str = '-'  # text to display for null database values
+
 def date_from_yymmdd(yymmdd):
     """ return a datetime.date from a YYMMDD string """
     year = int(yymmdd[0:2])

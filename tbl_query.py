@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy.orm import aliased, with_polymorphic
 
-from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD
+from col_desc import ColDesc, DataColDesc, LinkColDesc, ShortcutCD, CDXState
 from db import DbFolder, DbImage
 from filter import Filter
 from row_buf import RowBuf
@@ -136,8 +136,12 @@ class TblQuery(object):
             for dbr in db_rows:
                 cols = []
                 for cd in self.sql_query.cli_select.col_descs:
-                    col = cd.get_val(lambda scd:
-                        dbr[join_state.select_cols[scd.db_name][0]])
+                    try:
+                        col = cd.get_val(
+                            lambda col_name: dbr[join_state.select_cols[col_name][0]],
+                            CDXState())
+                    except Exception as ed:
+                        print('hi')
                     cols.append(col)
                 row_bufs.append(RowBuf(cols))
             return row_bufs

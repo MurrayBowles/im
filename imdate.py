@@ -6,6 +6,8 @@ The types are called IMDate[Pat] to avoid confusion with SQLAlchemy's Date
 import datetime
 from typing import NewType, Tuple, Union
 
+from util import gui_null_str
+
 
 class IMDate(object):
     val: Tuple[int, int, int]   # year, month, date
@@ -30,6 +32,9 @@ class IMDate(object):
     def __str__(self):
         def elt_str(elt):
             return '?' if elt == IMDate.unk else str(elt)
+        if any([v is None for v in self.val]):
+            assert all([v is None for v in self.val])
+            return gui_null_str
         return '%s/%s/%s' % (elt_str(self.val[1]), elt_str(self.val[2]), elt_str(self.val[0]))
 
     @staticmethod
