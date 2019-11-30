@@ -39,7 +39,7 @@ class TblULC(ulc.UltimateListCtrl):
         return None
 
     def OnGetItemToolTip(self, row, col):
-        return None
+        return self.OnGetItemText(row, col)
 
     def OnGetItemTextColour(self, row, col):
         return None
@@ -60,14 +60,45 @@ class TblReportTP(TblTP):
 
         try:
             report = self.report = TblULC(
-                self, -1, agwStyle=wx.LC_REPORT|wx.LC_VRULES|wx.LC_HRULES|wx.LC_VIRTUAL,
+                self, -1,
+                agwStyle=(
+                    wx.LC_REPORT | wx.LC_VIRTUAL
+                  | ulc.ULC_SHOW_TOOLTIPS | wx.LC_VRULES | wx.LC_HRULES),
                 tbl_desc=tbl_desc)
         except Exception as ed:
             print('kk')
-        sizer.Add(report, 1, wx.EXPAND)
 
+        self.Bind(ulc.EVT_LIST_ITEM_RIGHT_CLICK, self.on_item_right_click)
+        self.Bind(ulc.EVT_LIST_COL_RIGHT_CLICK, self.on_hdr_right_click)
+
+        sizer.Add(report, 1, wx.EXPAND)
         self.SetSizer(sizer)
         self.push()
+
+    def _get_col_idx(self, event):
+        pos = event.GetPoint()  # (x, y)
+        x = pos[0]
+        lc = self.report
+        col_pos = 0
+        for col_idx in range(lc.GetColumnCount()):
+            e = col_pos + lc.GetColumn(col_idx).GetWidth()
+            if x < e:
+                return col_idx
+            col_pos = e
+        else:
+            return -1
+
+    def on_item_right_click(self, event):
+        row = event.GetIndex()
+        col = self._get_col_idx(event)
+        assert col >= 0
+        pass
+
+    def on_hdr_right_click(self, event):
+        col = self._get_col_idx(event)
+        if col == -1:  # clicked right of rightmost column
+            return
+        pass
 
 
 
