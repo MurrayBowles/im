@@ -15,7 +15,7 @@ Item_td = TblDesc(db.Item, 'Item', [
     TblReportTP: ['id', 'name', 'type']
 }, '+id')
 
-DbFolder_td = ItemTblDesc(db.DbFolder, 'Int Folder', [
+DbFolder_td = ItemTblDesc(db.DbFolder, 'DB Folder', [
     IdCD(),
     IdCD('thumbnail_id', 'Thumbnail ID'),
     IMDateEltCD('date_year', 'Year'),
@@ -37,7 +37,7 @@ ImageData_td = TblDesc(db.ImageData, ['Image Data'], [
 }, '-sensitivity')  # FIXME: sorter should not be mandatory
 ImageData_td._menu_text = 'Image Data'
 
-DbImage_td = ItemTblDesc(db.DbImage, 'Int Image', [
+DbImage_td = ItemTblDesc(db.DbImage, 'DB Image', [
     IdCD(),
     IdCD('folder_id', 'Folder ID'),
     ParentCD('folder', 'Folder', path_str='folder_id->DbFolder'),
@@ -46,18 +46,18 @@ DbImage_td = ItemTblDesc(db.DbImage, 'Int Image', [
     IdCD('data_id', 'Date ID'),
     RefCD('data', 'Data', path_str='data_id->ImageData')
 ], {
-    TblReportTP: ['folder_date', 'folder_name', 'name', 'data']
+    TblReportTP: ['folder_date', 'folder_name', 'name']
 }, '-folder_date,+folder_name,+name')
 
-FsFolder_td = ItemTblDesc(db.FsFolder, ['Ext Folder', 'FsFolder'], [
+FsFolder_td = ItemTblDesc(db.FsFolder, ['FS Folder', 'FsFolder'], [
     IdCD(),
     IMDateEltCD('db_date_year', ['Year']),
     IMDateEltCD('db_date_month', ['Month']),
     IMDateEltCD('db_date_day', ['Day']),
-    IMDateCD('db_date', 'Int Date'),
-    TextCD('db_name', 'Int Name'),
-    IdCD('source_id', 'Ext Source ID'),
-    IdCD('db_folder_id', 'Int Folder ID'),
+    IMDateCD('db_date', 'DB Date'),
+    TextCD('db_name', 'DB Name'),
+    IdCD('source_id', 'FS Source ID'),
+    IdCD('db_folder_id', 'DB Folder ID'),
     DateTimeCD('last_scan', 'Last Scan'),
     DateTimeCD('last_import_tags', 'Last Tags Import')
 ], {
@@ -65,21 +65,22 @@ FsFolder_td = ItemTblDesc(db.FsFolder, ['Ext Folder', 'FsFolder'], [
 }, '-db_date,+db_name,+name')
 
 
-FsImage_td = ItemTblDesc(db.FsImage, 'Ext Image', [
+FsImage_td = ItemTblDesc(db.FsImage, 'FS Image', [
     IdCD(),
     IdCD('data_id', 'Data ID'),
     RefCD('data', 'Data', path_str='data_id->ImageData'),
     IdCD('folder_id', 'Folder ID'),
     ParentCD('folder', 'Folder', path_str='folder_id->FsFolder'),
-    ShortcutCD('folder_date', 'Folder Date', path_str='folder.db_date'),
-    ShortcutCD('folder_name', 'Folder Name', path_str='folder.db_name'),
+    ShortcutCD('folder_db_date', 'Folder DB Date', path_str='folder.db_date'),
+    ShortcutCD('folder_db_name', 'Folder DB Name', path_str='folder.db_name'),
+    ShortcutCD('folder_name', 'Folder FS Name', path_str='folder.name'),
     IdCD('data_id', 'Data ID'),
     RefCD('data', 'Data', path_str='data_id->ImageData'),
-    IdCD('db_image_id', 'Int Image ID'),
-    ParentCD('db_image', 'Int Image', path_str='db_image_id->DbImage')
+    IdCD('db_image_id', 'DB Image ID'),
+    ParentCD('db_image', 'DB Image', path_str='db_image_id->DbImage')
 ], {
-    TblReportTP: ['folder_date', 'folder_name', 'name']
-}, '-folder_date,+folder_name,+name')
+    TblReportTP: ['folder_db_date', 'folder_db_name', 'folder_name', 'name']
+}, '-folder_db_date,+folder_db_name,+name')
 
 TblDesc.complete_tbl_descs()
 

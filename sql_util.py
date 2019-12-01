@@ -61,7 +61,10 @@ class JoinState:
             td1_name = td1.sql_name(jcx_str)
         for x in range(num_match, len(join_chain)):
             pcd = join_chain[x]
-            td2 = pcd.foreign_td
+            try:
+                td2 = pcd.foreign_td
+            except Exception as ed:
+                print('ss')
             join_str = 'JOIN %s AS %s ON %s.%s == %s.id' % (
                 td2.sql_name(),
                 td2.sql_name(jcx_str),
