@@ -26,7 +26,7 @@ class CDXState(object):
 
     def ref(self, col_desc):
         res = CDXState(self)  # make a new copy of the CDXState
-        res.path.append(col_desc)  # append the CD to the path
+        res.path.append(col_desc)  # append the CD to the path_str
         if res.alias is None:
             # set the SQL 'AS' alias from the first CD in the chain
             res.alias = col_desc.db_name
@@ -116,7 +116,7 @@ class ColDesc(object):
         for col_desc in col_descs:
             if col_desc.db_name == db_name:
                 return col_desc
-        raise KeyError('db_name %s not in path' % db_name)
+        raise KeyError('db_name %s not in path_str' % db_name)
 
 
 class DataColDesc(ColDesc):
@@ -176,30 +176,68 @@ class IdCD(DataColDesc):
     def_fmt = 'l16'          # left-justified, 16 columns
 
     def __init__(self, *args, **kwargs):
+        if len(args) < 1:
+            args = ('id', 'ID')
         if 'hidden' not in kwargs:
             kwargs['hidden'] = True  # default hidden to True
         super().__init__(*args, **kwargs)
 
 
 class LinkColDesc(ColDesc):
-    foreign_tbl_name: str   # e.g. 'FsFolder'
-    # db_name is the database attribute used to join to the foreign table
+    foreign_key_name: str   # e.g. 'folder_id'
+    foreign_tbl_name: str   # e.g. 'DbFolder'
+    disp_col_name: str      # e.g. 'folder_name'
 
     # set by TblDesc._complete_col_desc()
+    foreign_cd: ColDesc     # the ColDesc of the foreign key
     foreign_td: Any         # the TblDesc of the foreign table
+    disp_cd: ColDesc        # the ColDesc of .disp_col_name
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if 'foreign_tbl_name' in kwargs:
-            self.foreign_tbl_name = kwargs['foreign_tbl_name']
+        if 'path_str' in kwargs:  # <foreign key> '->' <foreign table name>
+            l = kwargs['path_str'].split('->')
+            assert len(l) == 2
+            self.foreign_key_name = l[0]
+            self.foreign_tbl_name = l[1]
         else:
-            raise KeyError('foreign_tbl_name not specified')
-        self.foreign_td = None
+            raise KeyError('path_str not specified')
+        self.foreign_cd = None  # set by TblDesc._complete_col_desc()
+        self.foreign_td = None  # set by TblDesc._complete_col_desc()
+        if 'disp' in kwargs:
+            self.disp_col_name = kwargs['disp']
+        else:
+            self.disp_col_name = None
+        self.disp_cd = None  # set by TblDesc._complete_col_desc()
 
     def base_repr(self):
         s = super().base_repr()
-        s += ', foreign_tbl_name=%r' % (self.foreign_tbl_name)
+        s += ', path_str=%s->%s' % (self.foreign_key_name, self.foreign_tbl_name)
+        if self.disp_col_name is not None:
+            s += ', disp=%s' % self.disp_col_name
         return s
+
+    def gui_str(self, val):
+        ''' Return the string to use in GUI output. '''
+        return 'link'
+
+    def sql_literal_str(self, literal):
+        raise ValueError('sql_literal_str called on a LinkColDesc')
+
+    def sql_select(self, col_ref_fn, xs: CDXState):
+        ''' Call col_ref_fn(col_desc) for the foreign key column '''
+        fcd = self.foreign_cd
+        fcd.sql_select(col_ref_fn, xs.ref(fcd))
+
+    def sql_relop_str(self, op: str, literal, col_ref_fn, xs: CDXState):
+        raise ValueError('sql_relop_str called on a LinkColDesc')
+
+    def sql_order_str(self, descending: bool, col_ref_fn, xs: CDXState):
+        raise ValueError('sql_order_str called on a LinkColDesc')
+
+    def get_val(self, get_sql_val_fn, xs: CDXState):
+        fcd = self.foreign_cd
+        return fcd.get_val(get_sql_val_fn, xs.ref(fcd))
 
 
 class RefCD(LinkColDesc):
@@ -346,7 +384,7 @@ class IMDateCD(VirtualColDesc):
 
 if __name__ == '__main__':
     int_cd = IntCD('size', ['Size', 'Sz'])
-    id_cd = IdCD('parent_id', 'Parent ID')
-    ref_cd = RefCD('parent_id', 'Folder', foreign_tbl_name='DbFolder')
-    shortcut_cd = ShortcutCD('parent_name', 'Folder Name', path_str='parent_id.name')
+    id_cd = IdCD('folder_id', 'Folder ID')
+    ref_cd = RefCD('folder', 'Folder', path_str='folder_id->DbFolder')
+    shortcut_cd = ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name')
     pass

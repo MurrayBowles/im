@@ -32,7 +32,7 @@ def test_pickle():
 
 def test_access():
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
-    q_folder = TblQuery.from_names('DbFolder', ['date2', 'name'])
+    q_folder = TblQuery.from_names('DbFolder', ['date', 'name'])
     r_folder = q_folder.get_rows(session, limit=4, skip=1)
     exp_r_folder = [
         RowBuf(cols=[IMDate(2017, 10, 7), 'virginia']),

@@ -389,9 +389,7 @@ def make_db():
     my_tag_source = db.FsTagSource.add(session, 'mine')
     corbett_tag_source = db.FsTagSource.add(session, 'corbett')
     session.commit()
-    # FIXME: the database still winds up with the 'my' and 'main' FsSource.tag_source_id null
-    # when you break in the debugger before the FsSource is create in do_cmd(),
-    # the IDs are correct
+
     do_my_cmd(session, check_tags.Ctx(session, my_tag_source))
     do_main_cmd(session, check_tags.Ctx(session, corbett_tag_source))
     do_corbett_cmd(session, check_tags.Ctx(session, corbett_tag_source))

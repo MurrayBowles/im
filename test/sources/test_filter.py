@@ -33,9 +33,9 @@ def test_results():
     TblDesc.complete_tbl_descs()
 
     td = TblDesc.lookup_tbl_desc('DbFolder')
-    t_lt_id = ('<', td.row_desc.col_descs[0], 123)
+    t_lt_id = ('<', td.lookup_col_desc('id'), 123)
     check(t_lt_id, 'WHERE db_folder.id < 123', [])
-    t_lt_name = ('==', td.row_desc.col_descs[1], 'diana')
+    t_lt_name = ('==', td.lookup_col_desc('name'), 'diana')
     check(t_lt_name, 'WHERE item_0.name == "diana"',
         ['JOIN item AS item_0 ON db_folder.id == item_0.id'])
     t_lt_and = ('&', t_lt_id, t_lt_name)

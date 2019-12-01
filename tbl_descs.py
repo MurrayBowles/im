@@ -8,25 +8,27 @@ from tbl_view import TblItemTP
 from tbl_report_view import TblReportTP
 
 Item_td = TblDesc(db.Item, 'Item', [
-    IdCD('id', ['ID']),
+    IdCD(),
     TextCD('name', 'Name'),
     TextCD('type', 'Type')  # FIXME: enumeration
 ], {
-    TblReportTP: ['name', 'type']
+    TblReportTP: ['id', 'name', 'type']
 }, '+id')
 
-DbFolder_td = ItemTblDesc(db.DbFolder, 'Folder', [
-    DateCD('date', ['Date']),
-    IMDateEltCD('date2_year', ['Year']),
-    IMDateEltCD('date2_month', ['Month']),
-    IMDateEltCD('date2_day', ['Day']),
-    IMDateCD('date2', 'Date'),
+DbFolder_td = ItemTblDesc(db.DbFolder, 'Int Folder', [
+    IdCD(),
+    IdCD('thumbnail_id', 'Thumbnail ID'),
+    IMDateEltCD('date_year', 'Year'),
+    IMDateEltCD('date_month', 'Month'),
+    IMDateEltCD('date_day', 'Day'),
+    IMDateCD('date', 'Date'),
     IntCD('edit_level', 'Edit Level')
 ], {
-    TblReportTP: ['date2', 'name', 'edit_level'],
-}, '-date2,+name')
+    TblReportTP: ['date', 'name', 'edit_level'],
+}, '-date,+name')
 
 ImageData_td = TblDesc(db.ImageData, ['Image Data'], [
+    IdCD(),
     IntCD('sensitivity', ['Sensitivity', 'ISO']),
     IntCD('image_height', ['Height']),
     IntCD('image_width', ['Width'])
@@ -35,35 +37,46 @@ ImageData_td = TblDesc(db.ImageData, ['Image Data'], [
 }, '-sensitivity')  # FIXME: sorter should not be mandatory
 ImageData_td._menu_text = 'Image Data'
 
-DbImage_td = ItemTblDesc(db.DbImage, 'Image', [
-    ParentCD('folder_id', 'Folder', foreign_tbl_name='DbFolder'),
-    ShortcutCD('folder_date2', 'Folder Date', path_str='folder_id.date2'),
-    ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.name'),
-    RefCD('data_id', 'Data', foreign_tbl_name='ImageData'),
-    ShortcutCD('sensitivity', ['Sensitivity', 'ISO'], path_str='data_id.sensitivity')
+DbImage_td = ItemTblDesc(db.DbImage, 'Int Image', [
+    IdCD(),
+    IdCD('folder_id', 'Folder ID'),
+    ParentCD('folder', 'Folder', path_str='folder_id->DbFolder'),
+    ShortcutCD('folder_date', 'Folder Date', path_str='folder.date'),
+    ShortcutCD('folder_name', 'Folder Name', path_str='folder.name'),
+    IdCD('data_id', 'Date ID'),
+    RefCD('data', 'Data', path_str='data_id->ImageData')
 ], {
-    TblReportTP: ['folder_name', 'name', 'sensitivity']
-}, '-folder_date2,+folder_name,+name')
+    TblReportTP: ['folder_date', 'folder_name', 'name', 'data']
+}, '-folder_date,+folder_name,+name')
 
-FsFolder_td = ItemTblDesc(db.FsFolder, ['External Folder', 'FsFolder'], [
-    IMDateEltCD('db_date2_year', ['Year']),
-    IMDateEltCD('db_date2_month', ['Month']),
-    IMDateEltCD('db_date2_day', ['Day']),
-    IMDateCD('db_date2', 'Suggested Date'),
-    TextCD('db_name', 'Suggested Name'),
+FsFolder_td = ItemTblDesc(db.FsFolder, ['Ext Folder', 'FsFolder'], [
+    IdCD(),
+    IMDateEltCD('db_date_year', ['Year']),
+    IMDateEltCD('db_date_month', ['Month']),
+    IMDateEltCD('db_date_day', ['Day']),
+    IMDateCD('db_date', 'Int Date'),
+    TextCD('db_name', 'Int Name'),
+    IdCD('source_id', 'Ext Source ID'),
+    IdCD('db_folder_id', 'Int Folder ID'),
     DateTimeCD('last_scan', 'Last Scan'),
     DateTimeCD('last_import_tags', 'Last Tags Import')
 ], {
-    TblReportTP: ['db_date2', 'db_name', 'last_scan'],
-}, '-db_date2,+db_name')
+    TblReportTP: ['db_date', 'db_name', 'name', 'last_scan'],
+}, '-db_date,+db_name,+name')
 
 
-FsImage_td = ItemTblDesc(db.FsImage, 'External Image', [
-    RefCD('data_id', 'Data', foreign_tbl_name='ImageData'),
-    ParentCD('folder_id', 'Folder', foreign_tbl_name='FsFolder'),
-    ShortcutCD('folder_date', 'Folder Date', path_str='folder_id.db_date2'),
-    ShortcutCD('folder_name', 'Folder Name', path_str='folder_id.db_name'),
-    ParentCD('db_image_id', 'Image', foreign_tbl_name='DbImage')
+FsImage_td = ItemTblDesc(db.FsImage, 'Ext Image', [
+    IdCD(),
+    IdCD('data_id', 'Data ID'),
+    RefCD('data', 'Data', path_str='data_id->ImageData'),
+    IdCD('folder_id', 'Folder ID'),
+    ParentCD('folder', 'Folder', path_str='folder_id->FsFolder'),
+    ShortcutCD('folder_date', 'Folder Date', path_str='folder.db_date'),
+    ShortcutCD('folder_name', 'Folder Name', path_str='folder.db_name'),
+    IdCD('data_id', 'Data ID'),
+    RefCD('data', 'Data', path_str='data_id->ImageData'),
+    IdCD('db_image_id', 'Int Image ID'),
+    ParentCD('db_image', 'Int Image', path_str='db_image_id->DbImage')
 ], {
     TblReportTP: ['folder_date', 'folder_name', 'name']
 }, '-folder_date,+folder_name,+name')

@@ -171,10 +171,10 @@ class DbFolder(Item):
     __mapper_args__ = {'polymorphic_identity': 'DbFolder'}
 
     # date = Column(Date)             # FIXME: remove
-    date2_year = Column(Integer)
-    date2_month = Column(Integer)
-    date2_day = Column(Integer)
-    date2 = composite(IMDate, date2_year, date2_month, date2_day)
+    date_year = Column(Integer)
+    date_month = Column(Integer)
+    date_day = Column(Integer)
+    date = composite(IMDate, date_year, date_month, date_day)
 
     edit_level = Column(Integer)
     # 0..5, where 5 is good; initialized from FsFolder.import_edit_level
@@ -192,22 +192,22 @@ class DbFolder(Item):
     thumbnail_id = Column(Integer, ForeignKey('db_image.id'))
     thumbnail = relationship('DbImage', foreign_keys='[DbFolder.thumbnail_id]')
 
-    Index('db_folder_index', 'date2', 'db_name', unique=True)
-    Index('db_folder_flyer_index', 'date2_month', 'date2_day', 'db_name', unique=True)
+    Index('db_folder_index', 'date', 'db_name', unique=True)
+    Index('db_folder_flyer_index', 'date_month', 'date_day', 'db_name', unique=True)
 
     @classmethod
     def add(cls, session, date, name):
-        date2 = IMDate(date.year, date.month, date.day)
+        im_date = IMDate(date.year, date.month, date.day)
         obj = cls(
             # date=date,
-            date2=date2, name=name)
+            date=im_date, name=name)
         if obj is not None: session.add(obj)
         return obj
 
     @classmethod
     def find(cls, session, date, name):
-        date2 = IMDate(date.year, date.month, date.day)
-        return session.query(DbFolder).filter_by(date2=date2, name=name).first()
+        im_date = IMDate(date.year, date.month, date.day)
+        return session.query(DbFolder).filter_by(date=im_date, name=name).first()
 
     @classmethod
     def get(cls, session, date, name):
@@ -1024,14 +1024,13 @@ class FsFolder(FsItem):
     id = Column(Integer, ForeignKey('fs_item.id'), primary_key=True)
     __mapper_args__ = {'polymorphic_identity': 'FsFolder'}
 
-    # DbFolder date and db_name suggested by import/export code (e.g scan_dir_set)
+    # DbFolder date and name suggested by import/export code (e.g scan_dir_set)
     # may each be None
     # copied from the corresponding members in IEFolder
-    # db_date = Column(Date)  # FIXME: remove
-    db_date2_year = Column(Integer)
-    db_date2_month = Column(Integer)
-    db_date2_day = Column(Integer)
-    db_date2 = composite(IMDate, db_date2_year, db_date2_month, db_date2_day)
+    db_date_year = Column(Integer)
+    db_date_month = Column(Integer)
+    db_date_day = Column(Integer)
+    db_date = composite(IMDate, db_date_year, db_date_month, db_date_day)
     db_name = Column(String)
 
     # last-import timestamps
@@ -1062,16 +1061,23 @@ class FsFolder(FsItem):
     def add(cls, session, source, name,
         db_date=None, db_name=None, db_folder=None
     ):
-        db_date2 = None if db_date is None else IMDate(
+        im_db_date = None if db_date is None else IMDate(
             db_date.year, db_date.month, db_date.day)
-        obj = cls(
-            source=source, name=name, db_date2=db_date2, db_name=db_name, db_folder=db_folder)
-        if obj is not None: session.add(obj)
+        try:
+            obj = cls(
+                source=source, name=name,
+                db_date=im_db_date, db_name=db_name, db_folder=db_folder)
+            if obj is not None: session.add(obj)
+        except Exception as ed:
+            print('bb')
         return obj
 
     @classmethod
     def find(cls, session, source, name):
-        return session.query(FsFolder).filter_by(source=source, name=name).first()
+        try:
+            return session.query(FsFolder).filter_by(source=source, name=name).first()
+        except Exception as ed:
+            print('a')
 
     @classmethod
     def get(cls, session, source, name,
@@ -1185,7 +1191,7 @@ def open_file_db(full_path, mode):
     if mode == 'w':
         try:
             os.remove(full_path)
-        except Exception as ed:  # the path may not have existed in the first place
+        except Exception as ed:  # the path_str may not have existed in the first place
             pass
     return _open_db('sqlite:///' + full_path)
 

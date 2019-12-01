@@ -66,7 +66,7 @@ class JoinState:
                 td2.sql_name(),
                 td2.sql_name(jcx_str),
                 td1_name,
-                pcd.db_name,
+                pcd.foreign_key_name,
                 td2.sql_name(jcx_str)
             )
             self.sql_strs.append(join_str)

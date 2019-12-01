@@ -162,13 +162,13 @@ def create_fs_folder(session, ie_folder, fs_source):
         if fs_folder.db_name == '':
             fs_folder.db_name = ie_folder.db_name
     if ie_db_date_good:
-        if fs_folder.db_date2 is None:
-            fs_folder.db_date2 = IMDate.from_date(ie_folder.db_date)
+        if fs_folder.db_date is None:
+            fs_folder.db_date = IMDate.from_date(ie_folder.db_date)
 
     # also create a DbFolder if ie_folder has a good db_name and db_date
     if ie_db_name_good and ie_db_date_good:
         db_folder = db.DbFolder.get(
-            session, fs_folder.db_date2.date(), fs_folder.db_name)[0]
+            session, fs_folder.db_date.date(), fs_folder.db_name)[0]
         fs_folder.db_folder = db_folder
     return fs_folder
 

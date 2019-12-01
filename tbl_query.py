@@ -23,7 +23,7 @@ class TblQuery(object):
     row_desc: RowDesc
     filter: Optional[Filter]
     sorter: Sorter
-        # the Sorter's ColDescs must be either from tbl_desc.path or self.path
+        # the Sorter's ColDescs must be either from tbl_desc.path_str or self.path_str
     sql_query: SqlQuery     # set by self.get_sql_query()
 
     def __init__(
@@ -184,7 +184,7 @@ if __name__ == '__main__':
 
     session = open_file_db(dev_base_ie_source_path + '\\test.db', 'r')
     TblDesc.complete_tbl_descs()
-    q_folder = TblQuery.from_names('DbFolder', ['date2', 'name', 'id'])
+    q_folder = TblQuery.from_names('DbFolder', ['date', 'name', 'id'])
     sql_folder = q_folder.get_sql_query()
     r = repr(q_folder)
     r_folder = q_folder.get_rows(session)

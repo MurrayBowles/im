@@ -1,4 +1,4 @@
-''' base path for test files '''
+''' base path_str for test files '''
 
 base_ie_source_path = '\\users\\murray\\PycharmProjects\\im\\test\\import-export sources'
 dev_base_ie_source_path = 'c:' + base_ie_source_path

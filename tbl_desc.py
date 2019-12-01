@@ -1,10 +1,10 @@
 """ database Table Descriptor classes """
 
 import re
-from typing import Any, List, Mapping, Type
+from typing import Any, List, Mapping, Optional, Type
 
 from col_desc import ColDesc, DataColDesc, LinkColDesc, VirtualColDesc
-from col_desc import ShortcutCD, SuperCD
+from col_desc import IdCD, ShortcutCD, SuperCD
 from row_desc import RowDesc
 from sorter import Sorter, SorterCol
 from util import force_list
@@ -18,7 +18,7 @@ class TblDesc(object):
     disp_names: List[str]       # display names, in decreasing length
     row_desc: RowDesc           # this table's predefined columns
     def_viewed_row: Mapping[Type[Any], RowDesc]  # FIXME: Any=>TblTP
-    sorter: Sorter
+    sorter: Optional[Sorter]
     # TODO tag_field
 
     objs = []  # List[TblDesc]
@@ -56,7 +56,7 @@ class TblDesc(object):
             self.db_tbl_cls.__name__, db_name))
 
     def col_idx(self, col_desc):
-        return self.row_desc.col_descs.index(cd)
+        return self.row_desc.col_descs.index(col_desc)
 
     def sql_name(self, suffix=None):
         n = self.db_tbl_cls.__tablename__
@@ -89,7 +89,10 @@ class TblDesc(object):
         if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
             col_desc.db_attr = getattr(self.db_tbl_cls, col_desc.db_name, None)
             if isinstance(col_desc, LinkColDesc):
+                col_desc.foreign_cd = self.lookup_col_desc(col_desc.foreign_key_name)
                 col_desc.foreign_td = TblDesc.lookup_tbl_desc(col_desc.foreign_tbl_name)
+                if col_desc.disp_col_name is not None:
+                    col_desc.disp_cd = self.lookup_col_desc(col_desc.disp_col_name)
                 pass
         elif isinstance(col_desc, ShortcutCD):
             tbl_desc = self
@@ -143,9 +146,9 @@ class TblDesc(object):
             tbl_desc._complete()
 
     def viewed_cols(self, view_cls):
-        # TODO: per-table[-per-user] cfg bindings
+        # TODO: per-table cfg bindings
         if view_cls not in self.def_viewed_row:
-            return self.def_viewed_row[TblReportView]
+            return self.def_viewed_row[TblReportTP]
         else:
             return self.def_viewed_row[view_cls]
 
@@ -158,11 +161,14 @@ class TblDesc(object):
 
 
 class ItemTblDesc(TblDesc):
+    ''' describes a table which is a subclass of db.Item '''
+
     def __init__(self, db_tbl_cls, disp_names, col_descs, def_viewed_cols, sorter_str):
         extended_col_descs = [
-            SuperCD('id', 'Item ID', foreign_tbl_name='Item'),
-            ShortcutCD('name', ['Name'], path_str='id.name'),
-            ShortcutCD('type', 'Type', path_str='id.type')
+            IdCD(),
+            SuperCD('item', 'Item', path_str='id->Item', hidden=True),
+            ShortcutCD('name', 'Name', path_str='item.name'),
+            ShortcutCD('type', 'Type', path_str='item.type', hidden=True)
         ]
         extended_col_descs.extend(col_descs)
         super().__init__(db_tbl_cls, disp_names, extended_col_descs, def_viewed_cols, sorter_str)

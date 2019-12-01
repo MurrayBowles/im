@@ -31,18 +31,30 @@ def test_join_state():
 
     DbFolder_td = TblDesc.lookup_tbl_desc('DbFolder')
     check(DbFolder_td,
-        ['db_folder.id AS id', 'item_0.name AS name', 'item_0.type AS type', 'db_folder.date AS date',
-            'db_folder.date2_year AS date2_year', 'db_folder.date2_month AS date2_month',
-            'db_folder.date2_day AS date2_day'],
+        [
+            'db_folder.id AS id',
+            'item_0.name AS name',
+            'item_0.type AS type',
+            'db_folder.thumbnail_id AS thumbnail_id',
+            'db_folder.date_year AS date_year',
+            'db_folder.date_month AS date_month',
+            'db_folder.date_day AS date_day',
+            'db_folder.edit_level AS edit_level'
+        ],
         ['JOIN item AS item_0 ON db_folder.id == item_0.id'])
     DbImage_td = TblDesc.lookup_tbl_desc('DbImage')
     check(DbImage_td,
-        ['db_image.id AS id', 'item_0.name AS name', 'item_0.type AS type',
+        [
+            'db_image.id AS id',
+            'item_0.name AS name',
+            'item_0.type AS type',
             'db_image.folder_id AS folder_id',
-            'db_folder_1.date2_year AS folder_date2_year',
-            'db_folder_1.date2_month AS folder_date2_month',
-            'db_folder_1.date2_day AS folder_date2_day',
-            'item_1.name AS folder_name'],
+            'db_folder_1.date_year AS folder_date_year',
+            'db_folder_1.date_month AS folder_date_month',
+            'db_folder_1.date_day AS folder_date_day',
+            'item_1.name AS folder_name',
+            'db_image.data_id AS data_id'
+        ],
         ['JOIN item AS item_0 ON db_image.id == item_0.id',
             'JOIN db_folder AS db_folder_1 ON db_image.folder_id == db_folder_1.id',
             'JOIN item AS item_1 ON db_folder_1.id == item_1.id'])
