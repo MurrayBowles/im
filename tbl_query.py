@@ -23,8 +23,7 @@ class TblQuery(object):
     row_desc: RowDesc
     filter: Optional[Filter]
     sorter: Sorter
-        # the Sorter's ColDescs must be either from tbl_desc.path_str or self.path_str
-    sql_query: SqlQuery     # set by self.get_sql_query()
+    sql_query: SqlQuery     # set by self.get_sql_query(), get_rows()
 
     def __init__(
         self, tbl_desc: TblDesc, row_desc: RowDesc, filter: Filter = None, sorter: Sorter = None
@@ -38,6 +37,9 @@ class TblQuery(object):
     def __repr__(self):
         return 'TblQuery(%r, %r, %r, %r)' % (
             self.tbl_desc, self.row_desc, self.filter, self.sorter)
+
+    def menu_text(self):
+        return self.tbl_desc.menu_text()
 
     def __getstate__(self):
         if self.row_desc == self.tbl_desc.row_desc:

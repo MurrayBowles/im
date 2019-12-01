@@ -110,8 +110,7 @@ class GuiTop(wx.Frame):
           + [(tp.cls_text(), tp) for tp in TabPanel.__subclasses__()]
         )
         choices.sort(key=lambda c: c[0])
-        for x in range(len(choices)):
-            c = choices[x]
+        for x, c in enumerate(choices):
             if c[1] is EmptyTP or c[1] is TblTP:
                 continue
             item = menu.Append(-1, c[0])
@@ -152,9 +151,9 @@ class GuiTop(wx.Frame):
                 for (stk_idx, text) in panel_list:
                     add_stk_item(tab_idx, stk_idx, text)
                 menu.AppendSeparator()
-            add_push_item(tab_idx, -1, 'insert left')
-            add_push_item(tab_idx, 0, 'push')
-            add_push_item(tab_idx, 1, 'insert right')
+            add_push_item(tab_idx, -1, 'insert tab to left')
+            add_push_item(tab_idx, 0, 'push in this tab')
+            add_push_item(tab_idx, 1, 'insert tab to right')
         self.panel.PopupMenu(menu)
         pass
 

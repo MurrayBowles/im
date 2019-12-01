@@ -1,8 +1,10 @@
 ''' a report view of a Table '''
 
+from typing import List
 import wx
 import wx.lib.agw.ultimatelistctrl as ulc
 
+from col_desc import ColDesc
 import db
 from row_desc import RowDesc
 from tab_panel_gui import TabPanel, TabPanelStack
@@ -11,29 +13,27 @@ from tbl_view import TblTP
 
 
 class TblULC(ulc.UltimateListCtrl):
+    tbl_query: TblQuery
 
     def __init__(self, *args, **kwargs):
-        tbl_desc = kwargs.pop('tbl_desc')
+        tbl_query = kwargs.pop('tbl_query')
         super().__init__(*args, **kwargs)
-        self.tbl_desc = tbl_desc
+        self.tbl_query = tbl_query
 
-        vc = tbl_desc.viewed_cols(TblReportTP)
-        cds = self.cds = [tbl_desc.lookup_col_desc(name) for name in vc]
-        query = self.query = TblQuery(tbl_desc, RowDesc(cds))
-        for x, cd in enumerate(cds):
+        for x, cd in enumerate(self.tbl_query.row_desc.col_descs):
             self.InsertColumn(x, cd.disp_names[0])
 
-        num_rows = query.get_num_rows(db.session)
+        num_rows = tbl_query.get_num_rows(db.session)
         self.SetItemCount(num_rows)
 
     def OnGetItemText(self, row, col):
         try:
-            r = self.query.get_rows(db.session, skip=row, limit=1)
+            r = self.tbl_query.get_rows(db.session, skip=row, limit=1)
+            c = r[0].cols[col]
+            cd = self.tbl_query.row_desc.col_descs[col]
+            return cd.gui_str(c)
         except Exception as ed:
             print('cc')
-        c = r[0].cols[col]
-        cd = self.cds[col]
-        return cd.gui_str(c)
 
     def OnGetItemAttr(self, row):
         return None
@@ -46,15 +46,15 @@ class TblULC(ulc.UltimateListCtrl):
 
 class TblReportTP(TblTP):
 
-    def __init__(self, parent: TabPanelStack, tbl_desc):
-        super().__init__(parent, tbl_desc)
-        self.tbl_desc = tbl_desc
+    def __init__(self, parent: TabPanelStack, tbl_query: TblQuery):
+        super().__init__(parent, tbl_query)
+        self.tbl_query = tbl_query
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         #header
         sizer.AddSpacer(5)
-        h = wx.StaticText(self, -1, '  ' + tbl_desc.menu_text())
+        h = wx.StaticText(self, -1, '  ' + tbl_query.menu_text())
         sizer.Add(h, 0, 0) # wx.EXPAND)
         sizer.AddSpacer(5)
 
@@ -64,7 +64,7 @@ class TblReportTP(TblTP):
                 agwStyle=(
                     wx.LC_REPORT | wx.LC_VIRTUAL
                   | ulc.ULC_SHOW_TOOLTIPS | wx.LC_VRULES | wx.LC_HRULES),
-                tbl_desc=tbl_desc)
+                tbl_query=tbl_query)
         except Exception as ed:
             print('kk')
 
@@ -92,12 +92,17 @@ class TblReportTP(TblTP):
         row = event.GetIndex()
         col = self._get_col_idx(event)
         assert col >= 0
+        # TODO add filter item
         pass
 
     def on_hdr_right_click(self, event):
         col = self._get_col_idx(event)
-        if col == -1:  # clicked right of rightmost column
-            return
+        mx = wx.menu()
+        if col == -1:  # clicked right of the rightmost column
+            pass
+        else:
+            # TODO: add filter, sorter items
+            pass
         pass
 
 

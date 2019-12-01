@@ -287,6 +287,7 @@ class ImageData(Base):
     shutter_speed = Column(Float)
     aperture = Column(Float)
     sensitivity = Column(Integer)
+    # TODO: camera model, AF mode, AE mode
 
 
 class DbImage(Item):
