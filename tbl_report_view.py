@@ -1,10 +1,12 @@
 ''' a report view of a Table '''
 
-from typing import List
+from dataclasses import dataclass
+from typing import Any, List, Optional
+import copy
 import wx
 import wx.lib.agw.ultimatelistctrl as ulc
 
-from col_desc import ColDesc, LinkColDesc, SuperCD
+from col_desc import ColDesc, LinkColDesc, SuperCD, TraitColDesc
 import db
 from row_desc import RowDesc
 from tab_panel_gui import TabPanel, TabPanelStack
@@ -43,6 +45,59 @@ class TblULC(ulc.UltimateListCtrl):
 
     def OnGetItemTextColour(self, row, col):
         return None
+
+
+@dataclass
+class ColItem(object):
+    disp_path: List[List[str]]      # joined with spaces to make the column title
+    db_path: List[str]              # joined with _s to make the SQL alias
+    cd_path: List[ColDesc]
+    children: Optional[List[Any]]   # List[ColItem]
+
+    @staticmethod
+    def _add_col_item(
+        ci_list, cd, disp_path, db_path, cd_path, viewed_cd_paths, hide_id=False
+    ):
+        if cd.db_name == 'id' and hide_id:
+            return
+        cdp = cd_path + cd.path()
+        if isinstance(cd, LinkColDesc):
+            if isinstance(cd, TraitColDesc):
+                dip = disp_path
+                dbp = db_path
+                cil = ci_list
+            else:
+                dip = disp_path + [cd.disp_names]
+                dbp = db_path + [cd.db_name]
+                cil = []
+            for fcd in cd.foreign_td.row_desc.col_descs:
+                ColItem._add_col_item(
+                    cil, fcd, dip, dbp, cdp, viewed_cd_paths, hide_id=True)
+            if cil != ci_list and len(cil) != 0:
+                ci_list.append(ColItem(
+                    disp_path=disp_path + [cd.disp_names], db_path=db_path + [cd.db_name],
+                    cd_path=cdp, children=cil))
+        else:
+            for vcp in viewed_cd_paths:
+                for cdpe, vcpe in zip(cdp, vcp):
+                    if cdpe.db_name != vcpe.db_name:
+                        break
+                else:
+                    break  # cdp and vdp matched
+            else:
+                ci_list.append(ColItem(
+                    disp_path=disp_path + [cd.disp_names], db_path=db_path + [cd.db_name],
+                    cd_path=cdp, children=None))
+                viewed_cd_paths.append(cdp)
+
+    @staticmethod
+    def col_items(cd_list: List[ColDesc], viewed_cds: List[ColDesc]):
+        res = []
+        viewed_cd_paths = [vcd.path() for vcd in viewed_cds]
+        for cd in cd_list:
+            ColItem._add_col_item(res, cd, [], [], [], viewed_cd_paths)
+        return res
+
 
 class TblReportTP(TblTP):
 
@@ -95,7 +150,7 @@ class TblReportTP(TblTP):
         # TODO add filter item
         pass
 
-    def _add_cd_menu_items0(self, cd, tree, names, path):
+    def _gather_cd_menu_items(self, cd, tree, names, path):
         if isinstance(cd, LinkColDesc):
             if isinstance(cd, SuperCD):
                 ns = names
@@ -103,7 +158,7 @@ class TblReportTP(TblTP):
                 ns = names + [cd.disp_names[0]]
             subtree = []
             for fcd in cd.foreign_td.row_desc.col_descs:
-                self._add_cd_menu_items0(fcd, subtree, ns, path + [cd])
+                self._gather_cd_menu_items(fcd, subtree, ns, path + [cd])
             tree.append((cd, names + [cd.disp_names[0]], subtree))
         else:
             for old_cd in self.tbl_query.row_desc.col_descs:
@@ -112,22 +167,23 @@ class TblReportTP(TblTP):
             else:
                 tree.append((cd, names + [cd.disp_names[0]]))
 
-    def add_cd_menu_items2(self, menu, tab_idx, tree):
-        for node in tree:
-            if len(node) == 2:
-                item = menu.Append(-1, ' '.join(node[1]))
-                self.Bind(
-                    wx.EVT_MENU, lambda event: self.on_tab_menu_click(event, tab_idx, node))
-            else:  # 3
-                sub = wx.Menu()
-                self.add_cd_menu_items2(sub, tab_idx, node[2])
-                menu.AppendSubMenu(sub, ' '.join(node[1]))
+    def _add_cd_menu_item(self, menu, tab_idx, col_item):
+        title = ' '.join([dn[0] for dn in col_item.disp_path])
+        if col_item.children is None:
+            def lll(node):
+                return lambda event: self.on_tab_menu_click(event, tab_idx, col_item)
+            item = menu.Append(-1, title)
+            self.Bind(wx.EVT_MENU, lll(col_item), item)
+        else:  # 3
+            sub = wx.Menu()
+            for cci in col_item.children:
+                self._add_cd_menu_item(sub, tab_idx, cci)
+            menu.AppendSubMenu(sub, title)
 
     def _add_cd_menu_items(self, menu, tab_idx, row_desc: RowDesc):
-        tree = []
-        for cd in row_desc.col_descs:
-            self._add_cd_menu_items0(cd, tree, [], [])
-        self.add_cd_menu_items2(menu, tab_idx, tree)
+        ci_list = ColItem.col_items(row_desc.col_descs, self.tbl_query.row_desc.col_descs)
+        for ci in ci_list:
+            self._add_cd_menu_item(menu, tab_idx, ci)
         pass
 
     def on_hdr_right_click(self, event):
@@ -142,7 +198,7 @@ class TblReportTP(TblTP):
         self.PopupMenu(menu)
         pass
 
-    def on_tab_menu_click(self, event, node):
+    def on_tab_menu_click(self, event, tab_idx, node):
         pass
 
 

@@ -243,17 +243,30 @@ class LinkColDesc(ColDesc):
         return fcd.get_val(get_sql_val_fn, xs.ref(fcd))
 
 
+class TraitColDesc(LinkColDesc):
+    ''' 'included' foreign table '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class SuperCD(TraitColDesc):
+    ''' SQLAlchemy superclass table link, both keys are 'id' , e.g. DbImage -> Item '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class MixinCD(TraitColDesc):
+    ''' e.g. ImageData foreign table link in DbImage and FsImage '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 class RefCD(LinkColDesc):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 
 class ParentCD(LinkColDesc):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class SuperCD(LinkColDesc):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
