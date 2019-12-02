@@ -4,7 +4,7 @@ from typing import List
 import wx
 import wx.lib.agw.ultimatelistctrl as ulc
 
-from col_desc import ColDesc
+from col_desc import ColDesc, LinkColDesc, SuperCD
 import db
 from row_desc import RowDesc
 from tab_panel_gui import TabPanel, TabPanelStack
@@ -95,14 +95,54 @@ class TblReportTP(TblTP):
         # TODO add filter item
         pass
 
+    def _add_cd_menu_items0(self, cd, tree, names, path):
+        if isinstance(cd, LinkColDesc):
+            if isinstance(cd, SuperCD):
+                ns = names
+            else:
+                ns = names + [cd.disp_names[0]]
+            subtree = []
+            for fcd in cd.foreign_td.row_desc.col_descs:
+                self._add_cd_menu_items0(fcd, subtree, ns, path + [cd])
+            tree.append((cd, names + [cd.disp_names[0]], subtree))
+        else:
+            for old_cd in self.tbl_query.row_desc.col_descs:
+                if path + [cd] == old_cd.path():
+                    break
+            else:
+                tree.append((cd, names + [cd.disp_names[0]]))
+
+    def add_cd_menu_items2(self, menu, tab_idx, tree):
+        for node in tree:
+            if len(node) == 2:
+                item = menu.Append(-1, ' '.join(node[1]))
+                self.Bind(
+                    wx.EVT_MENU, lambda event: self.on_tab_menu_click(event, tab_idx, node))
+            else:  # 3
+                sub = wx.Menu()
+                self.add_cd_menu_items2(sub, tab_idx, node[2])
+                menu.AppendSubMenu(sub, ' '.join(node[1]))
+
+    def _add_cd_menu_items(self, menu, tab_idx, row_desc: RowDesc):
+        tree = []
+        for cd in row_desc.col_descs:
+            self._add_cd_menu_items0(cd, tree, [], [])
+        self.add_cd_menu_items2(menu, tab_idx, tree)
+        pass
+
     def on_hdr_right_click(self, event):
         col = self._get_col_idx(event)
-        mx = wx.menu()
+        menu = wx.Menu()
+        self._add_cd_menu_items(menu, col, self.tbl_query.tbl_desc.row_desc)
         if col == -1:  # clicked right of the rightmost column
             pass
         else:
             # TODO: add filter, sorter items
             pass
+        self.PopupMenu(menu)
+        pass
+
+    def on_tab_menu_click(self, event, node):
         pass
 
 

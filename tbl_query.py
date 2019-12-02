@@ -89,6 +89,14 @@ class TblQuery(object):
             col_descs.append(cd)
         return TblQuery(tbl_desc, RowDesc(col_descs), **kwargs)
 
+    def hasCD(self, col_desc):
+        # FIXME not enough
+        for cd1 in self.row_desc.col_descs:
+            if cd1 == col_desc:
+                return True
+        else:
+            return False
+
     def add_col(self, col_desc: ColDesc, idx: int = -1):
         pass
 

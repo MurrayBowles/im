@@ -81,6 +81,9 @@ class ColDesc(object):
     def __repr__(self):
         return self.__class__.__name__ + '(' + self.base_repr() + ')'
 
+    def path(self):
+        return [self]
+
     def sql_literal_str(self, literal):
         ''' Return the string to use in SQL literals. '''
         return str(literal)
@@ -276,6 +279,9 @@ class ShortcutCD(ColDesc):
 
     def sql_literal_str(self, literal):
         return self.path_cds[-1].sql_literal_str(literal)
+
+    def path(self):
+        return self.path_cds
 
     def sql_select(self, col_ref_fn, xs: CDXState):
         ''' Call col_ref_fn(col_desc) for every SQL column accessed to display this column '''

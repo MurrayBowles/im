@@ -89,6 +89,7 @@ class TblDesc(object):
         if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
             col_desc.db_attr = getattr(self.db_tbl_cls, col_desc.db_name, None)
             if isinstance(col_desc, LinkColDesc):
+
                 col_desc.foreign_cd = self.lookup_col_desc(col_desc.foreign_key_name)
                 col_desc.foreign_td = TblDesc.lookup_tbl_desc(col_desc.foreign_tbl_name)
                 if col_desc.disp_col_name is not None:
