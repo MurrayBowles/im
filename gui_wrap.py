@@ -129,7 +129,7 @@ class DirCtrl:
         init_path = '',
         select_fn = None,   # (db_name) called whenever the selection changes
         style = 0,
-        sizer_idx = -1     # insertion tab_idx in sizer
+        sizer_idx = -1     # insertion col_idx in sizer
     ):
         self.parent = parent
         self.label = label
@@ -232,7 +232,7 @@ class ListBox:
             self.list_box.Bind(wx.EVT_LISTBOX_DCLICK, self._on_edit)
 
     def _get_choices(self, init_id, init_list):
-        # return choices-list, selection-tab_idx
+        # return choices-list, selection-col_idx
         self.objs = init_list
         self.objs.sort(key=lambda x: self.name_fn(x))
         self.names = []

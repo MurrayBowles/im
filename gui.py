@@ -118,7 +118,7 @@ class GuiTop(wx.Frame):
         return menu
 
     def on_tab_right_click(self, data):
-        # data.Selection is the tab tab_idx
+        # data.Selection is the tab col_idx
 
         def add_item(tab_idx, x, text, fn):
             item = menu.Append(-1, text)
@@ -174,7 +174,7 @@ class GuiTop(wx.Frame):
         pass
 
     def on_tab_close(self, data):
-        # data.Selection is the tab tab_idx
+        # data.Selection is the tab col_idx
         self.notebook.remove_tab(data.Selection)
 
     def on_exit(self, event):

@@ -14,9 +14,9 @@ class ColDescStr(object):
 class Filter(object):
     tup: Tuple[Any]
     ''' filter-tup:
-            ('</<=/==/!=/>=/>', col-desc, value)
-            ('begins/ends/contains', col-desc, str-expr)
-            ('null/nonnull', col-desc)
+            ('</<=/==/!=/>=/>', col_idx-desc, value)
+            ('begins/ends/contains', col_idx-desc, str-expr)
+            ('null/nonnull', col_idx-desc)
             ('tag', tag-expr)
             ('note', note-expr)
             ('|/&', filter-tup,...)
@@ -27,7 +27,7 @@ class Filter(object):
             ('|/&', tag-expr,...)
             ('-', tag-expr, tag-expr)
         note-expr:
-            ('begins/ends/contains', col-desc, str-expr)
+            ('begins/ends/contains', col_idx-desc, str-expr)
             ('|/&', note-expr,...)
             ('-', note-expr, note-expr)
         str-expr:

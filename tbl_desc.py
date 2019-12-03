@@ -84,7 +84,7 @@ class TblDesc(object):
         sorter = Sorter(sorter_cols)
         self.set_sorter(sorter)
 
-    def _complete_col_desc(self, col_desc: ColDesc):
+    def complete_col_desc(self, col_desc: ColDesc):
         ''' Complete a ColDesc's definition. '''
         if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
             col_desc.db_attr = getattr(self.db_tbl_cls, col_desc.db_name, None)
@@ -108,7 +108,7 @@ class TblDesc(object):
                     # flatten any embedded ShortcutCDs
                     try:
                         if step_cd.path_cds is None:
-                            tbl_desc._complete_col_desc(step_cd)
+                            tbl_desc.complete_col_desc(step_cd)
                         if isinstance(step_cd.path_cds[-1], LinkColDesc):
                             tbl_desc = step_cd.path_cds[-1].foreign_td
                         else:
@@ -119,7 +119,7 @@ class TblDesc(object):
                 elif isinstance(step_cd, LinkColDesc):
                     try:
                         if step_cd.foreign_td is None:
-                            tbl_desc._complete_col_desc(step_cd)
+                            tbl_desc.complete_col_desc(step_cd)
                         tbl_desc = step_cd.foreign_td
                         col_desc.path_cds.append(step_cd)
                     except Exception as ed:
@@ -133,12 +133,12 @@ class TblDesc(object):
             col_desc.dependency_cds = []
             for name in col_desc.dependencies:
                 dcd = self.lookup_col_desc(name)
-                self._complete_col_desc(dcd)
+                self.complete_col_desc(dcd)
                 col_desc.dependency_cds.append(dcd)
 
     def _complete(self):
         for col_desc in self.row_desc.col_descs:
-            self._complete_col_desc(col_desc)
+            self.complete_col_desc(col_desc)
         self.set_sorter_by_col_name(self.sorter_str)
 
     @classmethod

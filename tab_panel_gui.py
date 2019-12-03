@@ -51,7 +51,7 @@ class TabPanel(wx.Panel):
 class TabPanelStack(wx.Panel):
     ''' stack of panels for a tab '''
     stk: List[TabPanel]
-    stk_idx: int  # tab_idx of the TOS (-1 indicates an empty stack)
+    stk_idx: int  # col_idx of the TOS (-1 indicates an empty stack)
     sizer: wx.BoxSizer
     notebook: TabbedNotebook
 

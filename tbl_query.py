@@ -97,10 +97,18 @@ class TblQuery(object):
         else:
             return False
 
-    def add_col(self, col_desc: ColDesc, idx: int = -1):
+    def add_col(self, idx, col_desc: ColDesc):
+        cds = list(self.row_desc.col_descs)
+        cds.insert(idx, col_desc)
+        self.row_desc = RowDesc(cds)
+        self.sql_query = None
         pass
 
     def del_col(self, idx: int):
+        cds = list(self.row_desc.col_descs)
+        cds.pop(idx)
+        self.row_desc = RowDesc(cds)
+        self.sql_query = None
         pass
 
     def move_col(self, fro: int, to: int):

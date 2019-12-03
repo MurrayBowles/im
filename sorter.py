@@ -10,7 +10,7 @@ from row_desc import RowDesc
 class SorterCol(object):
     col_desc: ColDesc
     descending: bool
-    idx: Optional[int] = None  # the tab_idx of col_desc in its query.path_str
+    idx: Optional[int] = None  # the col_idx of col_desc in its query.path_str
 
     def get_state(self):
         return '%s%s' % ('-' if self.descending else '+', self.col_desc.db_name)

@@ -4,7 +4,7 @@
 class TabStack(object):
     ''' stack of panels for a tab '''
     stack: List[Tuple[wx.Panel, str]]  # panel, tab label
-    current: int  # tab_idx of the TOS (-1 indicates an empty stack)
+    current: int  # col_idx of the TOS (-1 indicates an empty stack)
 
     def __init__(self):
         self.current = -1
@@ -19,10 +19,10 @@ class TabStack(object):
     def _insert_current_panel(self, notebook, tab_idx):
         panel, text = self.stack[self.current]
         notebook.InsertPage(tab_idx, panel, text)
-        #notebook.SetSelection(tab_idx + 1)
+        #notebook.SetSelection(col_idx + 1)
         notebook.SetSelection(tab_idx)
-        #notebook.HidePage(tab_idx, True)
-        #notebook.HidePage(tab_idx, False)
+        #notebook.HidePage(col_idx, True)
+        #notebook.HidePage(col_idx, False)
         #panel.Layout()
         #panel.Refresh(eraseBackground=True)
         #panel.Update()
