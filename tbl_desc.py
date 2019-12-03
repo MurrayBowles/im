@@ -3,7 +3,7 @@
 import re
 from typing import Any, List, Mapping, Optional, Type
 
-from col_desc import ColDesc, DataColDesc, LinkColDesc, VirtualColDesc
+from col_desc import ChildrenCD, ColDesc, DataColDesc, LinkColDesc, VirtualColDesc
 from col_desc import IdCD, ShortcutCD, SuperCD
 from row_desc import RowDesc
 from sorter import Sorter, SorterCol
@@ -52,8 +52,7 @@ class TblDesc(object):
                 if not hasattr(cd, 'db_attr'):
                     cd.db_attr = getattr(self.db_tbl_cls, db_name, None)
                 return cd
-        raise KeyError('%s has no attribute %s' % (
-            self.db_tbl_cls.__name__, db_name))
+        raise KeyError('%s has no column %s' % (self.db_tbl_cls.__name__, db_name))
 
     def col_idx(self, col_desc):
         return self.row_desc.col_descs.index(col_desc)
@@ -89,12 +88,15 @@ class TblDesc(object):
         if isinstance(col_desc, DataColDesc) or isinstance(col_desc, LinkColDesc):
             col_desc.db_attr = getattr(self.db_tbl_cls, col_desc.db_name, None)
             if isinstance(col_desc, LinkColDesc):
-
                 col_desc.foreign_cd = self.lookup_col_desc(col_desc.foreign_key_name)
                 col_desc.foreign_td = TblDesc.lookup_tbl_desc(col_desc.foreign_tbl_name)
                 if col_desc.disp_col_name is not None:
                     col_desc.disp_cd = self.lookup_col_desc(col_desc.disp_col_name)
                 pass
+        elif isinstance(col_desc, ChildrenCD):
+            col_desc.db_attr = None
+            col_desc.foreign_td = TblDesc.lookup_tbl_desc(col_desc.foreign_tbl_name)
+            col_desc.foreign_cd = col_desc.foreign_td.lookup_col_desc(col_desc.foreign_key_name)
         elif isinstance(col_desc, ShortcutCD):
             tbl_desc = self
             col_desc.path_cds = []

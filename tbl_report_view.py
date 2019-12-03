@@ -6,7 +6,7 @@ from typing import Any, List, Optional
 import wx
 import wx.lib.agw.ultimatelistctrl as ulc
 
-from col_desc import ColDesc, LinkColDesc, ShortcutCD, SuperCD, TraitColDesc
+from col_desc import ChildrenCD, ColDesc, LinkColDesc, ShortcutCD, SuperCD, TraitColDesc
 import db
 from filter import Filter
 from row_desc import RowDesc
@@ -115,28 +115,21 @@ class CellItem(object):
     cd_path: List[ColDesc]
 
     @staticmethod
-    def _add_cell_item(ci_list, cd_path, dir, cd):
-        # dir -1: towards parent, dir +1: towards children, dir 0: no direction
-        if isinstance(cd, LinkColDesc):
-            if isinstance(cd, TraitColDesc):
-                return
-            if dir > 0:
-                return
-            dir = -1
-        # and a similar elif for ChildrenCD
-        else:
-            return
-        ci_list.append(CellItem(cd_path + [cd]))
-        sorted_cd_list = sorted(cd.foreign_td.row_desc.col_descs, key=lambda x: x.disp_names[0])
-        for dcd in sorted_cd_list:
-            CellItem._add_cell_item(ci_list, cd_path + [cd], dir, dcd)
-
-    @staticmethod
-    def cell_items(cd_list):
+    def cell_items(cd_list, child: bool):
         res = []
-        sorted_cd_list = sorted(cd_list, key=lambda x: x.disp_names[0])
-        for cd in sorted_cd_list:
-            CellItem._add_cell_item(res, [], 0, cd)
+        def add_cell_items(cd_path, cd_list):
+            sorted_cd_list = sorted(cd_list, key=lambda x: x.disp_names[0])
+            for cd in sorted_cd_list:
+                add_cell_item(cd_path, cd)
+        def add_cell_item(cd_path, cd):
+            if isinstance(cd, LinkColDesc):
+                if not child and not isinstance(cd, TraitColDesc):
+                    res.append(CellItem(cd_path + [cd]))
+                    add_cell_items(cd_path + [cd], cd.foreign_td.row_desc.col_descs)
+            elif isinstance(cd, ChildrenCD):
+                if child:
+                    res.append(CellItem(cd_path + [cd]))
+        add_cell_items([], cd_list)
         return res
 
 
@@ -260,16 +253,22 @@ class TblReportTP(TblTP):
         col_idx = self._get_col_idx(event)
         assert col_idx >= 0
         tab_idx = self.tps.tab_idx()
-        cell_items = CellItem.cell_items(self.tbl_query.tbl_desc.row_desc.col_descs)
+        col_descs = self.tbl_query.tbl_desc.row_desc.col_descs
+        def add_cell_items(menu, cell_items):
+            for ci in cell_items:
+                def l(ci):
+                    return lambda event: self.on_push_item_select(event, row_idx, tab_idx, ci)
+                item = menu.Append(
+                    -1, '    ' * (len(ci.cd_path) - 1) + ci.cd_path[-1].disp_names[0])
+                self.Bind(wx.EVT_MENU, l(ci), item)
         menu = wx.Menu()
-        for ci in cell_items:
-            def l(ci):
-                return lambda event: self.on_push_item_select(event, row_idx, tab_idx, ci)
-            item = menu.Append(
-                -1, '    ' * (len(ci.cd_path) - 1) + ci.cd_path[-1].disp_names[0])
-            self.Bind(wx.EVT_MENU, l(ci), item)
+        child_items = CellItem.cell_items(col_descs, True)
+        parent_items = CellItem.cell_items(col_descs, False)
+        add_cell_items(menu, child_items)
+        if len(child_items) != 0 and len(parent_items) != 0:
+            menu.AppendSeparator()
+        add_cell_items(menu, parent_items)
         self.PopupMenu(menu)
-        # TODO add filter item
         pass
 
     def on_push_item_select(self, event, row_idx, tab_idx, cell_item):
@@ -304,11 +303,23 @@ class TblReportTP(TblTP):
             vc = td.viewed_cols(TblReportTP)  # TODOL defaults
             cds = [td.lookup_col_desc(name) for name in vc]
             id_cd = td.lookup_col_desc('id')
-            filter = Filter(('==', id_cd, foreign_id))
-            tbl_tq = TblQuery(td, RowDesc(cds), filter=filter)
+            tbl_filter = Filter(('==', id_cd, foreign_id))
+            tbl_tq = TblQuery(td, RowDesc(cds), filter=tbl_filter)
             pass
         else:
             # going towards children
+            assert len(cell_item.cd_path) == 1
+            td = self.tbl_query.tbl_desc
+            id_cd = td.lookup_col_desc('id')
+            id_tq = TblQuery(td, RowDesc([id_cd]))
+            r = id_tq.get_rows(db.session, skip=row_idx, limit=1)
+            id = r[0].cols[0]
+            children_cd = cell_item.cd_path[0]
+            tbl_td = children_cd.foreign_td
+            vc = tbl_td.viewed_cols(TblReportTP)  # TODO: defaults
+            cds = [tbl_td.lookup_col_desc(name) for name in vc]
+            tbl_filter = Filter(('==', children_cd.foreign_cd, id))
+            tbl_tq = TblQuery(tbl_td, RowDesc(cds), filter=tbl_filter)
             pass
         add_tps = self.notebook.tab_panel_stacks[tab_idx]
         new_tps = add_tps.relative_stack(pos)

@@ -2,7 +2,7 @@
 
 import pytest
 
-from col_desc import CDXState
+from col_desc import CDXState, ChildrenCD
 from sql_util import JoinState
 
 from tbl_desc import TblDesc
@@ -15,7 +15,8 @@ def test_join_state():
         js = JoinState(td)
         col_ref_fn = js.sql_col_ref_fn(select=True)
         for cd in td.row_desc.col_descs:
-            cd.sql_select(col_ref_fn, CDXState())
+            if not isinstance(cd, ChildrenCD):
+                cd.sql_select(col_ref_fn, CDXState())
         return js.select_strs, js.sql_strs
 
     def check(td: TblDesc, exp_col_refs, exp_join_strs):

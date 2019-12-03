@@ -271,6 +271,56 @@ class ParentCD(LinkColDesc):
         super().__init__(*args, **kwargs)
 
 
+class ChildrenCD(ColDesc):
+    foreign_tbl_name: str  # e.g. 'DbImage'
+    foreign_key_name: str   # e.g. 'folder_id' in the foreign table
+
+    # set by TblDesc._complete_col_desc()
+    foreign_td: Any  # the TblDesc of the foreign table
+    foreign_cd: ColDesc     # the ColDesc of the foreign key
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'path_str' in kwargs:  # <foreign table name>.<foreign_key>
+            l = kwargs['path_str'].split('.')
+            assert len(l) == 2
+            self.foreign_tbl_name = l[0]
+            self.foreign_key_name = l[1]
+        else:
+            raise KeyError('path_str not specified')
+        self.foreign_td = None  # set by TblDesc._complete_col_desc()
+        self.foreign_cd = None  # set by TblDesc._complete_col_desc()
+
+    def base_repr(self):
+        s = super().base_repr()
+        s += ', path_str=%s.%s' % (self.foreign_tbl_name, self.foreign_key_name)
+        return s
+
+    def gui_str(self, val):
+        ''' Return the string to use in GUI output. '''
+        raise ValueError('gui_str called on a ChildrenCD')
+
+    def sql_literal_str(self, literal):
+        raise ValueError('sql_literal_str called on a ChildrenCD')
+
+    def sql_select(self, col_ref_fn, xs: CDXState):
+        ''' Call col_ref_fn(col_desc) for the foreign key column '''
+        # FIXME: should this ever be called?
+        fcd = self.foreign_cd
+        fcd.sql_select(col_ref_fn, xs.ref(fcd))
+
+    def sql_relop_str(self, op: str, literal, col_ref_fn, xs: CDXState):
+        raise ValueError('sql_relop_str called on a ChildrenCD')
+
+    def sql_order_str(self, descending: bool, col_ref_fn, xs: CDXState):
+        raise ValueError('sql_order_str called on a ChildrenCD')
+
+    def get_val(self, get_sql_val_fn, xs: CDXState):
+        # FIXME: should this ever be called?
+        fcd = self.foreign_cd
+        return fcd.get_val(get_sql_val_fn, xs.ref(fcd))
+
+
 class ShortcutCD(ColDesc):
     path_str: str   # [ link-shortcut-cd-name | link-cd-name '.'... ] [cd-name]
 

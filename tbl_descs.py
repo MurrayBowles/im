@@ -1,6 +1,6 @@
 ''' database Table Descriptor instances '''
 
-from col_desc import DateCD, DateTimeCD, IdCD, IMDateCD, IMDateEltCD, IntCD
+from col_desc import DateCD, ChildrenCD, DateTimeCD, IdCD, IMDateCD, IMDateEltCD, IntCD
 from col_desc import MixinCD, ParentCD, ShortcutCD, TextCD
 import db
 from tbl_desc import TblDesc, ItemTblDesc
@@ -22,7 +22,8 @@ DbFolder_td = ItemTblDesc(db.DbFolder, 'DB Folder', [
     IMDateEltCD('date_month', 'Month'),
     IMDateEltCD('date_day', 'Day'),
     IMDateCD('date', 'Date'),
-    IntCD('edit_level', 'Edit Level')
+    IntCD('edit_level', 'Edit Level'),
+    ChildrenCD('images', 'Images', path_str='DbImage.folder_id')
 ], {
     TblReportTP: ['date', 'name', 'edit_level'],
 }, '-date,+name')
@@ -60,7 +61,8 @@ FsFolder_td = ItemTblDesc(db.FsFolder, ['FS Folder', 'FsFolder'], [
     IdCD('db_folder_id', 'DB Folder ID'),
     ParentCD('db_folder', 'DB Folder', path_str='db_folder_id->DbFolder'),
     DateTimeCD('last_scan', 'Last Scan'),
-    DateTimeCD('last_import_tags', 'Last Tags Import')
+    DateTimeCD('last_import_tags', 'Last Tags Import'),
+    ChildrenCD('images', 'Images', path_str='FsImage.folder_id')
 ], {
     TblReportTP: ['db_date', 'db_name', 'name', 'last_scan'],
 }, '-db_date,+db_name,+name')
