@@ -101,10 +101,9 @@ class GuiTop(wx.Frame):
         logging.info('status := %s', data)
         self.status_bar.SetStatusText(data)
 
-    def _push_menu(self, tab_idx, pos, fn):
+    def _add_push_menu_items(self, menu, tab_idx, last, fn):
         def lll(obj):
-            return lambda event: fn(event, tab_idx, pos, obj)
-        menu = wx.Menu()
+            return lambda event: fn(event, tab_idx, last, obj)
         choices = (
             [(td.menu_text(), td) for td in TblDesc.objs]
           + [(tp.cls_text(), tp) for tp in TabPanel.__subclasses__()]
@@ -115,7 +114,6 @@ class GuiTop(wx.Frame):
                 continue
             item = menu.Append(-1, c[0])
             self.Bind(wx.EVT_MENU, lll(c[1]), item)
-        return menu
 
     def on_tab_right_click(self, data):
         # data.Selection is the tab col_idx
@@ -130,30 +128,25 @@ class GuiTop(wx.Frame):
         def add_ins_item(tab_idx, pos, text):
             add_item(tab_idx, pos, text, self.on_ins_item_select)
 
-        def add_push_item(tab_idx, pos, text):
-            push_menu = self._push_menu(tab_idx, pos, self.on_push_item_select)
-            item = menu.AppendSubMenu(push_menu, text)
-
         tab_idx = data.Selection
         self.notebook.SetSelection(tab_idx)
         event = data.EventObject
         pos = event.GetPosition()
         cli_pos = self.panel.ScreenToClient(pos)
         tab_panel_stack = self.notebook.tab_panel_stacks[tab_idx]
+        menu = wx.Menu()
         if tab_idx == len(self.notebook.tab_panel_stacks) - 1:
             # the right tab is the special '+' tab
-            menu = self._push_menu(tab_idx, -1, self.on_push_item_select)
+            self._add_push_menu_items(menu, tab_idx, True, self.on_push_item_select)
             pass
         else:
-            menu = wx.Menu()
             panel_list = tab_panel_stack.panel_list()
             if len(panel_list) > 0:
+                # append the panel stack and a separator
                 for (stk_idx, text) in panel_list:
                     add_stk_item(tab_idx, stk_idx, text)
                 menu.AppendSeparator()
-            add_push_item(tab_idx, -1, 'insert tab to left')
-            add_push_item(tab_idx, 0, 'push in this tab')
-            add_push_item(tab_idx, 1, 'insert tab to right')
+            self._add_push_menu_items(menu, tab_idx, False, self.on_push_item_select)
         self.panel.PopupMenu(menu)
         pass
 
@@ -162,7 +155,22 @@ class GuiTop(wx.Frame):
         tab_panel_stack.goto(stk_idx)
         pass
 
-    def on_push_item_select(self, event, tab_idx, pos, obj):
+    def on_push_item_select(self, event, tab_idx, last, obj):
+        if last:
+            self.on_push_item_select2(event, tab_idx, -1, obj)
+        else:
+            def add(text, pos):
+                def l(pos):
+                    return lambda event: self.on_push_item_select2(event, tab_idx, pos, obj)
+                item = menu.Append(-1, text)
+                self.Bind(wx.EVT_MENU, l(pos), item)
+            menu = wx.Menu()
+            add('insert tab to left', -1)
+            add('push in current tab', 0)
+            add('insert tab to right', 1)
+            self.PopupMenu(menu)
+
+    def on_push_item_select2(self, event, tab_idx, pos, obj):
         add_tps = self.notebook.tab_panel_stacks[tab_idx]
         new_tps = add_tps.relative_stack(pos)
         if isinstance(obj, TblDesc):

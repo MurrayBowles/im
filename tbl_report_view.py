@@ -109,6 +109,36 @@ class ColItem(object):
         return res
 
 
+@dataclass
+class CellItem(object):
+    cd_path: List[ColDesc]
+
+    @staticmethod
+    def _add_cell_item(ci_list, cd_path, dir, cd):
+        # dir -1: towards parent, dir +1: towards children, dir 0: no direction
+        if isinstance(cd, LinkColDesc):
+            if isinstance(cd, TraitColDesc):
+                return
+            if dir > 0:
+                return
+            dir = -1
+        # and a similar elif for ChildrenCD
+        else:
+            return
+        ci_list.append(CellItem(cd_path + [cd]))
+        sorted_cd_list = sorted(cd.foreign_td.row_desc.col_descs, key=lambda x: x.disp_names[0])
+        for dcd in sorted_cd_list:
+            CellItem._add_cell_item(ci_list, cd_path + [cd], dir, dcd)
+
+    @staticmethod
+    def cell_items(cd_list):
+        res = []
+        sorted_cd_list = sorted(cd_list, key=lambda x: x.disp_names[0])
+        for cd in sorted_cd_list:
+            CellItem._add_cell_item(res, [], 0, cd)
+        return res
+
+
 class TblReportTP(TblTP):
 
     def __init__(self, parent: TabPanelStack, tbl_query: TblQuery):
@@ -133,7 +163,7 @@ class TblReportTP(TblTP):
         except Exception as ed:
             print('kk')
 
-        self.Bind(ulc.EVT_LIST_ITEM_RIGHT_CLICK, self.on_item_right_click)
+        self.Bind(ulc.EVT_LIST_ITEM_RIGHT_CLICK, self.on_cell_right_click)
         self.Bind(ulc.EVT_LIST_COL_RIGHT_CLICK, self.on_hdr_right_click)
 
         sizer.Add(report, 1, wx.EXPAND)
@@ -153,36 +183,29 @@ class TblReportTP(TblTP):
         else:
             return -1
 
-    def on_item_right_click(self, event):
-        row = event.GetIndex()
-        col = self._get_col_idx(event)
-        assert col >= 0
-        # TODO add filter item
-        pass
-
-    def _add_cd_menu_item(self, menu, col_idx, col_item):
-        title = col_item.disp_str()
-        if col_item.children is None:
-            def lll(node):
-                return lambda event: self.on_add_col(event, col_idx, col_item)
-            item = menu.Append(-1, title)
-            self.Bind(wx.EVT_MENU, lll(col_item), item)
-        else:  # 3
-            sub = wx.Menu()
-            for cci in col_item.children:
-                self._add_cd_menu_item(sub, col_idx, cci)
-            menu.AppendSubMenu(sub, title)
-
-    def _add_cd_menu_items(self, menu, col_idx, row_desc: RowDesc):
-        ci_list = ColItem.col_items(row_desc.col_descs, self.tbl_query.row_desc.col_descs)
-        for ci in ci_list:
-            self._add_cd_menu_item(menu, col_idx, ci)
-        pass
-
     def on_hdr_right_click(self, event):
+        def add_cd_menu_item(menu, col_idx, col_item):
+            title = col_item.disp_str()
+            if col_item.children is None:
+                def lll(node):
+                    return lambda event: self.on_add_col(event, col_idx, col_item)
+
+                item = menu.Append(-1, title)
+                self.Bind(wx.EVT_MENU, lll(col_item), item)
+            else:  # 3
+                sub = wx.Menu()
+                for cci in col_item.children:
+                    add_cd_menu_item(sub, col_idx, cci)
+                menu.AppendSubMenu(sub, title)
+
+        def add_cd_menu_items(menu, col_idx, row_desc: RowDesc):
+            ci_list = ColItem.col_items(row_desc.col_descs, self.tbl_query.row_desc.col_descs)
+            for ci in ci_list:
+                add_cd_menu_item(menu, col_idx, ci)
+
         col_idx = self._get_col_idx(event)
         menu = wx.Menu()
-        self._add_cd_menu_items(menu, col_idx, self.tbl_query.tbl_desc.row_desc)
+        add_cd_menu_items(menu, col_idx, self.tbl_query.tbl_desc.row_desc)
         if col_idx == -1:  # clicked right of the rightmost column
             pass
         else:
@@ -194,16 +217,19 @@ class TblReportTP(TblTP):
         pass
 
     def on_add_col(self, event, col_idx, col_item):
-        menu = wx.Menu()
-        self.Bind(
-            wx.EVT_MENU,
-            lambda event: self.on_add_col2(col_idx, col_item),
-            menu.Append(-1, 'Insert On Left'))
-        self.Bind(
-            wx.EVT_MENU,
-            lambda event: self.on_add_col2(col_idx + 1, col_item),
-            menu.Append(-1, 'Insert On Right'))
-        self.PopupMenu(menu)
+        if col_idx == -1:
+            self.on_add_col2(len(self.tbl_query.row_desc.col_descs), col_item)
+        else:
+            menu = wx.Menu()
+            self.Bind(
+                wx.EVT_MENU,
+                lambda event: self.on_add_col2(col_idx, col_item),
+                menu.Append(-1, 'insert column to left'))
+            self.Bind(
+                wx.EVT_MENU,
+                lambda event: self.on_add_col2(col_idx + 1, col_item),
+                menu.Append(-1, 'insert column to right'))
+            self.PopupMenu(menu)
 
     def on_add_col2(self, col_idx, col_item):
         if len(col_item.cd_path) == 1:
@@ -226,6 +252,41 @@ class TblReportTP(TblTP):
         self.report.tbl_query.del_col(col_idx)
         self.report.DeleteColumn(col_idx)
         self.Refresh()
+        pass
+
+    def on_cell_right_click(self, event):
+        row_idx = event.GetIndex()
+        col_idx = self._get_col_idx(event)
+        assert col_idx >= 0
+        tab_idx = self.tps.tab_idx()
+        cell_items = CellItem.cell_items(self.tbl_query.tbl_desc.row_desc.col_descs)
+        menu = wx.Menu()
+        for ci in cell_items:
+            def l(ci):
+                return lambda event: self.on_push_item_select(event, tab_idx, ci)
+            item = menu.Append(
+                -1, '    ' * (len(ci.cd_path) - 1) + ci.cd_path[-1].disp_names[0])
+            self.Bind(wx.EVT_MENU, l(ci), item)
+        self.PopupMenu(menu)
+        # TODO add filter item
+        pass
+
+    def on_push_item_select(self, event, tab_idx, cell_item):
+        def add(text, pos):
+            def l(pos):
+                return lambda event: self.on_push_item_select2(event, tab_idx, pos, cell_item)
+            item = menu.Append(-1, text)
+            self.Bind(wx.EVT_MENU, l(pos), item)
+        menu = wx.Menu()
+        add('insert tab to left', -1)
+        add('push in current tab', 0)
+        add('insert tab to right', 1)
+        self.PopupMenu(menu)
+
+    def on_push_item_select2(self, event, tab_idx, pos, cell_item):
+        add_tps = self.notebook.tab_panel_stacks[tab_idx]
+        new_tps = add_tps.relative_stack(pos)
+        # make a filter for the new table
         pass
 
 

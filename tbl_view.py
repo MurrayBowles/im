@@ -12,6 +12,8 @@ class TblTP(TabPanel):
     def __init__(self, parent: TabPanelStack, tbl_query: TblQuery):
         super().__init__(parent)
         self.tbl_query = tbl_query
+        self.tps = parent
+        self.notebook = parent.notebook
         # subclasses end initialization by calling self.push()
 
     @classmethod
