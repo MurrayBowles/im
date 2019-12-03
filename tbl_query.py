@@ -168,7 +168,7 @@ class TblQuery(object):
             pass
 
     def get_num_rows(self, session) -> int:
-        sql_query = SqlQuery(self.tbl_desc, 'count')
+        sql_query = SqlQuery(self.tbl_desc, 'count', filter=self.filter)
         q = str(sql_query)
         try:
             num_rows = session.execute(q).scalar()

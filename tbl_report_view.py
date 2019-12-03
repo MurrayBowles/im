@@ -1,13 +1,14 @@
 ''' a report view of a Table '''
 
+import copy
 from dataclasses import dataclass
 from typing import Any, List, Optional
-import copy
 import wx
 import wx.lib.agw.ultimatelistctrl as ulc
 
 from col_desc import ColDesc, LinkColDesc, ShortcutCD, SuperCD, TraitColDesc
 import db
+from filter import Filter
 from row_desc import RowDesc
 from tab_panel_gui import TabPanel, TabPanelStack
 from tbl_desc import TblDesc
@@ -263,7 +264,7 @@ class TblReportTP(TblTP):
         menu = wx.Menu()
         for ci in cell_items:
             def l(ci):
-                return lambda event: self.on_push_item_select(event, tab_idx, ci)
+                return lambda event: self.on_push_item_select(event, row_idx, tab_idx, ci)
             item = menu.Append(
                 -1, '    ' * (len(ci.cd_path) - 1) + ci.cd_path[-1].disp_names[0])
             self.Bind(wx.EVT_MENU, l(ci), item)
@@ -271,10 +272,10 @@ class TblReportTP(TblTP):
         # TODO add filter item
         pass
 
-    def on_push_item_select(self, event, tab_idx, cell_item):
+    def on_push_item_select(self, event, row_idx, tab_idx, cell_item):
         def add(text, pos):
             def l(pos):
-                return lambda event: self.on_push_item_select2(event, tab_idx, pos, cell_item)
+                return lambda event: self.on_push_item_select2(event, row_idx, tab_idx, pos, cell_item)
             item = menu.Append(-1, text)
             self.Bind(wx.EVT_MENU, l(pos), item)
         menu = wx.Menu()
@@ -283,10 +284,35 @@ class TblReportTP(TblTP):
         add('insert tab to right', 1)
         self.PopupMenu(menu)
 
-    def on_push_item_select2(self, event, tab_idx, pos, cell_item):
+    def on_push_item_select2(self, event, row_idx, tab_idx, pos, cell_item: CellItem):
         add_tps = self.notebook.tab_panel_stacks[tab_idx]
         new_tps = add_tps.relative_stack(pos)
-        # make a filter for the new table
+        if isinstance(cell_item.cd_path[0], LinkColDesc):
+            # going towards ancestors, or maybe sideways
+            td = self.tbl_query.tbl_desc
+            for cd in cell_item.cd_path:
+                foreign_cd = cd.foreign_cd
+                id_tq = TblQuery(td, RowDesc([foreign_cd]))
+                # FIXME: use the same buffer pool as the table view
+                r = id_tq.get_rows(db.session, skip=row_idx, limit=1)
+                foreign_id = r[0].cols[0]
+                if foreign_id is None:
+                    event.Skip()
+                    return
+                td = cd.foreign_td
+                pass
+            vc = td.viewed_cols(TblReportTP)  # TODOL defaults
+            cds = [td.lookup_col_desc(name) for name in vc]
+            id_cd = td.lookup_col_desc('id')
+            filter = Filter(('==', id_cd, foreign_id))
+            tbl_tq = TblQuery(td, RowDesc(cds), filter=filter)
+            pass
+        else:
+            # going towards children
+            pass
+        add_tps = self.notebook.tab_panel_stacks[tab_idx]
+        new_tps = add_tps.relative_stack(pos)
+        TblReportTP(new_tps, tbl_tq)
         pass
 
 
