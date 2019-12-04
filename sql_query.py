@@ -10,16 +10,16 @@ from sql_util import JoinState
 from tbl_desc import TblDesc
 
 
-SelectArg = NewType('SelectArg', Union[str, RowDesc])
+SelectArg = NewType('SelectArg', Union[RowDesc, str])  # RowDesc or 'count'
 
 class SqlQuery(object):
     tbl_desc: TblDesc
-    join_state: JoinState
+    join_state: JoinState           # includes the JOIN clauses
     cli_select: SelectArg
-    select_str: str                 # the SELECT clause, '' if none
     filter: Optional[Filter]
-    where_str: str                  # the WHERE clause, '' if none
     sorter: Optional[Sorter]
+    select_str: str                 # the SELECT clause, '' if none
+    where_str: str                  # the WHERE clause, '' if none
     order_str: str                  # the ORDER BY clause, '' if none
     query_str: str                  # the final SQL query
 
@@ -76,6 +76,10 @@ class SqlQuery(object):
             select = RowDesc(col_descs)
         return SqlQuery(tbl_desc, select=select, **kwargs)
 
+    def __eq__(self, other):
+        return attrs_eq(self, other,
+            ['tbl_desc', 'join_state', 'cli_select', 'filter', 'sorter',
+             'select_str', 'where_str', 'order_str', 'query_str'])
 
     def __str__(self):
         return self.query_str

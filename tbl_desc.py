@@ -33,6 +33,10 @@ class TblDesc(object):
         TblDesc.objs.append(self)
         pass
 
+    def __eq__(self, other):
+        # TblDescs are only created statically in tbl_descs.py, and not copied
+        return self is other
+
     def menu_text(self):
         if hasattr(self, '_menu_text'):
             return self._menu_text
@@ -75,11 +79,9 @@ class TblDesc(object):
         '''
         col_specs = key_str.split(',')
         sorter_cols = []
-        x = 0
         for col_spec in col_specs:
             cd = self.lookup_col_desc(col_spec[1:])
-            sorter_cols.append(SorterCol(cd, col_spec[0] == '-', idx=x))
-            x += 1
+            sorter_cols.append(SorterCol(cd, col_spec[0] == '-'))
         sorter = Sorter(sorter_cols)
         self.set_sorter(sorter)
 

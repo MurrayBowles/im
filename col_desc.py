@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, List, TypeVar
 
 from imdate import IMDate
-from util import force_list, gui_null_str
+from util import attrs_eq, force_list, gui_null_str
 
 
 class CDXState(object):
@@ -67,6 +67,10 @@ class ColDesc(object):
         self.fmt = kwargs['fmt'] if 'fmt' in kwargs else self.__class__.def_fmt
         self.hidden = hidden
         self.editable = editable
+
+    def __eq__(self, other):
+        return attrs_eq(self, other, [
+            'db_name', 'disp_names', 'fmt', 'hidden', 'editable'])
 
     def base_repr(self):
         s = '%r, %r' % (self.db_name, self.disp_names)

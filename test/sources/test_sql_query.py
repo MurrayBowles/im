@@ -2,11 +2,13 @@
 
 import pytest
 
+import jsonpickle
 from sql_query import SqlQuery
 from sql_util import JoinState
 
 from tbl_desc import TblDesc
 import tbl_descs
+
 TblDesc.complete_tbl_descs()
 
 def test_queries():
@@ -15,6 +17,7 @@ def test_queries():
         sql = str(q)
         if sql != exp_sql:
             assert sql == exp_sql
+        # SqlQueries are not saved/restored
 
     td = TblDesc.lookup_tbl_desc('DbFolder')
     check(SqlQuery.from_names(td, 'count'),

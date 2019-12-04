@@ -286,6 +286,8 @@ class TblReportTP(TblTP):
     def on_push_item_select2(self, event, row_idx, tab_idx, pos, cell_item: CellItem):
         add_tps = self.notebook.tab_panel_stacks[tab_idx]
         new_tps = add_tps.relative_stack(pos)
+        # TODO: other cases: displaying set(enum) in a popup
+        # TODO: clean up
         if isinstance(cell_item.cd_path[0], LinkColDesc):
             # going towards ancestors, or maybe sideways
             td = self.tbl_query.tbl_desc
@@ -296,10 +298,8 @@ class TblReportTP(TblTP):
                 r = id_tq.get_rows(db.session, skip=row_idx, limit=1)
                 foreign_id = r[0].cols[0]
                 if foreign_id is None:
-                    event.Skip()
                     return
                 td = cd.foreign_td
-                pass
             vc = td.viewed_cols(TblReportTP)  # TODOL defaults
             cds = [td.lookup_col_desc(name) for name in vc]
             id_cd = td.lookup_col_desc('id')
@@ -320,7 +320,6 @@ class TblReportTP(TblTP):
             cds = [tbl_td.lookup_col_desc(name) for name in vc]
             tbl_filter = Filter(('==', children_cd.foreign_cd, id))
             tbl_tq = TblQuery(tbl_td, RowDesc(cds), filter=tbl_filter)
-            pass
         add_tps = self.notebook.tab_panel_stacks[tab_idx]
         new_tps = add_tps.relative_stack(pos)
         TblReportTP(new_tps, tbl_tq)

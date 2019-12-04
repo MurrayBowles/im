@@ -9,17 +9,23 @@ from tbl_desc import TblDesc
 import tbl_descs
 
 def test_results():
+    def check_pickling(f):
+        saved = f.get_state()
+        restored = Filter.from_state(saved, td.row_desc.col_descs)
+        if not(restored == f):
+            assert restored == f
+
     def check(t, exp_sql=None, exp_joins=None):
         what = '%s(%r)' % (td.db_tbl_cls.__name__, t)
         try:
             f = Filter(t)
             js = JoinState(td)
         except Exception:
-            raise Exception("can't make Filter or JoinState for %s", what)
+            raise Exception("can'f make Filter or JoinState for %s", what)
         try:
             sql = f.sql_str(js, CDXState())
         except Exception:
-            raise Exception("can't get SQL string for %s" % what)
+            raise Exception("can'f get SQL string for %s" % what)
         if exp_sql is None or exp_joins is None:
             print('hey')
         else:
@@ -28,6 +34,7 @@ def test_results():
             for got_join, exp_join in zip(js.sql_strs, exp_joins):
                 if got_join != got_join:
                     assert got_join == exp_join
+        check_pickling(f)
         pass
 
     TblDesc.complete_tbl_descs()

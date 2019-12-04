@@ -21,13 +21,8 @@ def test_pickle():
     original.set_filter(filter)
     saved = jsonpickle.encode(original)
     restored = jsonpickle.decode(saved)
-    assert restored.tbl_desc == original.tbl_desc
-    assert restored.row_desc.col_descs == original.row_desc.col_descs
-    assert restored.sorter.row_desc.col_descs == original.sorter.row_desc.col_descs
-    for rsc, osc in zip(restored.sorter.cols, original.sorter.cols):
-        assert rsc.col_desc == osc.col_desc
-        assert rsc.descending == osc.descending
-    assert restored.filter.tup == original.filter.tup
+    if not(restored == original):
+        assert restored == original
     pass
 
 def test_access():

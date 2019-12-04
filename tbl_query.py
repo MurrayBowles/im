@@ -15,6 +15,7 @@ from sql_query import SqlQuery
 from sql_util import JoinState
 from tbl_desc import TblDesc
 import tbl_descs
+from util import attrs_eq
 
 
 class TblQuery(object):
@@ -38,6 +39,9 @@ class TblQuery(object):
         return 'TblQuery(%r, %r, %r, %r)' % (
             self.tbl_desc, self.row_desc, self.filter, self.sorter)
 
+    def __eq__(self, other):
+        return attrs_eq(self, other, ['tbl_desc', 'row_desc', 'filter', 'sorter'])
+
     def menu_text(self):
         return self.tbl_desc.menu_text()
 
@@ -56,8 +60,8 @@ class TblQuery(object):
         s = {
             'tbl_cls_name': self.tbl_desc.db_tbl_cls.__name__,
             'row_desc': RowDesc(col_descs),
-            'sorter': self.sorter.get_state(),
-            'filter': self.filter.get_state()
+            'filter': self.filter.get_state(),
+            'sorter': self.sorter.get_state()
         }
         return s
 
@@ -76,8 +80,9 @@ class TblQuery(object):
         else:
             self.row_desc = RowDesc(col_descs)
         col_descs2 = self.row_desc.col_descs + self.tbl_desc.row_desc.col_descs
-        self.sorter = Sorter.from_state(state['sorter'], col_descs2)
         self.filter = Filter.from_state(state['filter'], col_descs2)
+        self.sorter = Sorter.from_state(state['sorter'], col_descs2)
+        self.sql_query = None  # always recalculated
         pass
 
     @classmethod

@@ -38,6 +38,9 @@ class Filter(object):
     def __init__(self, arg):
         self.tup = arg
 
+    def __eq__(self, other):
+        return self.tup == other.tup
+
     def get_state(self):
         def get_tup_state(t):
             l = []

@@ -74,3 +74,10 @@ def find_descendent_class(cls, name):
         if c.__name__ == name:
             return c
     raise ValueError('%s is not a descendent of %s', name, cls.__name__)
+
+class O(object):
+    pass
+
+def attrs_eq(a, b, attr_list):
+    one = O()
+    return all([getattr(a, attr, one) == getattr(b, attr, one) for attr in attr_list])
