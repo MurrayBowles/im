@@ -166,7 +166,6 @@ class TblReportTP(TblTP):
 
     def save(self):
         res = super().save()
-        res['type'] = 'TblReport'
         # TODO: res.col_widths = [...]
         return res
 
@@ -290,8 +289,6 @@ class TblReportTP(TblTP):
         self.PopupMenu(menu)
 
     def on_push_item_select2(self, event, row_idx, tab_idx, pos, cell_item: CellItem):
-        add_tps = self.notebook.tab_panel_stacks[tab_idx]
-        new_tps = add_tps.relative_stack(pos)
         # TODO: other cases: displaying set(enum) in a popup
         # TODO: clean up
         if isinstance(cell_item.cd_path[0], LinkColDesc):

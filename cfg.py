@@ -1,4 +1,4 @@
-""" per-user persistent app data, stored jsonpicked in UserDataDir/im-config """
+""" per-user persistent app event, stored jsonpicked in UserDataDir/im-config """
 
 import copy
 import jsonpickle
@@ -40,7 +40,7 @@ class Cfg(object):
         if config_file is not None:
             config_str = config_file.read()
             try:
-                # restore saved configuration
+                # restore saved_tps configuration
                 c = jsonpickle.decode(config_str)
                 self.gui = c.gui
                 self.ie = c.ie
@@ -56,4 +56,4 @@ class Cfg(object):
         """ used when passing cfg to background threads """
         return copy.deepcopy(self)
 
-cfg = Cfg() # per-user persistent app data singleton
+cfg = Cfg() # per-user persistent app event singleton

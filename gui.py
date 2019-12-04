@@ -4,8 +4,8 @@ import copy
 import logging
 from typing import Any, List, Tuple
 import wx
-import wx.aui as aui
-#import wx.lib.agw.aui as aui
+#import wx.aui as aui
+import wx.lib.agw.aui as aui
 from wx.lib.pubsub import pub
 
 from cfg import cfg
@@ -75,13 +75,9 @@ class GuiTop(wx.Frame):
         panel = self.panel = wx.Panel(self, -1)
 
         # notebook
-        notebook = self.notebook = TabbedNotebook(panel, style=aui.AUI_NB_CLOSE_ON_ALL_TABS)
-
-        tps = TabPanelStack(notebook, 0)
-        empty_tp = EmptyTP(tps)
+        notebook = self.notebook = TabbedNotebook(panel)
 
         notebook.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
-        notebook.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_close)
 
         sizer = wx.BoxSizer()
         sizer.Add(notebook, 1, wx.EXPAND)
@@ -116,7 +112,7 @@ class GuiTop(wx.Frame):
             self.Bind(wx.EVT_MENU, lll(c[1]), item)
 
     def on_tab_right_click(self, data):
-        # data.Selection is the tab col_idx
+        # event.Selection is the tab col_idx
 
         def add_item(tab_idx, x, text, fn):
             item = menu.Append(-1, text)
@@ -136,7 +132,7 @@ class GuiTop(wx.Frame):
         tab_panel_stack = self.notebook.tab_panel_stacks[tab_idx]
         menu = wx.Menu()
         if tab_idx == len(self.notebook.tab_panel_stacks) - 1:
-            # the right tab is the special '+' tab
+            # the right tab is the special '+' tab -- only insert to the left
             self._add_push_menu_items(menu, tab_idx, True, self.on_push_item_select)
             pass
         else:
@@ -180,10 +176,6 @@ class GuiTop(wx.Frame):
 
     def on_std_tab_push_item_select(self, event, tab_idx, pos, obj):
         pass
-
-    def on_tab_close(self, data):
-        # data.Selection is the tab col_idx
-        self.notebook.remove_tab(data.Selection)
 
     def on_exit(self, event):
         self.Close()

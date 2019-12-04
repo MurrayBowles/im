@@ -80,8 +80,10 @@ class TblQuery(object):
         else:
             self.row_desc = RowDesc(col_descs)
         col_descs2 = self.row_desc.col_descs + self.tbl_desc.row_desc.col_descs
-        self.filter = Filter.from_state(state['filter'], col_descs2)
-        self.sorter = Sorter.from_state(state['sorter'], col_descs2)
+        self.filter = (
+            None if state['filter'] is None else Filter.from_state(state['filter'], col_descs2))
+        self.sorter = (
+            None if state['sorter'] is None else Sorter.from_state(state['sorter'], col_descs2))
         self.sql_query = None  # always recalculated
         pass
 

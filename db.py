@@ -259,7 +259,7 @@ class DbCollection(Item):
 
 
 class ImageData(Base):
-    ''' data extracted from a FS image
+    ''' event extracted from a FS image
 
         At the point a DbImage is created for an FsImage, FsImage.data_id is nulled
         and moved to DbImage.data_id. If there are multiple FsImages for a DbImage,

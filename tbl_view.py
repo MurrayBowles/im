@@ -19,8 +19,18 @@ class TblTP(TabPanel):
 
     def save(self):
         return {
+            'subclass': self.__class__.__name__,
             'tbl_query': jsonpickle.encode(self.tbl_query)
         }
+
+    @classmethod
+    def restore(cls, tps, saved_panel):
+        saved_tbl_query = saved_panel['tbl_query']
+        try:
+            tbl_query = jsonpickle.decode(saved_tbl_query)
+        except Exception as ed:
+            pass
+        cls(parent=tps, tbl_query=tbl_query)
 
     @classmethod
     def cls_text(cls):

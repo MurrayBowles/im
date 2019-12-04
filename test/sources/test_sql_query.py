@@ -17,7 +17,7 @@ def test_queries():
         sql = str(q)
         if sql != exp_sql:
             assert sql == exp_sql
-        # SqlQueries are not saved/restored
+        # SqlQueries are not saved_tps/restored
 
     td = TblDesc.lookup_tbl_desc('DbFolder')
     check(SqlQuery.from_names(td, 'count'),

@@ -3,39 +3,66 @@
 from typing import Any, List, Tuple
 
 import wx
-import wx.aui as aui
-#import wx.lib.agw.aui as aui
+#import wx.aui as aui
+import wx.lib.agw.aui as aui
 
 from cfg import cfg
+import util
 
 
 class TabbedNotebook(aui.AuiNotebook):
     tab_panel_stacks: List[Any]  # List[TabPanelStack]
+    selected_tab: int
 
     def __init__(self, *args, **kwargs):
+        kwargs['agwStyle'] = aui.AUI_NB_CLOSE_ON_ALL_TABS
         super().__init__(*args, **kwargs)
         self.tab_panel_stacks = []
+        self.selected_tab = -1
         self.restore()
+        self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGED, self.on_tab_selected)
+        self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.on_tab_closed)
 
     def save(self):
         cfg.gui.notebook = {
-            'tab_panel_stacks': [tps.save() for tps in self.tab_panel_stacks]
+            'tab_panel_stacks': [tps.save() for tps in self.tab_panel_stacks],
+            'selected_tab': self.selected_tab
         }
         cfg.save()
         pass
 
     def restore(self):
         if getattr(cfg.gui, 'notebook', None) is not None:
-            pass
+            saved_notebook = cfg.gui.notebook
+            cfg.gui.notebook = None
+
+            saved_stacks = saved_notebook.get('tab_panel_stacks', [])
+            self.selected_tab = saved_notebook.get('selected_tab', -1)
+            for tab_idx, saved_tps in enumerate(saved_stacks):
+                TabPanelStack.restore(self, tab_idx, saved_tps)
+        else:
+            tps = TabPanelStack(self, 0)
+            empty_tp = util.find_descendent_class(TabPanel, 'EmptyTP')(tps)
+        if self.selected_tab != -1:
+            self.SetSelection(self.selected_tab, True)
+        self.SetCloseButton(len(self.tab_panel_stacks) - 1, False)
 
     def tab_idx(self, tab_panel_stack):
         return self.tab_panel_stacks.index(tab_panel_stack)
 
+    def on_tab_closed(self, event):
+        tab_idx = event.Selection
+        self.tab_panel_stacks.pop(tab_idx)
+        cfg.gui.notebook = self.save()
+
     def remove_tab(self, tab_idx):
         self.RemovePage(tab_idx)
         self.DeletePage(tab_idx)
-        self.tab_panel_stacks.pop(tab_idx)
-        cfg.gui.notebook = self.save()
+
+    def on_tab_selected(self, event):
+        tab_idx = event.Selection
+        self.selected_tab = tab_idx
+        self.save()
 
 
 class TabPanel(wx.Panel):
@@ -46,7 +73,16 @@ class TabPanel(wx.Panel):
         # at the end of initialization, the subclass should call self.push()
 
     def save(self):
-        raise Exception("TabPanel subclass didn't implement save()")
+        return {'subclass': self.__class__.__name__}
+
+    @classmethod
+    def restore(cls, tps, saved_panel):
+        cls(tps)
+
+    @classmethod
+    def restore_factory(cls, tps, saved_panel):
+        subclass = util.find_descendent_class(cls, saved_panel['subclass'])
+        subclass.restore(tps, saved_panel)
 
     @classmethod
     def cls_text(cls):  # returns text to display in the tab
@@ -89,6 +125,13 @@ class TabPanelStack(wx.Panel):
             'stk': [tp.save() for tp in self.stk],
             'stk_idx': self.stk_idx
         }
+
+    @classmethod
+    def restore(cls, notebook, tab_idx, saved_tps):
+        tps = cls(notebook, tab_idx)
+        for saved_panel in saved_tps['stk']:
+            TabPanel.restore_factory(tps, saved_panel)
+        tps.goto(saved_tps['stk_idx'])
 
     def relative_stack(self, pos):
         # pos: -1 add a tab to the left, +1 add a tab to the right; 0 return my_panel's tab

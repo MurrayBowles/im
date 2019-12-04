@@ -41,8 +41,8 @@ tag_source_data = [
         ('local-unique',)
     ])
 ]
-# source-data: ( source-description-string, mapping-data-list )
-# mapping-data: ( state, [ db-tag-state ] )
+# source-event: ( source-description-string, mapping-event-list )
+# mapping-event: ( state, [ db-tag-state ] )
 
 def test_tag_mappings():
     session = open_mem_db()

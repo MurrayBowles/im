@@ -1,4 +1,4 @@
-''' EXIF data extracted from images '''
+''' EXIF event extracted from images '''
 
 from typing import Tuple
 

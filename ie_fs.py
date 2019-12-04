@@ -24,7 +24,7 @@ class IEMsgType(Enum):
     # followed by 0 or more formatting characters
     #   p   pathname string
     #   s   string
-    # based on the number of formatting characters, IEMag.data is
+    # based on the number of formatting characters, IEMag.event is
     #   0   None
     #   1   a single object
     #   N   a tuple with N elements
@@ -295,7 +295,7 @@ def _get_exiftool_json(argv):
 ie_image_set0 = None
 
 def get_ie_image_exifs(ie_image_set, pub):
-    """ Get exif data for all the images in <ie_image_set>.
+    """ Get exif event for all the images in <ie_image_set>.
 
         deletes images from the set as their exifs are processed
     """

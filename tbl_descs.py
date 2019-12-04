@@ -45,7 +45,7 @@ DbImage_td = ItemTblDesc(db.DbImage, 'DB Image', [
     ShortcutCD('folder_date', 'Folder Date', path_str='folder.date'),
     ShortcutCD('folder_name', 'Folder Name', path_str='folder.name'),
     IdCD('data_id', 'Data ID'),
-    MixinCD('data', 'Data', path_str='data_id->ImageData')
+    MixinCD('event', 'Data', path_str='data_id->ImageData')
 ], {
     TblReportTP: ['folder_date', 'folder_name', 'name']
 }, '-folder_date,+folder_name,+name')
@@ -76,7 +76,7 @@ FsImage_td = ItemTblDesc(db.FsImage, 'FS Image', [
     ShortcutCD('folder_db_name', 'Folder DB Name', path_str='folder.db_name'),
     ShortcutCD('folder_name', 'Folder FS Name', path_str='folder.name'),
     IdCD('data_id', 'Data ID'),
-    MixinCD('data', 'Data', path_str='data_id->ImageData'),
+    MixinCD('event', 'Data', path_str='data_id->ImageData'),
     IdCD('db_image_id', 'DB Image ID'),
     ParentCD('db_image', 'DB Image', path_str='db_image_id->DbImage')
 ], {

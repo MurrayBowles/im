@@ -66,7 +66,7 @@ def force_list(singleton_or_list):
 
 def all_descendent_classes(cls):
     return set(cls.__subclasses__()).union(
-        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+        [s for c in cls.__subclasses__() for s in all_descendent_classes(c)])
 
 def find_descendent_class(cls, name):
     adc = all_descendent_classes(cls)

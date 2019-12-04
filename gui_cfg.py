@@ -1,4 +1,4 @@
-""" persistent data for GUI: cfg.gui """
+""" persistent event for GUI: cfg.gui """
 
 import wx
 

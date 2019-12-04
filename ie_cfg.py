@@ -1,4 +1,4 @@
-""" persistent data for Import/Export: cfg.ie """
+""" persistent event for Import/Export: cfg.ie """
 
 from enum import Enum
 # import wx
@@ -34,7 +34,7 @@ class IECfg(object):
         self.img_source_id = -1
         self.clear_paths()
         self.import_folder_tags = True
-        self.import_image_tags = True   # also governs import of EXIF data
+        self.import_image_tags = True   # also governs import of EXIF event
         self.export_image_tags = True
         self.import_thumbnails = False
         self.reports = []

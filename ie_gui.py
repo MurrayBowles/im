@@ -53,9 +53,6 @@ class ImportExportTP(TabPanel):
         self.Fit()
         self.push()  # push onto tab stack
 
-    def save(self):
-        return {'type': 'IE'}
-
     @classmethod
     def cls_text(cls):
         return 'Import/Export'

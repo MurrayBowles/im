@@ -41,7 +41,7 @@ class IEWorkItem(object):
         self.existing_images = []
             # list of existing (db.FsImage, IEImage, is_new)
         self.get_exif = set()
-            # set of ie_images to get the exif data (e.g. tags) for
+            # set of ie_images to get the exif event (e.g. tags) for
         self.get_thumbnail = set()
             # set of IeImages to get/update the thumbnail for
 

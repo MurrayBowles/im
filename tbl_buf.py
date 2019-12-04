@@ -12,7 +12,7 @@ from tbl_query import TblQuery
 
 @dataclass
 class BlkBuf(object):
-    data_row_desc: RowDesc  # type of data rows
+    data_row_desc: RowDesc  # type of event rows
     key_row_desc: RowDesc   # type of first/last_key
     first_key: RowBuf       # key of first row
     last_key: RowBuf        # key of last row
