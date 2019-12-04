@@ -164,6 +164,12 @@ class TblReportTP(TblTP):
         self.SetSizer(sizer)
         self.push()
 
+    def save(self):
+        res = super().save()
+        res['type'] = 'TblReport'
+        # TODO: res.col_widths = [...]
+        return res
+
     def _get_col_idx(self, event):
         pos = event.GetPoint()  # (x, y)
         x = pos[0]

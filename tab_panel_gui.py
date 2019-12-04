@@ -6,6 +6,8 @@ import wx
 import wx.aui as aui
 #import wx.lib.agw.aui as aui
 
+from cfg import cfg
+
 
 class TabbedNotebook(aui.AuiNotebook):
     tab_panel_stacks: List[Any]  # List[TabPanelStack]
@@ -13,6 +15,18 @@ class TabbedNotebook(aui.AuiNotebook):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tab_panel_stacks = []
+        self.restore()
+
+    def save(self):
+        cfg.gui.notebook = {
+            'tab_panel_stacks': [tps.save() for tps in self.tab_panel_stacks]
+        }
+        cfg.save()
+        pass
+
+    def restore(self):
+        if getattr(cfg.gui, 'notebook', None) is not None:
+            pass
 
     def tab_idx(self, tab_panel_stack):
         return self.tab_panel_stacks.index(tab_panel_stack)
@@ -21,6 +35,7 @@ class TabbedNotebook(aui.AuiNotebook):
         self.RemovePage(tab_idx)
         self.DeletePage(tab_idx)
         self.tab_panel_stacks.pop(tab_idx)
+        cfg.gui.notebook = self.save()
 
 
 class TabPanel(wx.Panel):
@@ -29,6 +44,9 @@ class TabPanel(wx.Panel):
         super().__init__(tab_panel_stack)
         self.tab_panel_stack = tab_panel_stack
         # at the end of initialization, the subclass should call self.push()
+
+    def save(self):
+        raise Exception("TabPanel subclass didn't implement save()")
 
     @classmethod
     def cls_text(cls):  # returns text to display in the tab
@@ -65,6 +83,12 @@ class TabPanelStack(wx.Panel):
         self.notebook.tab_panel_stacks.insert(tab_idx, self)
         self.notebook.InsertPage(tab_idx, self, '')
         pass
+
+    def save(self):
+        return {
+            'stk': [tp.save() for tp in self.stk],
+            'stk_idx': self.stk_idx
+        }
 
     def relative_stack(self, pos):
         # pos: -1 add a tab to the left, +1 add a tab to the right; 0 return my_panel's tab
@@ -122,7 +146,7 @@ class TabPanelStack(wx.Panel):
             # TODO panel.destroy or something?
             self.sizer.Hide(x)
             x -= 1
-        pass
+        self.notebook.save()
 
     def push(self, panel: TabPanel):
         tab_idx = self.tab_idx()
@@ -134,7 +158,7 @@ class TabPanelStack(wx.Panel):
         self.stk_idx += 1
         self._show_cur_panel()
         self._mystery_stuff()
-        pass
+        self.notebook.save()
 
     def goto(self, stk_idx):
         tab_idx = self.tab_idx()
@@ -142,9 +166,8 @@ class TabPanelStack(wx.Panel):
         self.stk_idx = stk_idx
         self._show_cur_panel()
         self._mystery_stuff()
-        pass
+        self.notebook.save()
 
     def destroy(self):
         self._hide_cur_panel()
         self._delete_panels()
-        pass

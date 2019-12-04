@@ -60,8 +60,8 @@ class TblQuery(object):
         s = {
             'tbl_cls_name': self.tbl_desc.db_tbl_cls.__name__,
             'row_desc': RowDesc(col_descs),
-            'filter': self.filter.get_state(),
-            'sorter': self.sorter.get_state()
+            'filter': None if self.filter is None else self.filter.get_state(),
+            'sorter': None if self.filter is None else self.sorter.get_state()
         }
         return s
 

@@ -56,4 +56,4 @@ class Cfg(object):
         """ used when passing cfg to background threads """
         return copy.deepcopy(self)
 
-cfg = Cfg() # per-user persistent app data
+cfg = Cfg() # per-user persistent app data singleton

@@ -12,6 +12,9 @@ class EmptyTP(TabPanel):
         self.SetSizer(sizer)
         self.push()
 
+    def save(self):
+        return {'type': 'Empty'}
+
     @classmethod
     def cls_text(cls):
         return '+'

@@ -1,5 +1,6 @@
 """ database table viewers """
 
+import jsonpickle
 import wx
 
 from tab_panel_gui import TabPanel, TabPanelStack
@@ -15,6 +16,11 @@ class TblTP(TabPanel):
         self.tps = parent
         self.notebook = parent.notebook
         # subclasses end initialization by calling self.push()
+
+    def save(self):
+        return {
+            'tbl_query': jsonpickle.encode(self.tbl_query)
+        }
 
     @classmethod
     def cls_text(cls):
